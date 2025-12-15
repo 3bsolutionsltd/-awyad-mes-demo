@@ -388,7 +388,6 @@ export function renderDemoGuide() {
                         <div class="card-body text-center">
                             <h5><i class="bi bi-envelope me-2"></i>Questions or Feedback?</h5>
                             <p>This is a demonstration system. For production implementation, customization, or technical questions, please contact the development team.</p>
-                            <p class="mb-0"><strong>Repository:</strong> <a href="https://github.com/3bsolutionsltd/-awyad-mes-demo" target="_blank">github.com/3bsolutionsltd/-awyad-mes-demo</a></p>
                         </div>
                     </div>
 
