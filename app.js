@@ -6,6 +6,7 @@ import { renderIndicatorTracking } from './renderIndicatorTracking.js';
 import { renderActivityTracking } from './renderActivityTracking.js';
 import { renderCaseManagement } from './renderCaseManagement.js';
 import { renderMonthlyTracking } from './renderMonthlyTracking.js';
+import { renderDemoGuide } from './renderDemoGuide.js';
 import { 
     exportActivityTracking, 
     exportIndicatorTracking, 
@@ -23,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const navCaseManagement = document.getElementById('nav-case-management');
     const navMonthlyTracking = document.getElementById('nav-monthly-tracking');
     const navForm = document.getElementById('nav-new-activity-report');
+    const navDemoGuide = document.getElementById('nav-demo-guide');
     
     // Debug: Check if all elements exist
     if (!navCaseManagement) {
@@ -97,8 +99,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 populateFormDropdowns();
                 // Add beneficiaries calculator
                 addBeneficiariesCalculator();
-                // Add nationality calculator
                 addNationalityCalculator();
+                break;
+            case 'demo-guide':
+                contentArea.innerHTML = renderDemoGuide();
+                navDemoGuide.classList.add('active');
                 break;
             default:
                 contentArea.innerHTML = '<div class="alert alert-warning">Page not found</div>';
@@ -265,6 +270,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Load dashboard by default
-    navigateTo('dashboard');
+    if (navDemoGuide) {
+        navDemoGuide.addEventListener('click', (e) => {
+            e.preventDefault();
+            navigateTo('demo-guide');
+        });
+    }
+    
+    // Load demo guide by default
+    navigateTo('demo-guide');
 });
