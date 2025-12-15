@@ -17,7 +17,7 @@ This is a comprehensive Monitoring, Evaluation, and Learning (MES) system demo f
    ```
 
 ### Live Demo
-🌐 **[View Live Demo](#)** *(Add your deployment URL here)*
+🌐 **[View Live Demo](https://3bsolutionsltd.github.io/-awyad-mes-demo/)**
 
 ## System Features
 
@@ -277,5 +277,6 @@ For questions, feedback, or customization requests, please contact:
 ---
 
 **Note**: This is a demonstration system. For production deployment, consider adding authentication, database integration, and enhanced security features.
-#   - a w y a d - m e s - d e m o  
+#   - a w y a d - m e s - d e m o 
+ 
  
