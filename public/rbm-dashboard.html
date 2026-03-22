@@ -252,12 +252,17 @@
     <!-- Thematic Dashboard pane ──────────────────────────── -->
     <div class="tab-pane fade" id="tab-thematic">
       <div class="container-fluid py-4">
-        <div class="alert alert-info alert-sm py-2 px-3 small mb-3" role="note">
-          <i class="bi bi-info-circle me-1"></i>
-          <strong>Thematic Areas</strong> are organizational-level strategic groupings that span multiple projects.
-          For project-level breakdown, see the <strong>Project Dashboard</strong> tab.
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+          <div class="alert alert-info alert-sm py-2 px-3 small mb-0 flex-grow-1" role="note">
+            <i class="bi bi-info-circle me-1"></i>
+            <strong>Thematic Areas</strong> are organizational-level strategic groupings spanning multiple projects.
+            For project-level breakdown, see the <strong>Project Dashboard</strong> tab.
+          </div>
+          <button class="btn btn-outline-secondary btn-sm no-print" id="thematicRefreshBtn" title="Reload thematic data">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+          </button>
         </div>
-        <div class="row g-3" id="thematicCardsRow">
+        <div class="row g-0" id="thematicCardsRow">
           <div class="col-12 text-center text-muted py-5">
             <i class="bi bi-layers display-4 d-block mb-2 opacity-25"></i>
             <span class="small">Click this tab to load thematic areas.</span>

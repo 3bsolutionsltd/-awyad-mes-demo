@@ -280,31 +280,155 @@
 
   /* ── Thematic Dashboard ──────────────────────────────────── */
   let _thematicLoaded = false;
-  async function loadThematicDashboard() {
-    if (_thematicLoaded) return;
+
+  async function loadThematicDashboard(forceReload) {
+    if (_thematicLoaded && !forceReload) return;
     const container = document.getElementById('thematicCardsRow');
     if (!container) return;
-    container.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Loading…</div>';
+    container.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Loading thematic performance data…</div>';
     try {
-      const res = await fetch('/api/v1/thematic-areas', { headers: authHeaders() });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const raw = await res.json();
-      const areas = Array.isArray(raw) ? raw : (raw?.data || raw?.thematicAreas || []);
+      // Fetch thematic areas and all org indicators in parallel
+      const [taRes, indRes] = await Promise.all([
+        fetch('/api/v1/thematic-areas', { headers: authHeaders() }),
+        fetch('/api/v1/rbm/organizational-indicators', { headers: authHeaders() }),
+      ]);
+      if (!taRes.ok) throw new Error(`Thematic areas: HTTP ${taRes.status}`);
+      const taRaw  = await taRes.json();
+      const indRaw = indRes.ok ? await indRes.json() : { data: [] };
+
+      const areas   = Array.isArray(taRaw)  ? taRaw  : (taRaw?.data  || taRaw?.thematicAreas || []);
+      const allInds = Array.isArray(indRaw) ? indRaw : (indRaw?.data || []);
+
       if (!areas.length) {
-        container.innerHTML = '<div class="col-12 text-muted text-center py-4">No thematic areas found.</div>';
+        container.innerHTML = '<div class="col-12 text-muted text-center py-4"><i class="bi bi-layers display-4 d-block mb-2 opacity-25"></i>No thematic areas configured.</div>';
         _thematicLoaded = true;
         return;
       }
-      container.innerHTML = areas.map(area => `
-        <div class="col-sm-6 col-lg-4 col-xl-3">
-          <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body">
-              <h6 class="card-title fw-semibold">${escHtml(area.name)}</h6>
-              ${area.code ? `<div class="text-muted" style="font-size:.7rem">Code: ${escHtml(area.code)}</div>` : ''}
-              <p class="card-text text-muted small mt-1 mb-0">${escHtml(area.description || '')}</p>
+
+      // Group indicators by thematic_area_id
+      const indByArea = {};
+      allInds.forEach(ind => {
+        const taId = ind.thematic_area_id;
+        if (!taId) return;
+        if (!indByArea[taId]) indByArea[taId] = [];
+        indByArea[taId].push(ind);
+      });
+
+      // Pull pre-computed achievement rates from state.indicators (loaded by AWYAD tab)
+      const achievementById = {};
+      state.indicators.forEach(ind => {
+        if (ind.achievementRate != null) achievementById[ind.id] = ind.achievementRate;
+      });
+
+      function levelBadgeThematic(level) {
+        const map = { impact: 'bg-danger', outcome: 'bg-warning text-dark', output: 'bg-info text-dark' };
+        return `<span class="badge ${map[level] || 'bg-secondary'}">${level || '?'}</span>`;
+      }
+
+      container.innerHTML = areas.map((area, aIdx) => {
+        const inds  = indByArea[area.id] || [];
+        const total = inds.length;
+
+        // Achievement status breakdown
+        let onTrack = 0, atRisk = 0, offTrack = 0, noData = 0;
+        inds.forEach(ind => {
+          const r = achievementById[ind.id];
+          if (r == null) noData++;
+          else if (r >= 80) onTrack++;
+          else if (r >= 50) atRisk++;
+          else offTrack++;
+        });
+
+        // Level distribution
+        const lvl = { impact: 0, outcome: 0, output: 0 };
+        inds.forEach(ind => { if (ind.result_level in lvl) lvl[ind.result_level]++; });
+
+        // Overall achievement (average of known rates)
+        const knownRates = inds.map(ind => achievementById[ind.id]).filter(r => r != null);
+        const avgAchievement = knownRates.length
+          ? knownRates.reduce((s, r) => s + r, 0) / knownRates.length
+          : null;
+
+        const statusBadges = [
+          onTrack  ? `<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>${onTrack} On Track</span>` : '',
+          atRisk   ? `<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>${atRisk} At Risk</span>` : '',
+          offTrack ? `<span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>${offTrack} Off Track</span>` : '',
+          noData   ? `<span class="badge bg-secondary">${noData} No Data</span>` : '',
+        ].filter(Boolean).join(' ');
+
+        const avgHtml = avgAchievement != null
+          ? (() => {
+              const pct = Math.min(avgAchievement, 100);
+              const cls = avgAchievement >= 80 ? 'bg-on-track' : avgAchievement >= 50 ? 'bg-at-risk' : 'bg-off-track';
+              return `<div class="d-flex align-items-center gap-2 mt-2">
+                <small class="text-muted" style="white-space:nowrap">Avg achievement</small>
+                <div class="progress flex-grow-1" style="height:8px">
+                  <div class="progress-bar ${cls}" style="width:${pct}%"></div>
+                </div>
+                <small class="fw-semibold" style="white-space:nowrap">${avgAchievement.toFixed(1)}%</small>
+              </div>`;
+            })()
+          : '';
+
+        const indRows = total > 0
+          ? inds.map(ind => {
+              const rate = achievementById[ind.id];
+              const pct  = rate != null ? Math.min(rate, 100) : null;
+              const barCls = pct == null ? '' : pct >= 80 ? 'bg-success' : pct >= 50 ? 'bg-warning' : 'bg-danger';
+              return `<tr>
+                <td class="small">${escHtml(ind.name || '—')}</td>
+                <td>${levelBadgeThematic(ind.result_level)}</td>
+                <td class="text-end small">${formatValue(ind.baseline_value, ind.data_type, ind.unit_of_measure)}</td>
+                <td class="text-end small">${formatValue(ind.target_value, ind.data_type, ind.unit_of_measure)}</td>
+                <td style="min-width:110px">
+                  ${pct != null
+                    ? `<div class="progress mb-1" style="height:5px"><div class="progress-bar ${barCls}" style="width:${pct}%"></div></div>
+                       <small class="text-muted">${rate.toFixed(1)}%</small>`
+                    : '<small class="text-muted">No data yet</small>'}
+                </td>
+              </tr>`;
+            }).join('')
+          : `<tr><td colspan="5" class="text-center text-muted small py-2">No indicators linked to this area.</td></tr>`;
+
+        return `<div class="col-12">
+          <div class="card mb-3 shadow-sm">
+            <div class="card-header d-flex align-items-center justify-content-between py-2 gap-2 flex-wrap"
+                 role="button" data-bs-toggle="collapse" data-bs-target="#thematicCollapse${aIdx}"
+                 aria-expanded="true" style="cursor:pointer">
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <h6 class="mb-0 fw-bold text-primary"><i class="bi bi-layers me-1"></i>${escHtml(area.name)}</h6>
+                ${area.code ? `<span class="badge bg-light text-dark border">${escHtml(area.code)}</span>` : ''}
+                <span class="badge bg-primary">${total} indicator${total !== 1 ? 's' : ''}</span>
+              </div>
+              <div class="d-flex gap-1 flex-wrap align-items-center">
+                ${statusBadges}
+                <i class="bi bi-chevron-down text-muted ms-2"></i>
+              </div>
+            </div>
+            <div class="collapse show" id="thematicCollapse${aIdx}">
+              ${area.description ? `<div class="px-3 py-2 border-bottom text-muted small">${escHtml(area.description)}</div>` : ''}
+              ${total > 0 ? `
+              <div class="px-3 py-2 bg-light border-bottom d-flex gap-3 flex-wrap small align-items-center">
+                ${lvl.impact  ? `<span>${levelBadgeThematic('impact')} ${lvl.impact} Impact</span>` : ''}
+                ${lvl.outcome ? `<span>${levelBadgeThematic('outcome')} ${lvl.outcome} Outcome</span>` : ''}
+                ${lvl.output  ? `<span>${levelBadgeThematic('output')} ${lvl.output} Output</span>` : ''}
+                ${avgHtml ? `<div class="flex-grow-1">${avgHtml}</div>` : ''}
+              </div>
+              <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                  <thead class="table-light"><tr>
+                    <th>Indicator</th><th>Level</th>
+                    <th class="text-end">Baseline</th><th class="text-end">Target</th>
+                    <th style="min-width:120px">Achievement</th>
+                  </tr></thead>
+                  <tbody>${indRows}</tbody>
+                </table>
+              </div>` : '<div class="card-body text-muted small py-3 text-center">No indicators configured for this area.</div>'}
             </div>
           </div>
-        </div>`).join('');
+        </div>`;
+      }).join('');
+
       _thematicLoaded = true;
     } catch (e) {
       container.innerHTML = `<div class="col-12"><div class="alert alert-warning small"><i class="bi bi-exclamation-triangle me-1"></i>${escHtml(e.message)}</div></div>`;
@@ -686,6 +810,15 @@
         if (target === '#tab-project')  loadProjectOptions();
       });
     });
+
+    // Thematic refresh button
+    const thematicRefreshBtn = document.getElementById('thematicRefreshBtn');
+    if (thematicRefreshBtn) {
+      thematicRefreshBtn.addEventListener('click', () => {
+        _thematicLoaded = false;
+        loadThematicDashboard(true);
+      });
+    }
 
     // Populate user name
     const raw = localStorage.getItem('awyad_user') || sessionStorage.getItem('awyad_user');
