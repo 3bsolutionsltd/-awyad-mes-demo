@@ -50,6 +50,33 @@
       : '<span class="badge bg-secondary-subtle text-secondary">Inactive</span>';
   }
 
+  /* Format baseline/target values using data_type for correct unit display */
+  function formatVal(val, dataType, unit) {
+    if (val == null) return '—';
+    const n = Number(val);
+    if (dataType === 'percentage') return n.toLocaleString(undefined, { maximumFractionDigits: 2 }) + '%';
+    if (dataType === 'ratio')      return n.toFixed(4);
+    const suffix = unit ? ` ${escHtml(unit)}` : '';
+    return n.toLocaleString() + suffix;
+  }
+
+  /* Auto-sync unit field when data type changes: lock to '%' for percentage */
+  function syncUnitToDataType() {
+    const dt  = document.getElementById('fDataType').value;
+    const inp = document.getElementById('fUnit');
+    if (dt === 'percentage') {
+      inp.value    = '%';
+      inp.readOnly = true;
+      inp.classList.add('bg-light', 'text-muted');
+      inp.title = 'Unit is automatically set to % for percentage indicators';
+    } else {
+      if (inp.readOnly) inp.value = ''; // clear auto-set value
+      inp.readOnly = false;
+      inp.classList.remove('bg-light', 'text-muted');
+      inp.title = '';
+    }
+  }
+
   /* ── State ────────────────────────────────────────────────── */
   const state = {
     all: [], filtered: [], page: 1, pageSize: 20,
@@ -120,9 +147,8 @@
     }
 
     tbody.innerHTML = slice.map(ind => {
-      const baseline = ind.baseline_value != null ? Number(ind.baseline_value).toLocaleString() : '—';
-      const target   = ind.target_value   != null ? Number(ind.target_value).toLocaleString()   : '—';
-      const unit     = ind.unit_of_measure ? ` ${escHtml(ind.unit_of_measure)}` : '';
+      const baseline = formatVal(ind.baseline_value, ind.data_type, ind.unit_of_measure);
+      const target   = formatVal(ind.target_value,   ind.data_type, ind.unit_of_measure);
       return `
         <tr>
           <td>
@@ -133,8 +159,8 @@
           <td>${resultLevelBadge(ind.result_level)}</td>
           <td class="small text-muted">${escHtml(ind.indicator_level || '—')}</td>
           <td>${dataTypeBadge(ind.data_type)}</td>
-          <td class="text-end small">${baseline}${unit}</td>
-          <td class="text-end small">${target}${unit}</td>
+          <td class="text-end small">${baseline}</td>
+          <td class="text-end small">${target}</td>
           <td class="small text-muted">${escHtml(ind.reporting_frequency || '—')}</td>
           <td class="text-center">${statusBadge(ind.is_active)}</td>
           <td class="no-print">
@@ -189,6 +215,11 @@
     document.getElementById('fFrequency').value = 'quarterly';
     document.getElementById('modalError').classList.add('d-none');
     document.querySelectorAll('#indicatorForm .is-invalid').forEach(el => el.classList.remove('is-invalid'));
+    // Reset unit field to editable state (in case it was locked by a previous percentage selection)
+    const fUnit = document.getElementById('fUnit');
+    fUnit.readOnly = false;
+    fUnit.classList.remove('bg-light', 'text-muted');
+    fUnit.title = '';
   }
 
   function populateForm(ind) {
@@ -209,6 +240,9 @@
     document.getElementById('fDataSource').value    = ind.data_source || '';
     document.getElementById('fCollectionMethod').value = ind.collection_method || '';
     document.getElementById('fIsActive').checked   = !!ind.is_active;
+
+    // Sync unit field readonly state to the loaded data_type
+    syncUnitToDataType();
 
     // Disaggregation checkboxes
     const dtypes = Array.isArray(ind.disaggregation_types) ? ind.disaggregation_types :
@@ -377,6 +411,9 @@
     document.getElementById('confirmDeleteBtn').addEventListener('click', doDelete);
 
     wireFilters();
+
+    // Auto-sync unit field when data type is changed
+    document.getElementById('fDataType').addEventListener('change', syncUnitToDataType);
 
     // User name + logout
     const raw = localStorage.getItem('awyad_user') || sessionStorage.getItem('awyad_user');
