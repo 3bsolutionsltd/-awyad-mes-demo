@@ -1,0 +1,27 @@
+LWR Detailed M&E Plan Instructions
+1.       Complete the M&E Matrix: It can be developed within the tab or within a Word document and transferred to the M&E Matrix tab.
+"a.       For detailed instructions on completing the content of the M&E Matrix, please refer to tab c. M&E Matrix Cheat Sheet."
+b.      Enter the objective statements and indicators ONLY in the M&E Matrix. They are automatically linked to the Indicator Tracking Table (ITT) and the Activity Tracking Table (ATT).
+2.       Baseline Table:
+a.       Fill in the Baseline Table after or as the baseline data is collected either by a consultant or the project team.
+3.       Complete the Indicator Tracking Table: See tab i. for further instructions on using the ITT.
+a.       Fill in the Project Name and the Project Year (PY) for the ITT. The blank version of this workbook contains linked ITT and ATT tables for up to a three year project.
+"b.      Fill in the baseline values for each indicator including the date it was collected and the unit of measurement. If the baseline values do not come from a consolidated baseline survey, note in the status column where the values are archived (the document, file, government database, etc). The baseline values are automatically populated in the Year 2 and Year 3 ITTs in the blank workbook. "
+4.       Set indicator targets:
+"a.       Indicator targets should be set for each indicator based upon the details outlined in the project proposal taking into consideration timelines, number of staff, and budget. Start with Life of Project (LOP) targets, then annual targets, then quarterly targets. Targets should be based on the project’s work plan/detailed implementation plan."
+" i.      All targets and actuals should be cumulative. This means that targets and actuals recorded for each quarter reflect what has been targeted or achieved to date. If a given indicator cannot be recorded in a cumulative manner for some reason, include a note in the status column."
+ii.      Values for indicators should be numeric with narrative detail reserved for the Narrative Report.
+"iii.      LOP targets will be included in each ITT on an annual basis. The LOP targets should remain the same throughout, but in each new annual ITT any cumulative data should be transferred."
+iv.      Impact indicators (Outcome and Goal) are often measured at the start of project (baseline) and end of project (endline) and therefore will only require LOP targets. Shade out the reporting periods that do not have targets so that reviewers are clear that no data will be gathered during that period. 
+"b.      The values in the ""Target"" and ""Actual"" columns should be entered as whole numbers, not percentages. This will help to ensure that the numerator and denominator are clearly expressed, which reduces calculation errors."
+"c.       Formulas can be used in Excel so that percentages and other calculations are done automatically, reducing the amount of data that must be entered manually. However, formulas can be tricky and should be double-checked to ensure that the data has been calculated correctly. "
+5.       Using the Indicator Tracking Table: 
+"a.       Actual data reported should be confirmed data that has been collected during the reporting period, not estimates or guesses. If you are confused about what an indicator means or how to enter the data, refer to your project’s M&E Matrix."
+"b.      The ITT should be filled out on a quarterly basis, before starting work on the Project Progress Report."
+"c.       Some indicators will require the roll-up of data from multiple communities, districts, regions, etc. The primary data from each individual source should be kept in a  table on another tab within this file, with the sum linked to the Actual column for that indicator. This will help assist in data verification."
+d.      Make sure to update actual beneficiary numbers in the ITT in each project reporting period. 
+6.       Complete the Activity Tracking Table: The ATT is a complimentary tool to the ITT. It allows activities to be tracked in a summary manner in a separate tab from the indicators so that the progress towards the project indicators in the ITT can be easily read. See tab k. for further instructions on using the ATT.
+a.       List the high level projects activities in the first column as outlined in the project proposal. Make sure that the activities listed under each Output are associated specifically with that Output.
+"b.      Complete the ""targets"" for each activity for each reporting period, year, and LOP based upon the project's detailed implementation plan."
+c.       The ATT should be filled out on a quarterly basis with activities accomplished during the reporting period.
+"d.      For each reporting period, update the status of the activity in column W. It should be updated with ""Not yet started,"" In progress,"" or ""Completed."" If it is completed, list the date completed."

@@ -1,0 +1,605 @@
+/**
+ * Dashboard Styles
+ * Responsive CSS for Strategic and Project Dashboards
+ * 
+ * @author AWYAD MES Team - Stream 6
+ */
+
+/* ==================== GENERAL DASHBOARD STYLES ==================== */
+
+.dashboard-switcher {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 0 !important; /* gap handled by #switcher-area padding */
+}
+
+.dashboard-switcher .card-body {
+    padding: 1rem;
+}
+
+.dashboard-switcher .btn-group .btn {
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+}
+
+/* ==================== STRATEGIC DASHBOARD ==================== */
+
+.strategic-dashboard-new .summary-cards .card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.strategic-dashboard-new .summary-cards .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+/* Strategy Cards */
+.strategy-card {
+    border-left: 5px solid #1a3a5c;
+    transition: all 0.3s ease;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.strategy-card:hover {
+    box-shadow: 0 4px 16px rgba(26, 58, 92, 0.25);
+}
+
+/* Strategy header — dark navy, white text. Hover stays dark (no white flip). */
+.strategy-header {
+    background-color: #1a3a5c;
+    border-bottom: 2px solid #0f2744;
+    padding: 1rem;
+    color: #ffffff;
+}
+
+.strategy-header:hover {
+    background-color: #1f4c75;   /* slightly lighter navy — text stays visible */
+}
+
+.strategy-header .expand-icon {
+    color: #90caff;   /* light blue, readable on dark navy */
+}
+
+.strategy-code {
+    color: #90caff;   /* light blue — visible against dark navy */
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.strategy-name {
+    font-size: 1rem;
+    color: #dce8ff;   /* near-white blue-tint — readable on dark navy */
+}
+
+.strategy-badges .badge {
+    font-size: 0.85rem;
+    padding: 0.35rem 0.65rem;
+}
+
+.strategy-body {
+    padding: 1.5rem;
+    background-color: #162438 !important;   /* dark base — anchors the whole expanded area */
+}
+
+/* Pillar items — medium dark blue. Hover lightens slightly. Text always light. */
+.pillar-item {
+    background-color: #1e3a56 !important;
+    border-radius: 0.4rem;
+    transition: all 0.2s ease;
+    color: #e8f0fe;   /* cascade light text to all children */
+}
+
+.pillar-item:hover {
+    background-color: #255280 !important;   /* lighter blue on hover — text stays visible */
+    box-shadow: 0 2px 10px rgba(100, 160, 230, 0.35);
+}
+
+.pillar-header {
+    padding: 0.5rem 0;
+}
+
+.pillar-icon {
+    color: #63d4f7;   /* bright cyan — readable on dark blue */
+}
+
+.pillar-code {
+    color: #63d4f7;   /* bright cyan — clearly distinguishes the code */
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.pillar-name {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #e8f0fe !important;   /* near-white blue — clearly readable on dark blue */
+}
+
+/* Component items — slightly darker than pillar for depth layering */
+.component-item {
+    border-left: 3px solid #43d9a0;   /* bright mint green border */
+    transition: all 0.2s ease;
+    background-color: #132030 !important;
+    border-radius: 0.3rem;
+}
+
+.component-item:hover {
+    background-color: #1a3148 !important;
+    box-shadow: 0 2px 8px rgba(67, 217, 160, 0.2);
+}
+
+.component-code {
+    color: #43d9a0 !important;   /* bright mint green — visible on dark */
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.component-name {
+    font-size: 0.9rem;
+    color: #c8e6f5 !important;   /* light steel blue — readable on dark */
+}
+
+/* Expand/Collapse Icons */
+.expand-icon,
+.pillar-icon,
+.node-toggle {
+    transition: transform 0.2s ease;
+}
+
+/* ==================== PROJECT DASHBOARD ==================== */
+
+/* Project Header */
+.project-header {
+    background: #ffffff;
+    color: #212529;
+    border-left: 5px solid #0d6efd !important;
+}
+
+.project-header .card-body {
+    padding: 1.5rem 2rem;
+}
+
+.project-header h2 {
+    color: #212529;
+}
+
+.project-header .project-meta {
+    font-size: 0.95rem;
+}
+
+/* Financial Performance */
+.financial-metric h5 {
+    font-size: 1.25rem;
+    margin-bottom: 0;
+}
+
+.financial-metric small {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+}
+
+/* Progress Bars */
+.progress {
+    border-radius: 0.5rem;
+    background-color: #e9ecef;
+}
+
+.progress-bar {
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+/* Tables */
+.table-hover tbody tr {
+    transition: all 0.2s ease;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f8f9fa;
+    cursor: pointer;
+}
+
+/* ==================== TREE VIEW ==================== */
+
+.tree-view-container {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.tree-controls {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10;
+    padding: 0.5rem 0;
+}
+
+.tree-node {
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.tree-node-content {
+    padding: 0.75rem 0.5rem;
+    transition: background-color 0.2s ease;
+}
+
+.tree-node-content:hover {
+    background-color: #f8f9fa;
+}
+
+.node-label {
+    color: #212529;
+    font-size: 0.95rem;
+}
+
+.node-label:hover {
+    color: #0d6efd;
+}
+
+.node-spacer {
+    display: inline-block;
+    width: 24px;
+}
+
+.tree-children {
+    border-left: 2px solid #dee2e6;
+}
+
+/* ==================== COMPONENT CARDS ==================== */
+
+.component-detail-card {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 1050;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.component-detail-card .card-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+
+/* Mobile Phones (< 768px) */
+@media (max-width: 767.98px) {
+    /* Dashboard Switcher */
+    .dashboard-switcher .btn-group {
+        flex-direction: column;
+    }
+    
+    .dashboard-switcher .btn-group .btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* no overrides needed — switcher is no longer sticky */
+    
+    /* Summary Cards */
+    .summary-cards .col-md-2,
+    .summary-cards .col-sm-4,
+    .summary-cards .col-6 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+    
+    .summary-cards .card-body {
+        padding: 0.75rem;
+    }
+    
+    .summary-cards h3 {
+        font-size: 1.5rem;
+    }
+    
+    .summary-cards i {
+        font-size: 2rem !important;
+    }
+    
+    /* Strategy Cards */
+    .strategy-header {
+        padding: 0.75rem;
+    }
+    
+    .strategy-badges {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        margin-top: 0.5rem;
+    }
+    
+    .strategy-badges .badge {
+        margin-bottom: 0.25rem;
+    }
+    
+    /* Pillar Items */
+    .pillar-item {
+        margin-left: 1rem !important;
+        padding: 0.75rem !important;
+    }
+    
+    /* Component Items */
+    .component-item {
+        margin-left: 1rem !important;
+        padding: 0.5rem !important;
+    }
+    
+    /* Project Header */
+    .project-header .card-body {
+        padding: 1rem;
+    }
+    
+    .project-header h2 {
+        font-size: 1.5rem;
+    }
+    
+    .project-header .project-meta span {
+        display: block;
+        margin-bottom: 0.5rem;
+        margin-right: 0 !important;
+    }
+    
+    .project-header .btn {
+        width: 100%;
+        margin-top: 1rem;
+    }
+    
+    /* Financial Metrics */
+    .financial-metric {
+        text-align: center;
+        padding: 0.5rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    /* Tables */
+    .table-responsive {
+        font-size: 0.85rem;
+    }
+    
+    .table td,
+    .table th {
+        padding: 0.5rem;
+    }
+    
+    /* Hide non-essential columns on mobile */
+    .table th:nth-child(n+5),
+    .table td:nth-child(n+5) {
+        display: none;
+    }
+    
+    /* Component Detail Card */
+    .component-detail-card {
+        width: 95%;
+        max-height: 90vh;
+    }
+    
+    /* Tree View */
+    .tree-view-container {
+        max-height: 400px;
+    }
+    
+    /* Collapse sections by default on mobile */
+    .strategy-card .collapse {
+        display: none !important;
+    }
+    
+    .strategy-card .collapse.show {
+        display: block !important;
+    }
+}
+
+/* Tablets (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+    /* Summary Cards - 3 per row */
+    .summary-cards .col-md-2 {
+        flex: 0 0 33.333%;
+        max-width: 33.333%;
+    }
+    
+    /* Dashboard Switcher */
+    .dashboard-switcher .btn-group .btn {
+        font-size: 0.9rem;
+        padding: 0.5rem 0.75rem;
+    }
+    
+    /* Strategy Cards */
+    .strategy-badges .badge {
+        font-size: 0.75rem;
+    }
+    
+    /* Tables */
+    .table {
+        font-size: 0.9rem;
+    }
+    
+    /* Financial Metrics */
+    .financial-metric h5 {
+        font-size: 1.1rem;
+    }
+    
+    /* Tree View */
+    .tree-view-container {
+        max-height: 500px;
+    }
+}
+
+/* Desktop (> 1024px) */
+@media (min-width: 1025px) {
+    
+    /* Larger summary cards */
+    .summary-cards .card:hover {
+        transform: translateY(-8px);
+    }
+    
+    /* Side-by-side layouts */
+    .financial-performance-layout {
+        display: flex;
+        gap: 1rem;
+    }
+    
+    /* Tree View with Details */
+    .hierarchy-layout {
+        display: grid;
+        grid-template-columns: 400px 1fr;
+        gap: 1.5rem;
+    }
+    
+    .tree-view-container {
+        max-height: 700px;
+        position: sticky;
+        top: 150px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .dashboard-switcher,
+    .btn,
+    .expand-icon,
+    .pillar-icon,
+    .node-toggle {
+        display: none !important;
+    }
+    
+    .strategy-card .collapse,
+    .pillar-components {
+        display: block !important;
+    }
+    
+    .card {
+        page-break-inside: avoid;
+    }
+}
+
+/* ==================== ACCESSIBILITY ==================== */
+
+/* Focus Styles */
+.btn:focus,
+.form-select:focus,
+.form-control:focus {
+    outline: 2px solid #0d6efd;
+    outline-offset: 2px;
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+    .strategy-card,
+    .pillar-item,
+    .component-item {
+        border-width: 3px;
+    }
+    
+    .badge {
+        border: 2px solid currentColor;
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Dark Mode (Optional) */
+@media (prefers-color-scheme: dark) {
+    .strategy-header,
+    .pillar-item {
+        background-color: #2d3748;
+        color: #e2e8f0;
+    }
+    
+    .strategy-header:hover,
+    .pillar-item:hover {
+        background-color: #1a202c;
+    }
+    
+    .component-item {
+        background-color: #4a5568 !important;
+        color: #e2e8f0;
+    }
+    
+    .tree-node-content:hover {
+        background-color: #2d3748;
+    }
+}
+
+/* ==================== ANIMATION UTILITIES ==================== */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+.slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+/* ==================== LOADING STATES ==================== */
+
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* ==================== UTILITY CLASSES ==================== */
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.text-inherit {
+    color: inherit !important;
+}
+
+.overflow-hidden {
+    overflow: hidden;
+}
+
+.sticky-top-custom {
+    position: sticky;
+    top: 70px;
+    z-index: 100;
+}

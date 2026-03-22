@@ -1,12 +1,56 @@
 export function renderMonthlyTracking(data) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const currentMonth = new Date().getMonth();
+    const currentYear = window.currentMonthlyYear || new Date().getFullYear();
+    
+    // Extract unique years from all activities and sort them
+    const activityYears = [...new Set(
+        data.activities
+            .map(activity => {
+                const date = activity.date || activity.planned_date;
+                const year = date ? new Date(date).getFullYear() : null;
+                return year;
+            })
+            .filter(year => year && !isNaN(year) && year >= 2020 && year <= 2030) // Valid year range
+    )].sort((a, b) => a - b);
+    
+    console.log('📅 Monthly Tracking - Detected years:', activityYears);
+    console.log('📊 Total activities:', data.activities.length);
+    
+    // If no activities, default to current year
+    const availableYears = activityYears.length > 0 ? activityYears : [new Date().getFullYear()];
+    
+    // Generate year buttons dynamically
+    const yearButtons = availableYears.map(year => {
+        const isActive = year === currentYear;
+        const count = data.activities.filter(a => {
+            const date = a.date || a.planned_date;
+            return date && new Date(date).getFullYear() === year;
+        }).length;
+        return `
+            <button class="btn ${isActive ? 'btn-primary' : 'btn-outline-secondary'}" 
+                    onclick="window.switchMonthlyYear(${year})"
+                    title="${year} (${count} activities)">
+                <i class="bi bi-calendar"></i> ${year}
+            </button>
+        `;
+    }).join('');
+    
+    // Filter activities by current year
+    const yearActivities = data.activities.filter(activity => {
+        const date = activity.date || activity.planned_date;
+        if (!date) return false;
+        const activityYear = new Date(date).getFullYear();
+        return activityYear === currentYear;
+    });
     
     // Group activities by month (simulated based on date)
     const activitiesByMonth = {};
     months.forEach(month => {
-        activitiesByMonth[month] = data.activities.filter(activity => {
-            const activityMonth = new Date(activity.date).getMonth();
+        activitiesByMonth[month] = yearActivities.filter(activity => {
+            const date = activity.date || activity.planned_date;
+            if (!date) return false;
+            const activityMonth = new Date(date).getMonth();
             return activityMonth === months.indexOf(month);
         });
     });
@@ -15,8 +59,11 @@ export function renderMonthlyTracking(data) {
         <div class="container-fluid">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h2><i class="bi bi-calendar3"></i> Monthly Activity Breakdown - 2025</h2>
+                    <h2><i class="bi bi-calendar3"></i> Monthly Activity Breakdown - ${currentYear}</h2>
                     <p class="text-muted">Track activities and beneficiaries by month</p>
+                </div>
+                <div class="btn-group me-2">
+                    ${yearButtons}
                 </div>
                 <div>
                     <button class="btn btn-success" id="export-monthly-btn">
@@ -40,8 +87,8 @@ export function renderMonthlyTracking(data) {
                     <div class="card text-white bg-success">
                         <div class="card-body">
                             <h6 class="card-title">YTD Activities</h6>
-                            <h3 class="mb-0">${data.activities.length}</h3>
-                            <small>Total completed</small>
+                            <h3 class="mb-0">${yearActivities.length}</h3>
+                            <small>Total for ${currentYear}</small>
                         </div>
                     </div>
                 </div>
@@ -49,7 +96,7 @@ export function renderMonthlyTracking(data) {
                     <div class="card text-white bg-info">
                         <div class="card-body">
                             <h6 class="card-title">YTD Beneficiaries</h6>
-                            <h3 class="mb-0">${data.activities.reduce((sum, a) => sum + (a.achieved || 0), 0).toLocaleString()}</h3>
+                            <h3 class="mb-0">${yearActivities.reduce((sum, a) => sum + (a.achieved || 0), 0).toLocaleString()}</h3>
                             <small>Individuals reached</small>
                         </div>
                     </div>

@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manage Indicators — AWYAD MES</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/rbm.css" />
+</head>
+<body>
+
+  <!-- ── Navigation ─────────────────────────────────────────── -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary no-print">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold" href="/dashboard.html">
+        <i class="bi bi-grid-3x3-gap-fill me-2"></i>AWYAD MES
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item"><a class="nav-link" href="/dashboard.html"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-dashboard.html"><i class="bi bi-bar-chart-steps me-1"></i>RBM</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-strategy.html"><i class="bi bi-diagram-3 me-1"></i>Strategy</a></li>
+          <li class="nav-item"><a class="nav-link active" href="/rbm-indicators.html"><i class="bi bi-list-check me-1"></i>Indicators</a></li>
+          <li class="nav-item"><a class="nav-link" href="/non-program-activities.html"><i class="bi bi-card-list me-1"></i>Non-Program</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-submit.html"><i class="bi bi-pencil-square me-1"></i>Submit Data</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-validation.html"><i class="bi bi-shield-check me-1"></i>Validation</a></li>
+          <li class="nav-item"><a class="nav-link" href="/activities.html"><i class="bi bi-calendar-check me-1"></i>Activities</a></li>
+          <li class="nav-item"><a class="nav-link" href="/projects.html"><i class="bi bi-folder2 me-1"></i>Projects</a></li>
+        </ul>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-light" id="userName"></span>
+          <a href="/login.html" class="btn btn-outline-light btn-sm" id="logoutBtn">Logout</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Page Header ────────────────────────────────────────── -->
+  <div class="bg-light border-bottom py-3">
+    <div class="container-fluid">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+          <h4 class="mb-0 fw-semibold"><i class="bi bi-list-check text-primary me-2"></i>Organizational Indicators</h4>
+          <nav aria-label="breadcrumb" class="small">
+            <ol class="breadcrumb mb-0">
+              <li class="breadcrumb-item"><a href="/dashboard.html">Home</a></li>
+              <li class="breadcrumb-item"><a href="/rbm-dashboard.html">RBM</a></li>
+              <li class="breadcrumb-item active">Manage Indicators</li>
+            </ol>
+          </nav>
+        </div>
+        <button class="btn btn-primary btn-sm" id="newIndicatorBtn">
+          <i class="bi bi-plus-lg me-1"></i>New Indicator
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Filters bar ────────────────────────────────────────── -->
+  <div class="bg-white border-bottom py-2 px-3">
+    <div class="container-fluid">
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <select class="form-select form-select-sm" id="filterThematic" style="width:auto;min-width:180px">
+          <option value="">All Thematic Areas</option>
+        </select>
+        <select class="form-select form-select-sm" id="filterResultLevel" style="width:auto">
+          <option value="">All Result Levels</option>
+          <option value="impact">Impact</option>
+          <option value="outcome">Outcome</option>
+          <option value="output">Output</option>
+        </select>
+        <select class="form-select form-select-sm" id="filterDataType" style="width:auto">
+          <option value="">All Data Types</option>
+          <option value="number">Number</option>
+          <option value="percentage">Percentage</option>
+          <option value="ratio">Ratio</option>
+        </select>
+        <select class="form-select form-select-sm" id="filterActive" style="width:auto">
+          <option value="true">Active Only</option>
+          <option value="">All</option>
+          <option value="false">Inactive</option>
+        </select>
+        <input class="form-control form-control-sm" type="search" id="filterSearch"
+               placeholder="Search indicators…" style="width:220px" />
+        <span class="text-muted small ms-auto" id="countLabel"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main Table ─────────────────────────────────────────── -->
+  <div class="container-fluid py-4">
+    <div class="card shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width:32%">Indicator</th>
+              <th>Thematic Area</th>
+              <th>Level</th>
+              <th>Indicator Level</th>
+              <th>Data Type</th>
+              <th class="text-end">Baseline</th>
+              <th class="text-end">Target</th>
+              <th>Frequency</th>
+              <th class="text-center">Status</th>
+              <th class="no-print" style="width:90px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="indicatorTableBody">
+            <tr><td colspan="10" class="text-center py-4">
+              <div class="spinner-border spinner-border-sm text-primary me-2"></div>Loading…
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card-footer py-2 small text-muted d-flex justify-content-between align-items-center">
+        <span id="tableInfo">—</span>
+        <div id="tablePager" class="d-flex gap-1"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Create / Edit Modal ────────────────────────────────── -->
+  <div class="modal fade" id="indicatorModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalTitle">New Indicator</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+
+          <div class="alert alert-danger d-none" id="modalError"></div>
+
+          <form id="indicatorForm" novalidate>
+            <input type="hidden" id="editId" />
+
+            <!-- ── Identification ──────────────────── -->
+            <h6 class="text-uppercase text-muted small fw-bold mb-3">
+              <i class="bi bi-tag me-1"></i>Identification
+            </h6>
+
+            <div class="mb-3">
+              <label class="form-label">Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="fName" maxlength="500" required />
+              <div class="invalid-feedback">Name is required.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Description</label>
+              <textarea class="form-control" id="fDescription" rows="2" maxlength="2000"></textarea>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Thematic Area <span class="text-danger">*</span></label>
+                <select class="form-select" id="fThematicArea" required>
+                  <option value="">— Select —</option>
+                </select>
+                <div class="invalid-feedback">Thematic Area is required.</div>
+                <div class="form-text">Organizational level — groups AWYAD indicators across programs. For project-level classification, use <strong>Result Area</strong> when linking an indicator to a project.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Result Level <span class="text-danger">*</span></label>
+                <select class="form-select" id="fResultLevel" required>
+                  <option value="">— Select —</option>
+                  <option value="impact">Impact</option>
+                  <option value="outcome">Outcome</option>
+                  <option value="output">Output</option>
+                </select>
+                <div class="invalid-feedback">Result Level is required.</div>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Indicator Level</label>
+                <select class="form-select" id="fIndicatorLevel">
+                  <option value="">— Not specified —</option>
+                  <option value="output">Output</option>
+                  <option value="outcome">Outcome</option>
+                </select>
+                <div class="form-text">Reporting sub-level within the project hierarchy.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Data Type <span class="text-danger">*</span></label>
+                <select class="form-select" id="fDataType" required>
+                  <option value="number">Number (absolute count)</option>
+                  <option value="percentage">Percentage (%)</option>
+                  <option value="ratio">Ratio</option>
+                </select>
+                <div class="form-text">Controls how values are displayed in reports.</div>
+              </div>
+            </div>
+
+            <hr class="my-3" />
+
+            <!-- ── Measurement ────────────────────── -->
+            <h6 class="text-uppercase text-muted small fw-bold mb-3">
+              <i class="bi bi-rulers me-1"></i>Measurement
+            </h6>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Calculation Type</label>
+                <select class="form-select" id="fCalcType">
+                  <option value="SUM">SUM</option>
+                  <option value="COUNT">COUNT</option>
+                  <option value="AVG">AVG</option>
+                  <option value="RATIO">RATIO</option>
+                  <option value="PERCENTAGE">PERCENTAGE</option>
+                  <option value="CUMULATIVE">CUMULATIVE</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Unit of Measure</label>
+                <input type="text" class="form-control" id="fUnit" maxlength="100"
+                       placeholder="e.g. persons, %, score" />
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label">Baseline Value</label>
+                <input type="number" class="form-control" id="fBaseline" step="any" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Baseline Year</label>
+                <input type="number" class="form-control" id="fBaselineYear" min="2000" max="2100"
+                       placeholder="e.g. 2024" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Target Value</label>
+                <input type="number" class="form-control" id="fTarget" step="any" />
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Reporting Frequency</label>
+                <select class="form-select" id="fFrequency">
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly" selected>Quarterly</option>
+                  <option value="annual">Annual</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Responsible Team</label>
+                <input type="text" class="form-control" id="fTeam" maxlength="200"
+                       placeholder="e.g. M&E Team, Programs" />
+              </div>
+            </div>
+
+            <hr class="my-3" />
+
+            <!-- ── Source & Context ───────────────── -->
+            <h6 class="text-uppercase text-muted small fw-bold mb-3">
+              <i class="bi bi-database me-1"></i>Data Source &amp; Context
+            </h6>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Data Source</label>
+                <input type="text" class="form-control" id="fDataSource" maxlength="500"
+                       placeholder="e.g. Kobo surveys, activity registers" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Collection Method</label>
+                <input type="text" class="form-control" id="fCollectionMethod" maxlength="500"
+                       placeholder="e.g. Field visit, remote survey" />
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Disaggregation Types</label>
+              <div class="d-flex flex-wrap gap-2">
+                <div class="form-check"><input class="form-check-input" type="checkbox" value="gender" id="disagg_gender" /><label class="form-check-label" for="disagg_gender">Gender</label></div>
+                <div class="form-check"><input class="form-check-input" type="checkbox" value="age_group" id="disagg_age" /><label class="form-check-label" for="disagg_age">Age Group</label></div>
+                <div class="form-check"><input class="form-check-input" type="checkbox" value="location" id="disagg_location" /><label class="form-check-label" for="disagg_location">Location</label></div>
+                <div class="form-check"><input class="form-check-input" type="checkbox" value="beneficiary_type" id="disagg_bene" /><label class="form-check-label" for="disagg_bene">Beneficiary Type</label></div>
+                <div class="form-check"><input class="form-check-input" type="checkbox" value="disability" id="disagg_disability" /><label class="form-check-label" for="disagg_disability">Disability</label></div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="fIsActive" checked />
+                <label class="form-check-label" for="fIsActive">Active (visible in forms and dashboards)</label>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="modalSaveBtn">
+            <span class="spinner-border spinner-border-sm d-none me-1" id="modalSpinner"></span>
+            <i class="bi bi-save me-1" id="modalSaveIcon"></i>
+            Save Indicator
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Delete Confirm Modal ──────────────────────────────── -->
+  <div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title">Deactivate Indicator?</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body small">
+          <p>This will mark <strong id="deleteIndicatorName"></strong> as inactive.</p>
+          <p class="text-muted">Existing data is preserved. The indicator can be re-activated later.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-warning btn-sm" id="confirmDeleteBtn">
+            <i class="bi bi-eye-slash me-1"></i>Deactivate
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/rbm-indicators.js"></script>
+</body>
+</html>

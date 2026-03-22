@@ -69,7 +69,7 @@ export function renderActivityTracking(data) {
                                 ${data.activities.map(activity => {
                                     const indicator = data.indicators.find(i => i.id === activity.indicatorId);
                                     const project = data.projects.find(p => p.id === activity.projectId);
-                                    const burnRate = (activity.expenditure / activity.budget) * 100;
+                                    const burnRate = ((activity.actual_cost || activity.expenditure || 0) / activity.budget) * 100;
                                     const totalBeneficiaries = activity.beneficiaries.maleRefugee + 
                                                              activity.beneficiaries.femaleRefugee + 
                                                              activity.beneficiaries.maleHost + 
@@ -95,7 +95,7 @@ export function renderActivityTracking(data) {
                                             <td><span class="badge bg-${statusClass}">${activity.status}</span></td>
                                             <td><span class="badge bg-${approvalClass}">${activity.approvalStatus}</span></td>
                                             <td>$${activity.budget.toLocaleString()}</td>
-                                            <td>$${activity.expenditure.toLocaleString()}</td>
+                                            <td>$${(activity.actual_cost || activity.expenditure || 0).toLocaleString()}</td>
                                             <td>
                                                 <div class="progress" style="width: 60px;">
                                                     <div class="progress-bar bg-${burnClass}" 

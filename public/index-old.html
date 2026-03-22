@@ -1,0 +1,1945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .sidebar {
+            min-width: 280px;
+            max-width: 280px;
+            height: 100vh;
+            transition: transform 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .sidebar.collapsed {
+            transform: translateX(-280px);
+            min-width: 0;
+            max-width: 0;
+        }
+        .sidebar-content {
+            width: 280px;
+        }
+        #content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .toggle-btn {
+            position: fixed;
+            top: 15px;
+            left: 295px;
+            z-index: 1050;
+            background-color: #212529;
+            border: 1px solid #495057;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: left 0.3s ease;
+        }
+        .toggle-btn:hover {
+            background-color: #343a40;
+        }
+        .toggle-btn.collapsed {
+            left: 15px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Toggle Button -->
+    <button class="toggle-btn" id="sidebar-toggle" title="Toggle Sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <!-- Sidebar Navigation -->
+    <div class="sidebar d-flex flex-column flex-shrink-0 p-3 text-white bg-dark">
+        <div class="sidebar-content">
+        <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none">
+            <span class="fs-4">AWYAD MES</span>
+        </a>
+        <!-- User Info -->
+        <div class="mb-3 p-2 bg-secondary bg-opacity-25 rounded" id="userInfo">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-person-circle fs-4 me-2"></i>
+                <div class="flex-grow-1">
+                    <small class="d-block text-white-50">Logged in as</small>
+                    <strong id="userName">Loading...</strong>
+                </div>
+            </div>
+        </div>
+        <hr>
+        <ul class="nav nav-pills flex-column mb-auto">
+            <li class="nav-item">
+                <a href="#" class="nav-link text-white" id="nav-dashboard">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+            </li>
+            <li data-permission="projects.read">
+                <a href="#" class="nav-link text-white" id="nav-projects">
+                    <i class="bi bi-folder"></i> Projects
+                </a>
+            </li>
+            <li data-permission="indicators.read">
+                <a href="#" class="nav-link text-white" id="nav-indicators">
+                    <i class="bi bi-bar-chart"></i> Indicator Tracking (ITT)
+                </a>
+            </li>
+            <li data-permission="activities.read">
+                <a href="#" class="nav-link text-white" id="nav-activities">
+                    <i class="bi bi-list-check"></i> Activity Tracking (ATT)
+                </a>
+            </li>
+            <li data-permission="cases.read">
+                <a href="#" class="nav-link text-white" id="nav-case-management">
+                    <i class="bi bi-briefcase"></i> Case Management
+                </a>
+            </li>
+            <li>
+                <a href="#" class="nav-link text-white" id="nav-monthly-tracking">
+                    <i class="bi bi-calendar3"></i> Monthly Tracking
+                </a>
+            </li>
+            <li data-permission="activities.create">
+                <a href="#" class="nav-link text-white" id="nav-new-activity-report">
+                    <i class="bi bi-plus-circle"></i> New Activity Report
+                </a>
+            </li>
+            <li>
+                <a href="#" class="nav-link text-white" id="nav-demo-guide">
+                    <i class="bi bi-book"></i> Demo Guide
+                </a>
+            </li>
+            <li data-role="admin" style="display: none;">
+                <a href="#" class="nav-link text-white" id="nav-users">
+                    <i class="bi bi-people"></i> User Management
+                </a>
+            </li>
+            <li class="mt-auto">
+                <hr class="text-white-50">
+                <a href="#" class="nav-link text-white" id="nav-profile">
+                    <i class="bi bi-person"></i> Profile
+                </a>
+            </li>
+            <li>
+                <a href="#" class="nav-link text-white" id="nav-logout">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </a>
+            </li>
+        </ul>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div id="content-area">
+        
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    
+    <!-- Sidebar Toggle Script -->
+    <script type="module">
+        import { authManager } from './auth.js?v=4';
+        window.authManager = authManager;
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check authentication first
+            if (!authManager.isAuthenticated()) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Display user info
+            const user = authManager.getCurrentUser();
+            const userNameEl = document.getElementById('userName');
+            if (user && userNameEl) {
+                userNameEl.textContent = authManager.getUserDisplayName();
+            }
+
+            // Apply permission-based visibility
+            document.querySelectorAll('[data-permission]').forEach(element => {
+                const requiredPermission = element.getAttribute('data-permission');
+                if (!authManager.hasPermission(requiredPermission)) {
+                    element.style.display = 'none';
+                }
+            });
+
+            // Apply role-based visibility
+            document.querySelectorAll('[data-role]').forEach(element => {
+                const requiredRole = element.getAttribute('data-role');
+                if (authManager.hasRole(requiredRole)) {
+                    element.style.display = '';
+                }
+            });
+
+            // Setup logout handler
+            const logoutBtn = document.getElementById('nav-logout');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    await authManager.logout();
+                    window.location.href = 'login.html';
+                });
+            }
+
+            // Sidebar toggle functionality
+            const toggleBtn = document.getElementById('sidebar-toggle');
+            const sidebar = document.querySelector('.sidebar');
+            
+            toggleBtn.addEventListener('click', function() {
+                sidebar.classList.toggle('collapsed');
+                toggleBtn.classList.toggle('collapsed');
+            });
+
+            // Navigation handlers
+            const contentArea = document.getElementById('content-area');
+            
+            // Show loading
+            function showLoading() {
+                contentArea.innerHTML = `
+                    <div class="d-flex justify-content-center align-items-center" style="min-height: 400px;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Show error
+            function showError(message) {
+                contentArea.innerHTML = `
+                    <div class="alert alert-danger" role="alert">
+                        <h4 class="alert-heading">Error</h4>
+                        <p>${message}</p>
+                    </div>
+                `;
+            }
+
+            // Simple navigation
+            async function navigate(view) {
+                showLoading();
+                
+                // Remove active class from all nav links
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    link.classList.remove('active');
+                });
+
+                try {
+                    switch(view) {
+                        case 'dashboard':
+                            document.getElementById('nav-dashboard').classList.add('active');
+                            const dashData = await Promise.all([
+                                authManager.authenticatedFetch('/api/v1/projects').then(r => r.json()),
+                                authManager.authenticatedFetch('/api/v1/indicators').then(r => r.json()),
+                                authManager.authenticatedFetch('/api/v1/activities').then(r => r.json()),
+                                authManager.authenticatedFetch('/api/v1/cases').then(r => r.json()),
+                                authManager.authenticatedFetch('/api/v1/dashboard').then(r => r.json())
+                            ]);
+                            
+                            const dashProjects = dashData[0].data?.projects || [];
+                            const dashIndicators = dashData[1].data?.indicators || [];
+                            const dashActivities = dashData[2].data?.activities || [];
+                            const dashCases = dashData[3].data?.cases || [];
+                            const dashThematicAreas = dashData[4].data?.thematicAreas || [];
+                            
+                            // Calculate statistics
+                            const activeProjects = dashProjects.filter(p => p.status === 'Active').length;
+                            const indicatorsOnTrack = dashIndicators.filter(ind => {
+                                const progress = (ind.achieved / ind.annual_target) * 100;
+                                return progress >= 70;
+                            }).length;
+                            const dashCurrentMonth = new Date().getMonth();
+                            const dashCurrentYear = new Date().getFullYear();
+                            const activitiesThisMonth = dashActivities.filter(act => {
+                                const actDate = new Date(act.date);
+                                return actDate.getMonth() === dashCurrentMonth && actDate.getFullYear() === dashCurrentYear;
+                            }).length;
+                            const dashActiveCases = dashCases.filter(c => c.status === 'Open' || c.status === 'In Progress').length;
+                            const totalBudget = dashProjects.reduce((sum, p) => sum + (p.budget || 0), 0);
+                            const totalExpenditure = dashProjects.reduce((sum, p) => sum + (p.expenditure || 0), 0);
+                            const avgBurnRate = totalBudget > 0 ? (totalExpenditure / totalBudget) * 100 : 0;
+                            
+                            // Group indicators by thematic area
+                            const thematicAreasMap = {};
+                            dashThematicAreas.forEach(ta => {
+                                thematicAreasMap[ta.id] = {
+                                    ...ta,
+                                    indicators: [],
+                                    projects: dashProjects.filter(p => p.thematic_area_id === ta.id)
+                                };
+                            });
+                            dashIndicators.forEach(ind => {
+                                if (thematicAreasMap[ind.thematic_area_id]) {
+                                    thematicAreasMap[ind.thematic_area_id].indicators.push(ind);
+                                }
+                            });
+                            
+                            contentArea.innerHTML = `
+                                <div class="container-fluid">
+                                    <h1 class="mb-4">AWYAD M&E Dashboard</h1>
+                                    
+                                    <!-- Summary Cards Row -->
+                                    <div class="row mb-4">
+                                        <div class="col-md-3">
+                                            <div class="card text-white bg-primary mb-3">
+                                                <div class="card-body">
+                                                    <h5 class="card-title">Active Projects</h5>
+                                                    <p class="card-text display-4">${dashProjects.length}</p>
+                                                    <small>of ${dashProjects.length} total</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card text-white bg-success mb-3">
+                                                <div class="card-body">
+                                                    <h5 class="card-title">Indicators On-Track</h5>
+                                                    <p class="card-text display-4">${indicatorsOnTrack}</p>
+                                                    <small>of ${dashIndicators.length} total</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card text-white bg-info mb-3">
+                                                <div class="card-body">
+                                                    <h5 class="card-title">Activities This Month</h5>
+                                                    <p class="card-text display-4">${activitiesThisMonth}</p>
+                                                    <small>Total: ${dashActivities.length}</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card text-white bg-warning mb-3">
+                                                <div class="card-body">
+                                                    <h5 class="card-title">Budget Burn Rate</h5>
+                                                    <p class="card-text display-4">${avgBurnRate.toFixed(1)}%</p>
+                                                    <small>$${totalExpenditure.toLocaleString()} / $${totalBudget.toLocaleString()}</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Thematic Areas Overview -->
+                                    <div class="row mb-4">
+                                        <div class="col-12">
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h3>Thematic Areas Overview</h3>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="row">
+                                                        ${Object.values(thematicAreasMap).map(ta => {
+                                                            const totalProgress = ta.indicators.reduce((sum, ind) => {
+                                                                return sum + ((ind.achieved / ind.annual_target) * 100 || 0);
+                                                            }, 0);
+                                                            const avgProgress = ta.indicators.length > 0 ? totalProgress / ta.indicators.length : 0;
+                                                            let progressColor = 'danger';
+                                                            if (avgProgress >= 70) progressColor = 'success';
+                                                            else if (avgProgress >= 40) progressColor = 'warning';
+                                                            
+                                                            return `
+                                                                <div class="col-md-4 mb-3">
+                                                                    <div class="card h-100">
+                                                                        <div class="card-body">
+                                                                            <h5 class="card-title">${ta.code || ta.name}</h5>
+                                                                            <h6 class="card-subtitle mb-2 text-muted">${ta.name?.substring(0, 50)}...</h6>
+                                                                            <p class="card-text small">${ta.description || ta.name}</p>
+                                                                            <hr>
+                                                                            <p class="mb-1"><strong>Projects:</strong> ${ta.projects.length}</p>
+                                                                            <p class="mb-1"><strong>Indicators:</strong> ${ta.indicators.length}</p>
+                                                                            <p class="mb-2"><strong>Overall Progress:</strong></p>
+                                                                            <div class="progress" style="height: 25px;">
+                                                                                <div class="progress-bar bg-${progressColor}" role="progressbar" style="width: ${Math.min(avgProgress, 100)}%">
+                                                                                    ${avgProgress.toFixed(1)}%
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            `;
+                                                        }).join('')}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Results Framework Summary -->
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h3>Results Framework Summary</h3>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-hover">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>Indicator</th>
+                                                                    <th>Target</th>
+                                                                    <th>Achieved</th>
+                                                                    <th style="width: 30%;">Progress</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                ${dashIndicators.map(ind => {
+                                                                    const progress = (ind.achieved / ind.annual_target) * 100 || 0;
+                                                                    let progressColor = 'danger';
+                                                                    if (progress >= 70) progressColor = 'success';
+                                                                    else if (progress >= 40) progressColor = 'warning';
+                                                                    
+                                                                    const thematicArea = dashThematicAreas.find(ta => ta.id === ind.thematic_area_id);
+                                                                    
+                                                                    return `
+                                                                        <tr>
+                                                                            <td>
+                                                                                <span class="badge bg-secondary">${ind.indicator_code || 'N/A'}</span><br>
+                                                                                <strong>${ind.name}</strong><br>
+                                                                                <small class="text-muted">${thematicArea?.name?.substring(0, 50) || 'N/A'}...</small>
+                                                                            </td>
+                                                                            <td><strong>${ind.annual_target}</strong> ${ind.unit || 'Individuals'}</td>
+                                                                            <td><strong>${ind.achieved}</strong> ${ind.unit || 'Individuals'}</td>
+                                                                            <td>
+                                                                                <div class="progress">
+                                                                                    <div class="progress-bar bg-${progressColor}" role="progressbar" 
+                                                                                         style="width: ${Math.min(progress, 100)}%" 
+                                                                                         aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100">
+                                                                                        ${progress.toFixed(1)}%
+                                                                                    </div>
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
+                                                                    `;
+                                                                }).join('')}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            break;
+                        case 'projects':
+                            document.getElementById('nav-projects').classList.add('active');
+                            const [projRes, projThematicRes] = await Promise.all([
+                                authManager.authenticatedFetch('/api/v1/projects'),
+                                authManager.authenticatedFetch('/api/v1/dashboard')
+                            ]);
+                            const projData = await projRes.json();
+                            const projThematicData = await projThematicRes.json();
+                            const projects = projData.data?.projects || [];
+                            const projectThematicAreas = projThematicData.data?.thematicAreas || [];
+                            
+                            contentArea.innerHTML = `
+                                <div class="container-fluid">
+                                    <h1 class="mb-4">Projects</h1>
+                                    
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <div class="table-responsive">
+                                                <table class="table table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Project Name</th>
+                                                            <th>Thematic Area</th>
+                                                            <th>Donor</th>
+                                                            <th>Status</th>
+                                                            <th style="width: 20%;">Budget Burn Rate</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        ${projects.length ? projects.map(p => {
+                                                            const thematicArea = projectThematicAreas.find(ta => ta.id === p.thematic_area_id);
+                                                            const burnRate = p.budget > 0 ? ((p.expenditure || 0) / p.budget * 100) : 0;
+                                                            let burnRateColor = 'success';
+                                                            if (burnRate >= 80) burnRateColor = 'danger';
+                                                            else if (burnRate >= 60) burnRateColor = 'warning';
+                                                            
+                                                            return `
+                                                                <tr>
+                                                                    <td>
+                                                                        <strong>${p.name}</strong><br>
+                                                                        <small class="text-muted">${p.code || 'N/A'}</small>
+                                                                    </td>
+                                                                    <td>${thematicArea?.name?.substring(0, 60) || 'N/A'}...</td>
+                                                                    <td>${p.donor || 'N/A'}</td>
+                                                                    <td>
+                                                                        <span class="badge bg-${p.status === 'Active' ? 'success' : 'secondary'}">${p.status}</span>
+                                                                    </td>
+                                                                    <td>
+                                                                        <div class="progress">
+                                                                            <div class="progress-bar bg-${burnRateColor}" role="progressbar" 
+                                                                                 style="width: ${burnRate}%" 
+                                                                                 aria-valuenow="${burnRate}" aria-valuemin="0" aria-valuemax="100">
+                                                                                ${burnRate.toFixed(1)}%
+                                                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            `;
+                                                        }).join('') : '<tr><td colspan="5" class="text-center">No projects found</td></tr>'}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            break;
+                        case 'indicators':
+                            document.getElementById('nav-indicators').classList.add('active');
+                            const [indRes, indThematicRes, indProjectsRes] = await Promise.all([
+                                authManager.authenticatedFetch('/api/v1/indicators'),
+                                authManager.authenticatedFetch('/api/v1/dashboard'),
+                                authManager.authenticatedFetch('/api/v1/projects')
+                            ]);
+                            const indData = await indRes.json();
+                            const indThematicData = await indThematicRes.json();
+                            const indProjectsData = await indProjectsRes.json();
+                            const indicators = indData.data?.indicators || [];
+                            const indicatorThematicAreas = indThematicData.data?.thematicAreas || [];
+                            const indicatorProjects = indProjectsData.data?.projects || [];
+                            
+                            // Group indicators by thematic area
+                            const indicatorsByThematicArea = {};
+                            indicatorThematicAreas.forEach(ta => {
+                                indicatorsByThematicArea[ta.id] = {
+                                    ...ta,
+                                    indicators: []
+                                };
+                            });
+                            indicators.forEach(ind => {
+                                if (indicatorsByThematicArea[ind.thematic_area_id]) {
+                                    indicatorsByThematicArea[ind.thematic_area_id].indicators.push(ind);
+                                }
+                            });
+                            
+                            contentArea.innerHTML = `
+                                <div class="container-fluid">
+                                    <div class="d-flex justify-content-between align-items-center mb-4">
+                                        <h1>Indicator Tracking Table (ITT)</h1>
+                                        <button class="btn btn-success" id="export-indicators-btn">
+                                            <i class="bi bi-file-earmark-excel"></i> Export to CSV
+                                        </button>
+                                    </div>
+                                    
+                                    ${Object.values(indicatorsByThematicArea).map(ta => `
+                                        <div class="card mb-4">
+                                            <div class="card-header bg-primary text-white">
+                                                <h3 class="mb-0">${ta.code || ta.name}</h3>
+                                                <p class="mb-0 small">${ta.description || ta.name}</p>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-bordered table-hover">
+                                                        <thead class="table-light">
+                                                            <tr>
+                                                                <th rowspan="2">Code</th>
+                                                                <th rowspan="2">Indicator</th>
+                                                                <th rowspan="2">Type</th>
+                                                                <th colspan="2">Baseline</th>
+                                                                <th rowspan="2">LOP Target</th>
+                                                                <th rowspan="2">Annual Target</th>
+                                                                <th rowspan="2">Achieved</th>
+                                                                <th rowspan="2">Variance</th>
+                                                                <th rowspan="2">% Achieved</th>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>Value</th>
+                                                                <th>Date</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            ${ta.indicators.map(ind => {
+                                                                const project = indicatorProjects.find(p => p.id === ind.project_id);
+                                                                const progress = ind.annual_target > 0 ? (ind.achieved / ind.annual_target * 100) : 0;
+                                                                const variance = ind.achieved - ind.annual_target;
+                                                                let progressColor = 'danger';
+                                                                let badgeColor = 'danger';
+                                                                if (progress >= 70) {
+                                                                    progressColor = 'success';
+                                                                    badgeColor = 'success';
+                                                                } else if (progress >= 40) {
+                                                                    progressColor = 'warning';
+                                                                    badgeColor = 'warning';
+                                                                }
+                                                                
+                                                                return `
+                                                                    <tr>
+                                                                        <td><span class="badge bg-secondary">${ind.indicator_code || 'N/A'}</span></td>
+                                                                        <td>
+                                                                            <strong>${ind.name}</strong><br>
+                                                                            <small class="text-muted">Project: ${project?.name || 'N/A'}</small><br>
+                                                                            <small class="text-muted">Unit: ${ind.unit || 'Individuals'}</small>
+                                                                        </td>
+                                                                        <td><span class="badge bg-info">${ind.type || 'Outcome'}</span></td>
+                                                                        <td>${ind.baseline_value || 0}</td>
+                                                                        <td><small>${ind.baseline_date ? new Date(ind.baseline_date).toISOString().split('T')[0] : '2024-01-01'}</small></td>
+                                                                        <td><strong>${ind.lop_target || ind.annual_target}</strong></td>
+                                                                        <td><strong>${ind.annual_target}</strong></td>
+                                                                        <td><span class="badge bg-${badgeColor}">${ind.achieved}</span></td>
+                                                                        <td>${variance}</td>
+                                                                        <td>
+                                                                            <div class="progress" style="height: 25px;">
+                                                                                <div class="progress-bar bg-${progressColor}" role="progressbar" 
+                                                                                     style="width: ${Math.min(progress, 100)}%" 
+                                                                                     aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100">
+                                                                                    ${progress.toFixed(1)}%
+                                                                                </div>
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                `;
+                                                            }).join('')}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                    
+                                    <!-- Quarterly Breakdown -->
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h3>Quarterly Breakdown</h3>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="table-responsive">
+                                                <table class="table table-bordered">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th>Indicator Code</th>
+                                                            <th>Indicator Name</th>
+                                                            <th>Q1 Target</th>
+                                                            <th>Q2 Target</th>
+                                                            <th>Q3 Target</th>
+                                                            <th>Q4 Target</th>
+                                                            <th>Annual Total</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        ${indicators.map(ind => {
+                                                            const quarterlyTarget = Math.round(ind.annual_target / 4);
+                                                            return `
+                                                                <tr>
+                                                                    <td><span class="badge bg-secondary">${ind.indicator_code || 'N/A'}</span></td>
+                                                                    <td>${ind.name}</td>
+                                                                    <td>${quarterlyTarget}</td>
+                                                                    <td>${quarterlyTarget}</td>
+                                                                    <td>${quarterlyTarget}</td>
+                                                                    <td>${quarterlyTarget}</td>
+                                                                    <td><strong>${ind.annual_target}</strong></td>
+                                                                </tr>
+                                                            `;
+                                                        }).join('')}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            break;
+                        case 'activities':
+                            document.getElementById('nav-activities').classList.add('active');
+                            const [actRes, actIndRes, actProjRes] = await Promise.all([
+                                authManager.authenticatedFetch('/api/v1/activities'),
+                                authManager.authenticatedFetch('/api/v1/indicators'),
+                                authManager.authenticatedFetch('/api/v1/projects')
+                            ]);
+                            const actData = await actRes.json();
+                            const actIndData = await actIndRes.json();
+                            const actProjData = await actProjRes.json();
+                            const activities = actData.data?.activities || [];
+                            const actIndicators = actIndData.data?.indicators || [];
+                            const actProjects = actProjData.data?.projects || [];
+                            
+                            contentArea.innerHTML = `
+                                <div class="container-fluid">
+                                    <div class="d-flex justify-content-between align-items-center mb-4">
+                                        <h1>Activity Tracking Table (ATT)</h1>
+                                        <button class="btn btn-success" id="export-activities-btn">
+                                            <i class="bi bi-file-earmark-excel"></i> Export to CSV
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Summary Cards -->
+                                    <div class="row mb-4">
+                                        <div class="col-md-3">
+                                            <div class="card bg-primary text-white">
+                                                <div class="card-body">
+                                                    <h6 class="card-title">Total Activities</h6>
+                                                    <h2>${activities.length}</h2>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-success text-white">
+                                                <div class="card-body">
+                                                    <h6 class="card-title">Completed</h6>
+                                                    <h2>${activities.filter(a => a.status === 'Completed').length}</h2>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-warning text-white">
+                                                <div class="card-body">
+                                                    <h6 class="card-title">Pending Review</h6>
+                                                    <h2>${activities.filter(a => a.approval_status === 'Pending Review' || a.approval_status === 'Pending').length}</h2>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-info text-white">
+                                                <div class="card-body">
+                                                    <h6 class="card-title">Total Budget</h6>
+                                                    <h2>$${activities.reduce((sum, a) => sum + (a.budget || 0), 0).toLocaleString()}</h2>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Activity Table -->
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <div class="table-responsive">
+                                                <table class="table table-hover">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th>Activity Code</th>
+                                                            <th>Activity Name</th>
+                                                            <th>Indicator</th>
+                                                            <th>Location</th>
+                                                            <th>Date</th>
+                                                            <th>Status</th>
+                                                            <th>Approval</th>
+                                                            <th>Budget</th>
+                                                            <th>Expenditure</th>
+                                                            <th>Burn Rate</th>
+                                                            <th>Beneficiaries</th>
+                                                            <th>Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        ${activities.map(activity => {
+                                                            const indicator = actIndicators.find(i => i.id === activity.indicator_id);
+                                                            const project = actProjects.find(p => p.id === activity.project_id);
+                                                            const budget = activity.budget || 0;
+                                                            const expenditure = activity.expenditure || 0;
+                                                            const burnRate = budget > 0 ? (expenditure / budget) * 100 : 0;
+                                                            
+                                                            // Parse disaggregation safely
+                                                            let disagg = {};
+                                                            try {
+                                                                disagg = typeof activity.disaggregation === 'string' ? 
+                                                                    JSON.parse(activity.disaggregation) : 
+                                                                    (activity.disaggregation || {});
+                                                            } catch (e) { disagg = {}; }
+                                                            
+                                                            const totalBeneficiaries = activity.total_beneficiaries || 0;
+                                                            const statusClass = activity.status === 'Completed' ? 'success' : 'warning';
+                                                            const approvalClass = (activity.approval_status === 'Approved') ? 'success' : 'warning';
+                                                            const burnClass = burnRate >= 90 ? 'danger' : burnRate >= 75 ? 'warning' : 'success';
+                                                            
+                                                            return `
+                                                                <tr>
+                                                                    <td><span class="badge bg-secondary">${activity.activity_code || 'N/A'}</span></td>
+                                                                    <td>
+                                                                        <strong>${activity.title}</strong><br>
+                                                                        <small class="text-muted">By: ${activity.reported_by || 'Field Officer'}</small>
+                                                                    </td>
+                                                                    <td>
+                                                                        <small>${indicator ? indicator.indicator_code : 'N/A'}</small><br>
+                                                                        <small class="text-muted">${indicator ? indicator.name.substring(0, 40) + '...' : 'N/A'}</small>
+                                                                    </td>
+                                                                    <td>${activity.location || 'N/A'}</td>
+                                                                    <td><small>${activity.planned_date ? new Date(activity.planned_date).toISOString().split('T')[0] : 'N/A'}</small></td>
+                                                                    <td><span class="badge bg-${statusClass}">${activity.status}</span></td>
+                                                                    <td><span class="badge bg-${approvalClass}">${activity.approval_status || 'Pending'}</span></td>
+                                                                    <td>$${budget.toLocaleString()}</td>
+                                                                    <td>$${expenditure.toLocaleString()}</td>
+                                                                    <td>
+                                                                        <div class="progress" style="width: 60px;">
+                                                                            <div class="progress-bar bg-${burnClass}" 
+                                                                                 role="progressbar" 
+                                                                                 style="width: ${Math.min(burnRate, 100)}%"
+                                                                                 title="${burnRate.toFixed(1)}%">
+                                                                            </div>
+                                                                        </div>
+                                                                        <small>${burnRate.toFixed(1)}%</small>
+                                                                    </td>
+                                                                    <td>
+                                                                        <span class="badge bg-primary">${totalBeneficiaries}</span><br>
+                                                                        <small class="text-muted">
+                                                                            M: ${activity.male_total || 0} | F: ${activity.female_total || 0}
+                                                                        </small>
+                                                                    </td>
+                                                                    <td>
+                                                                        <button class="btn btn-sm btn-info" onclick="alert('View details: ${activity.id}')">
+                                                                            <i class="bi bi-eye"></i> View
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            `;
+                                                        }).join('')}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Disaggregation Summary -->
+                                    <div class="card mt-4">
+                                        <div class="card-header">
+                                            <h3>Beneficiary Disaggregation Summary</h3>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                ${activities.slice(0, 4).map(activity => {
+                                                    let disagg = {};
+                                                    try {
+                                                        disagg = typeof activity.disaggregation === 'string' ? 
+                                                            JSON.parse(activity.disaggregation) : 
+                                                            (activity.disaggregation || {});
+                                                    } catch (e) { disagg = {}; }
+                                                    
+                                                    const refugee = disagg.refugee || { male: {}, female: {} };
+                                                    const host = disagg.host || { male: {}, female: {} };
+                                                    const nationality = disagg.nationality || {};
+                                                    
+                                                    return `
+                                                        <div class="col-md-6 mb-3">
+                                                            <div class="card">
+                                                                <div class="card-header bg-light">
+                                                                    <strong>${activity.title}</strong>
+                                                                </div>
+                                                                <div class="card-body">
+                                                                    <h6>Refugee Beneficiaries</h6>
+                                                                    <div class="table-responsive">
+                                                                        <table class="table table-sm">
+                                                                            <thead>
+                                                                                <tr>
+                                                                                    <th>Age Group</th>
+                                                                                    <th>Male</th>
+                                                                                    <th>Female</th>
+                                                                                    <th>Total</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                ${['0-4', '5-17', '18-49', '50+'].map(ageGroup => {
+                                                                                    const male = refugee.male[ageGroup] || 0;
+                                                                                    const female = refugee.female[ageGroup] || 0;
+                                                                                    return `
+                                                                                        <tr>
+                                                                                            <td>${ageGroup}</td>
+                                                                                            <td>${male}</td>
+                                                                                            <td>${female}</td>
+                                                                                            <td><strong>${male + female}</strong></td>
+                                                                                        </tr>
+                                                                                    `;
+                                                                                }).join('')}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                    
+                                                                    <h6 class="mt-3">Host Community Beneficiaries</h6>
+                                                                    <div class="table-responsive">
+                                                                        <table class="table table-sm">
+                                                                            <thead>
+                                                                                <tr>
+                                                                                    <th>Age Group</th>
+                                                                                    <th>Male</th>
+                                                                                    <th>Female</th>
+                                                                                    <th>Total</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                ${['0-4', '5-17', '18-49', '50+'].map(ageGroup => {
+                                                                                    const male = host.male[ageGroup] || 0;
+                                                                                    const female = host.female[ageGroup] || 0;
+                                                                                    return `
+                                                                                        <tr>
+                                                                                            <td>${ageGroup}</td>
+                                                                                            <td>${male}</td>
+                                                                                            <td>${female}</td>
+                                                                                            <td><strong>${male + female}</strong></td>
+                                                                                        </tr>
+                                                                                    `;
+                                                                                }).join('')}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                    
+                                                                    ${nationality && (nationality.sudanese || nationality.congolese) ? `
+                                                                        <h6 class="mt-3">Refugee Nationality Breakdown</h6>
+                                                                        <div class="table-responsive">
+                                                                            <table class="table table-sm">
+                                                                                <tbody>
+                                                                                    <tr>
+                                                                                        <td>Sudanese</td>
+                                                                                        <td><strong>${nationality.sudanese || 0}</strong></td>
+                                                                                    </tr>
+                                                                                    <tr>
+                                                                                        <td>Congolese</td>
+                                                                                        <td><strong>${nationality.congolese || 0}</strong></td>
+                                                                                    </tr>
+                                                                                    <tr>
+                                                                                        <td>South Sudanese</td>
+                                                                                        <td><strong>${nationality.southSudanese || 0}</strong></td>
+                                                                                    </tr>
+                                                                                    <tr>
+                                                                                        <td>Others</td>
+                                                                                        <td><strong>${nationality.others || 0}</strong></td>
+                                                                                    </tr>
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    ` : ''}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    `;
+                                                }).join('')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            break;
+                        case 'cases':
+                            document.getElementById('nav-case-management').classList.add('active');
+                            const [caseRes, caseProjRes] = await Promise.all([
+                                authManager.authenticatedFetch('/api/v1/cases'),
+                                authManager.authenticatedFetch('/api/v1/projects')
+                            ]);
+                            const caseData = await caseRes.json();
+                            const caseProjData = await caseProjRes.json();
+                            const allCases = caseData.data?.cases || [];
+                            const caseProjects = caseProjData.data?.projects || [];
+                            
+                            const activeCases = allCases.filter(c => c.status === 'Active' || c.status === 'Open');
+                            const closedCases = allCases.filter(c => c.status === 'Closed');
+                            const closureRate = allCases.length > 0 ? (closedCases.length / allCases.length * 100) : 0;
+                            
+                            contentArea.innerHTML = `
+                                <div class="container-fluid">
+                                    <h1 class="mb-4">Case Management</h1>
+                                    
+                                    <!-- Summary Cards -->
+                                    <div class="row mb-4">
+                                        <div class="col-md-3">
+                                            <div class="card bg-warning text-white">
+                                                <div class="card-body">
+                                                    <h6 class="card-title">Active Case Load</h6>
+                                                    <h2>${activeCases.length}</h2>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-success text-white">
+                                                <div class="card-body">
+                                                    <h6 class="card-title">Closed Cases</h6>
+                                                    <h2>${closedCases.length}</h2>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-info text-white">
+                                                <div class="card-body">
+                                                    <h6 class="card-title">Total Cases</h6>
+                                                    <h2>${allCases.length}</h2>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-primary text-white">
+                                                <div class="card-body">
+                                                    <h6 class="card-title">Case Closure Rate</h6>
+                                                    <h2>${closureRate.toFixed(1)}%</h2>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Active Cases -->
+                                    <div class="card mb-4">
+                                        <div class="card-header bg-warning text-white">
+                                            <h3 class="mb-0">Active Cases</h3>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="table-responsive">
+                                                <table class="table table-hover">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th>Case ID</th>
+                                                            <th>Case Type</th>
+                                                            <th>Date Opened</th>
+                                                            <th>Location</th>
+                                                            <th>Beneficiary</th>
+                                                            <th>Services Provided</th>
+                                                            <th>Follow-Up Date</th>
+                                                            <th>Case Worker</th>
+                                                            <th>Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        ${activeCases.map(caseItem => {
+                                                            const project = caseProjects.find(p => p.id === caseItem.project_id);
+                                                            const dateReported = new Date(caseItem.date_reported);
+                                                            const daysOpen = Math.floor((new Date() - dateReported) / (1000 * 60 * 60 * 24));
+                                                            
+                                                            const followUpDate = caseItem.follow_up_date || '';
+                                                            const followUpSoon = followUpDate ? 
+                                                                (new Date(followUpDate) - new Date() < 7 * 24 * 60 * 60 * 1000) : false;
+                                                            
+                                                            // Parse services JSON
+                                                            let services = [];
+                                                            try {
+                                                                services = typeof caseItem.services === 'string' ? 
+                                                                    JSON.parse(caseItem.services) : 
+                                                                    (caseItem.services || []);
+                                                            } catch (e) { services = []; }
+                                                            if (!Array.isArray(services)) services = [];
+                                                            
+                                                            return `
+                                                                <tr>
+                                                                    <td>
+                                                                        <strong>${caseItem.case_number}</strong><br>
+                                                                        <small class="text-muted">${project ? project.name : 'N/A'}</small>
+                                                                    </td>
+                                                                    <td><span class="badge bg-danger">${caseItem.case_type}</span></td>
+                                                                    <td>
+                                                                        ${dateReported.toISOString().split('T')[0]}<br>
+                                                                        <small class="text-muted">${daysOpen} days ago</small>
+                                                                    </td>
+                                                                    <td>${caseItem.location || 'N/A'}</td>
+                                                                    <td>
+                                                                        <strong>${caseItem.beneficiary_gender || 'N/A'}, ${caseItem.beneficiary_age || 'N/A'} years</strong><br>
+                                                                        <small class="text-muted">${caseItem.nationality || 'N/A'}</small>
+                                                                    </td>
+                                                                    <td>
+                                                                        ${services.map(service => 
+                                                                            `<span class="badge bg-info me-1">${service}</span>`
+                                                                        ).join('')}
+                                                                    </td>
+                                                                    <td>
+                                                                        <span class="${followUpSoon ? 'text-danger fw-bold' : ''}">${followUpDate ? new Date(followUpDate).toISOString().split('T')[0] : 'N/A'}</span>
+                                                                        ${followUpSoon ? '<br><small class="text-danger">Due Soon!</small>' : ''}
+                                                                    </td>
+                                                                    <td>${caseItem.case_worker || 'Unassigned'}</td>
+                                                                    <td>
+                                                                        <button class="btn btn-sm btn-primary">Update</button>
+                                                                        <button class="btn btn-sm btn-success">Close</button>
+                                                                    </td>
+                                                                </tr>
+                                                            `;
+                                                        }).join('')}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Closed Cases -->
+                                    <div class="card mb-4">
+                                        <div class="card-header bg-success text-white">
+                                            <h3 class="mb-0">Closed Cases</h3>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="table-responsive">
+                                                <table class="table table-hover">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th>Case ID</th>
+                                                            <th>Case Type</th>
+                                                            <th>Date Opened</th>
+                                                            <th>Date Closed</th>
+                                                            <th>Duration</th>
+                                                            <th>Location</th>
+                                                            <th>Beneficiary</th>
+                                                            <th>Services Provided</th>
+                                                            <th>Case Worker</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        ${closedCases.map(caseItem => {
+                                                            const project = caseProjects.find(p => p.id === caseItem.project_id);
+                                                            const dateReported = new Date(caseItem.date_reported);
+                                                            const dateClosed = caseItem.closed_date ? new Date(caseItem.closed_date) : new Date();
+                                                            const duration = Math.floor((dateClosed - dateReported) / (1000 * 60 * 60 * 24));
+                                                            
+                                                            // Parse services JSON
+                                                            let services = [];
+                                                            try {
+                                                                services = typeof caseItem.services === 'string' ? 
+                                                                    JSON.parse(caseItem.services) : 
+                                                                    (caseItem.services || []);
+                                                            } catch (e) { services = []; }
+                                                            if (!Array.isArray(services)) services = [];
+                                                            
+                                                            return `
+                                                                <tr>
+                                                                    <td>
+                                                                        <strong>${caseItem.case_number}</strong><br>
+                                                                        <small class="text-muted">${project ? project.name : 'N/A'}</small>
+                                                                    </td>
+                                                                    <td><span class="badge bg-secondary">${caseItem.case_type}</span></td>
+                                                                    <td>${dateReported.toISOString().split('T')[0]}</td>
+                                                                    <td>${dateClosed.toISOString().split('T')[0]}</td>
+                                                                    <td><strong>${duration} days</strong></td>
+                                                                    <td>${caseItem.location || 'N/A'}</td>
+                                                                    <td>
+                                                                        <strong>${caseItem.beneficiary_gender || 'N/A'}, ${caseItem.beneficiary_age || 'N/A'} years</strong><br>
+                                                                        <small class="text-muted">${caseItem.nationality || 'N/A'}</small>
+                                                                    </td>
+                                                                    <td>
+                                                                        ${services.map(service => 
+                                                                            `<span class="badge bg-info me-1">${service}</span>`
+                                                                        ).join('')}
+                                                                    </td>
+                                                                    <td>${caseItem.case_worker || 'Unassigned'}</td>
+                                                                </tr>
+                                                            `;
+                                                        }).join('')}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Statistics -->
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h3>Case Statistics by Type</h3>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                ${(() => {
+                                                    const caseTypes = {};
+                                                    allCases.forEach(c => {
+                                                        if (!caseTypes[c.case_type]) {
+                                                            caseTypes[c.case_type] = { total: 0, active: 0, closed: 0 };
+                                                        }
+                                                        caseTypes[c.case_type].total++;
+                                                        if (c.status === 'Active' || c.status === 'Open') caseTypes[c.case_type].active++;
+                                                        if (c.status === 'Closed') caseTypes[c.case_type].closed++;
+                                                    });
+                                                    
+                                                    return Object.entries(caseTypes).map(([type, stats]) => `
+                                                        <div class="col-md-4 mb-3">
+                                                            <div class="card">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">${type}</h5>
+                                                                    <p class="mb-1">Total: <strong>${stats.total}</strong></p>
+                                                                    <p class="mb-1 text-warning">Active: <strong>${stats.active}</strong></p>
+                                                                    <p class="mb-0 text-success">Closed: <strong>${stats.closed}</strong></p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    `).join('');
+                                                })()}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            break;
+                        case 'monthly-tracking':
+                            document.getElementById('nav-monthly-tracking').classList.add('active');
+                            const monthlyActRes = await authManager.authenticatedFetch('/api/v1/activities');
+                            const monthlyActData = await monthlyActRes.json();
+                            const monthlyActivities = monthlyActData.data?.activities || [];
+                            
+                            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                            const currentMonth = new Date().getMonth();
+                            
+                            // Group activities by month
+                            const activitiesByMonth = {};
+                            months.forEach(month => {
+                                activitiesByMonth[month] = monthlyActivities.filter(activity => {
+                                    const activityMonth = new Date(activity.planned_date).getMonth();
+                                    return activityMonth === months.indexOf(month);
+                                });
+                            });
+                            
+                            contentArea.innerHTML = `
+                                <div class="container-fluid">
+                                    <div class="d-flex justify-content-between align-items-center mb-4">
+                                        <div>
+                                            <h2><i class="bi bi-calendar3"></i> Monthly Activity Breakdown - 2025</h2>
+                                            <p class="text-muted">Track activities and beneficiaries by month</p>
+                                        </div>
+                                        <div>
+                                            <button class="btn btn-success" id="export-monthly-btn">
+                                                <i class="bi bi-file-earmark-excel"></i> Export Monthly Report
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Summary Cards -->
+                                    <div class="row mb-4">
+                                        <div class="col-md-3">
+                                            <div class="card text-white bg-primary">
+                                                <div class="card-body">
+                                                    <h6 class="card-title">Current Month</h6>
+                                                    <h3 class="mb-0">${months[currentMonth]}</h3>
+                                                    <small>${activitiesByMonth[months[currentMonth]].length} Activities</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card text-white bg-success">
+                                                <div class="card-body">
+                                                    <h6 class="card-title">YTD Activities</h6>
+                                                    <h3 class="mb-0">${monthlyActivities.length}</h3>
+                                                    <small>Total completed</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card text-white bg-info">
+                                                <div class="card-body">
+                                                    <h6 class="card-title">YTD Beneficiaries</h6>
+                                                    <h3 class="mb-0">${monthlyActivities.reduce((sum, a) => sum + (a.total_beneficiaries || 0), 0).toLocaleString()}</h3>
+                                                    <small>Individuals reached</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card text-white bg-warning">
+                                                <div class="card-body">
+                                                    <h6 class="card-title">YTD Budget Execution</h6>
+                                                    <h3 class="mb-0">$${monthlyActivities.reduce((sum, a) => sum + (a.expenditure || 0), 0).toLocaleString()}</h3>
+                                                    <small>Total expenditure</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Monthly Calendar View -->
+                                    <div class="card mb-4">
+                                        <div class="card-header bg-light">
+                                            <h5 class="mb-0"><i class="bi bi-calendar-month"></i> 2025 Activity Calendar</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="table-responsive">
+                                                <table class="table table-bordered">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th>Quarter</th>
+                                                            ${months.map(m => `<th class="${months[currentMonth] === m ? 'table-primary' : ''}">${m}</th>`).join('')}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr>
+                                                            <td rowspan="4"><strong>Activity Count</strong></td>
+                                                            ${months.map(month => {
+                                                                const count = activitiesByMonth[month].length;
+                                                                const bgClass = count > 2 ? 'table-success' : count > 0 ? 'table-warning' : '';
+                                                                return `<td class="${bgClass} text-center"><strong>${count}</strong></td>`;
+                                                            }).join('')}
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Quarterly Summary -->
+                                    <div class="row mt-4 mb-4">
+                                        ${[1, 2, 3, 4].map(quarter => {
+                                            const quarterMonths = months.slice((quarter - 1) * 3, quarter * 3);
+                                            const quarterActivities = quarterMonths.flatMap(m => activitiesByMonth[m]);
+                                            const quarterBeneficiaries = quarterActivities.reduce((sum, a) => sum + (a.total_beneficiaries || 0), 0);
+                                            const quarterBudget = quarterActivities.reduce((sum, a) => sum + (a.expenditure || 0), 0);
+                                            
+                                            return `
+                                                <div class="col-md-3">
+                                                    <div class="card">
+                                                        <div class="card-header bg-primary text-white">
+                                                            <h6 class="mb-0">Quarter ${quarter}</h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <p class="mb-1"><small>Months:</small> <strong>${quarterMonths.join(', ')}</strong></p>
+                                                            <p class="mb-1"><small>Activities:</small> <strong>${quarterActivities.length}</strong></p>
+                                                            <p class="mb-1"><small>Beneficiaries:</small> <strong>${quarterBeneficiaries.toLocaleString()}</strong></p>
+                                                            <p class="mb-0"><small>Budget:</small> <strong>$${quarterBudget.toLocaleString()}</strong></p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            `;
+                                        }).join('')}
+                                    </div>
+
+                                    <!-- Monthly Breakdown Accordion -->
+                                    <div class="card">
+                                        <div class="card-header bg-light">
+                                            <h5 class="mb-0"><i class="bi bi-list-task"></i> Detailed Monthly Breakdown</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="accordion" id="monthlyAccordion">
+                                                ${months.map((month, idx) => {
+                                                    const monthActivities = activitiesByMonth[month];
+                                                    const monthlyBeneficiaries = monthActivities.reduce((sum, a) => sum + (a.total_beneficiaries || 0), 0);
+                                                    const monthlyBudget = monthActivities.reduce((sum, a) => sum + (a.expenditure || 0), 0);
+                                                    const isCurrentMonth = idx === currentMonth;
+                                                    
+                                                    return `
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header">
+                                                                <button class="accordion-button ${isCurrentMonth ? '' : 'collapsed'}" type="button" 
+                                                                        data-bs-toggle="collapse" data-bs-target="#month${idx}">
+                                                                    <strong>${month} 2025</strong>
+                                                                    <span class="ms-3 badge bg-primary">${monthActivities.length} Activities</span>
+                                                                    <span class="ms-2 badge bg-success">${monthlyBeneficiaries} Beneficiaries</span>
+                                                                    <span class="ms-2 badge bg-info">$${monthlyBudget.toLocaleString()}</span>
+                                                                </button>
+                                                            </h2>
+                                                            <div id="month${idx}" class="accordion-collapse collapse ${isCurrentMonth ? 'show' : ''}" 
+                                                                 data-bs-parent="#monthlyAccordion">
+                                                                <div class="accordion-body">
+                                                                    ${monthActivities.length > 0 ? `
+                                                                        <div class="table-responsive">
+                                                                            <table class="table table-sm table-hover">
+                                                                                <thead class="table-light">
+                                                                                    <tr>
+                                                                                        <th>Activity Code</th>
+                                                                                        <th>Activity Name</th>
+                                                                                        <th>Location</th>
+                                                                                        <th>Refugee</th>
+                                                                                        <th>Host</th>
+                                                                                        <th>Total</th>
+                                                                                        <th>Budget</th>
+                                                                                        <th>Status</th>
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody>
+                                                                                    ${monthActivities.map(activity => {
+                                                                                        const refugeeTotal = (activity.refugee_male_total || 0) + (activity.refugee_female_total || 0);
+                                                                                        const hostTotal = (activity.host_male_total || 0) + (activity.host_female_total || 0);
+                                                                                        const total = activity.total_beneficiaries || 0;
+                                                                                        const statusClass = activity.status === 'Completed' ? 'success' : 'warning';
+                                                                                        
+                                                                                        return `
+                                                                                            <tr>
+                                                                                                <td><span class="badge bg-secondary">${activity.activity_code || 'N/A'}</span></td>
+                                                                                                <td><small>${activity.title}</small></td>
+                                                                                                <td><small>${activity.location || 'N/A'}</small></td>
+                                                                                                <td><strong>${refugeeTotal}</strong></td>
+                                                                                                <td><strong>${hostTotal}</strong></td>
+                                                                                                <td><strong>${total}</strong></td>
+                                                                                                <td><small>$${(activity.expenditure || 0).toLocaleString()}</small></td>
+                                                                                                <td><span class="badge bg-${statusClass}">${activity.status}</span></td>
+                                                                                            </tr>
+                                                                                        `;
+                                                                                    }).join('')}
+                                                                                    <tr class="table-info">
+                                                                                        <td colspan="3"><strong>Monthly Total</strong></td>
+                                                                                        <td><strong>${monthActivities.reduce((sum, a) => sum + (a.refugee_male_total || 0) + (a.refugee_female_total || 0), 0)}</strong></td>
+                                                                                        <td><strong>${monthActivities.reduce((sum, a) => sum + (a.host_male_total || 0) + (a.host_female_total || 0), 0)}</strong></td>
+                                                                                        <td><strong>${monthlyBeneficiaries}</strong></td>
+                                                                                        <td><strong>$${monthlyBudget.toLocaleString()}</strong></td>
+                                                                                        <td></td>
+                                                                                    </tr>
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+
+                                                                        <!-- Disaggregation Summary -->
+                                                                        <div class="mt-3">
+                                                                            <h6>Monthly Disaggregation Summary</h6>
+                                                                            <div class="row">
+                                                                                <div class="col-md-6">
+                                                                                    <div class="card">
+                                                                                        <div class="card-body">
+                                                                                            <h6 class="card-title">Refugee Beneficiaries</h6>
+                                                                                            <div class="row">
+                                                                                                <div class="col-6">
+                                                                                                    <p class="mb-1"><small>Male:</small> <strong>${monthActivities.reduce((sum, a) => sum + (a.refugee_male_total || 0), 0)}</strong></p>
+                                                                                                </div>
+                                                                                                <div class="col-6">
+                                                                                                    <p class="mb-1"><small>Female:</small> <strong>${monthActivities.reduce((sum, a) => sum + (a.refugee_female_total || 0), 0)}</strong></p>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div class="col-md-6">
+                                                                                    <div class="card">
+                                                                                        <div class="card-body">
+                                                                                            <h6 class="card-title">Host Community</h6>
+                                                                                            <div class="row">
+                                                                                                <div class="col-6">
+                                                                                                    <p class="mb-1"><small>Male:</small> <strong>${monthActivities.reduce((sum, a) => sum + (a.host_male_total || 0), 0)}</strong></p>
+                                                                                                </div>
+                                                                                                <div class="col-6">
+                                                                                                    <p class="mb-1"><small>Female:</small> <strong>${monthActivities.reduce((sum, a) => sum + (a.host_female_total || 0), 0)}</strong></p>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    ` : `
+                                                                        <div class="alert alert-info">
+                                                                            <i class="bi bi-info-circle"></i> No activities recorded for ${month} 2025
+                                                                        </div>
+                                                                    `}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    `;
+                                                }).join('')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            break;
+                        case 'new-activity-report':
+                            document.getElementById('nav-new-activity-report').classList.add('active');
+                            
+                            contentArea.innerHTML = `
+                                <div class="container-fluid">
+                                    <div class="d-flex justify-content-between align-items-center mb-4">
+                                        <div>
+                                            <h2><i class="bi bi-plus-circle"></i> New Activity Report</h2>
+                                            <p class="text-muted">Submit a new activity with beneficiary disaggregation</p>
+                                        </div>
+                                    </div>
+
+                                    <form id="activity-form">
+                                        <!-- Basic Information -->
+                                        <div class="card mb-4">
+                                            <div class="card-header bg-primary text-white">
+                                                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Basic Information</h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label for="form-project" class="form-label">Project *</label>
+                                                            <select class="form-select" id="form-project" required>
+                                                                <option value="">Select a project...</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label for="form-indicator" class="form-label">Indicator *</label>
+                                                            <select class="form-select" id="form-indicator" required>
+                                                                <option value="">Select an indicator...</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label for="form-code" class="form-label">Activity Code *</label>
+                                                            <input type="text" class="form-control" id="form-code" placeholder="e.g., 3.2.3" required>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-8">
+                                                        <div class="mb-3">
+                                                            <label for="form-title" class="form-label">Activity Name *</label>
+                                                            <input type="text" class="form-control" id="form-title" placeholder="Brief activity description" required>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label for="form-location" class="form-label">Location *</label>
+                                                            <select class="form-select" id="form-location" required>
+                                                                <option value="">Select location...</option>
+                                                                <option value="Nakivale">Nakivale</option>
+                                                                <option value="Nyakabande">Nyakabande</option>
+                                                                <option value="Kampala">Kampala</option>
+                                                                <option value="Other">Other</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label for="form-date" class="form-label">Activity Date *</label>
+                                                            <input type="date" class="form-control" id="form-date" required>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Beneficiary Disaggregation -->
+                                        <div class="row">
+                                            <!-- Refugee Beneficiaries -->
+                                            <div class="col-md-6">
+                                                <div class="card mb-4">
+                                                    <div class="card-header bg-info text-white">
+                                                        <h5 class="mb-0"><i class="bi bi-people"></i> Refugee Beneficiaries</h5>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="table-responsive">
+                                                            <table class="table table-sm">
+                                                                <thead class="table-light">
+                                                                    <tr>
+                                                                        <th>Age Group</th>
+                                                                        <th>Male</th>
+                                                                        <th>Female</th>
+                                                                        <th>Subtotal</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>0-4 yrs</td>
+                                                                        <td><input type="number" min="0" class="form-control form-control-sm refugee-input" id="ref-m-0-4" value="0"></td>
+                                                                        <td><input type="number" min="0" class="form-control form-control-sm refugee-input" id="ref-f-0-4" value="0"></td>
+                                                                        <td class="fw-bold" id="ref-sub-0-4">0</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>5-17 yrs</td>
+                                                                        <td><input type="number" min="0" class="form-control form-control-sm refugee-input" id="ref-m-5-17" value="0"></td>
+                                                                        <td><input type="number" min="0" class="form-control form-control-sm refugee-input" id="ref-f-5-17" value="0"></td>
+                                                                        <td class="fw-bold" id="ref-sub-5-17">0</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>18-49 yrs</td>
+                                                                        <td><input type="number" min="0" class="form-control form-control-sm refugee-input" id="ref-m-18-49" value="0"></td>
+                                                                        <td><input type="number" min="0" class="form-control form-control-sm refugee-input" id="ref-f-18-49" value="0"></td>
+                                                                        <td class="fw-bold" id="ref-sub-18-49">0</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>50+ yrs</td>
+                                                                        <td><input type="number" min="0" class="form-control form-control-sm refugee-input" id="ref-m-50" value="0"></td>
+                                                                        <td><input type="number" min="0" class="form-control form-control-sm refugee-input" id="ref-f-50" value="0"></td>
+                                                                        <td class="fw-bold" id="ref-sub-50">0</td>
+                                                                    </tr>
+                                                                    <tr class="table-primary">
+                                                                        <td><strong>Total</strong></td>
+                                                                        <td class="fw-bold" id="ref-male-total">0</td>
+                                                                        <td class="fw-bold" id="ref-female-total">0</td>
+                                                                        <td class="fw-bold" id="ref-total">0</td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Host Community Beneficiaries -->
+                                            <div class="col-md-6">
+                                                <div class="card mb-4">
+                                                    <div class="card-header bg-success text-white">
+                                                        <h5 class="mb-0"><i class="bi bi-house"></i> Host Community</h5>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="table-responsive">
+                                                            <table class="table table-sm">
+                                                                <thead class="table-light">
+                                                                    <tr>
+                                                                        <th>Age Group</th>
+                                                                        <th>Male</th>
+                                                                        <th>Female</th>
+                                                                        <th>Subtotal</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>0-4 yrs</td>
+                                                                        <td><input type="number" min="0" class="form-control form-control-sm host-input" id="host-m-0-4" value="0"></td>
+                                                                        <td><input type="number" min="0" class="form-control form-control-sm host-input" id="host-f-0-4" value="0"></td>
+                                                                        <td class="fw-bold" id="host-sub-0-4">0</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>5-17 yrs</td>
+                                                                        <td><input type="number" min="0" class="form-control form-control-sm host-input" id="host-m-5-17" value="0"></td>
+                                                                        <td><input type="number" min="0" class="form-control form-control-sm host-input" id="host-f-5-17" value="0"></td>
+                                                                        <td class="fw-bold" id="host-sub-5-17">0</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>18-49 yrs</td>
+                                                                        <td><input type="number" min="0" class="form-control form-control-sm host-input" id="host-m-18-49" value="0"></td>
+                                                                        <td><input type="number" min="0" class="form-control form-control-sm host-input" id="host-f-18-49" value="0"></td>
+                                                                        <td class="fw-bold" id="host-sub-18-49">0</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>50+ yrs</td>
+                                                                        <td><input type="number" min="0" class="form-control form-control-sm host-input" id="host-m-50" value="0"></td>
+                                                                        <td><input type="number" min="0" class="form-control form-control-sm host-input" id="host-f-50" value="0"></td>
+                                                                        <td class="fw-bold" id="host-sub-50">0</td>
+                                                                    </tr>
+                                                                    <tr class="table-primary">
+                                                                        <td><strong>Total</strong></td>
+                                                                        <td class="fw-bold" id="host-male-total">0</td>
+                                                                        <td class="fw-bold" id="host-female-total">0</td>
+                                                                        <td class="fw-bold" id="host-total">0</td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Grand Total -->
+                                        <div class="card mb-4 border-primary">
+                                            <div class="card-body text-center">
+                                                <h5>Grand Total Beneficiaries</h5>
+                                                <h2 class="text-primary mb-0" id="grand-total">0</h2>
+                                            </div>
+                                        </div>
+
+                                        <!-- Nationality Breakdown -->
+                                        <div class="card mb-4">
+                                            <div class="card-header bg-warning">
+                                                <h5 class="mb-0"><i class="bi bi-flag"></i> Refugee Nationality Breakdown</h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row">
+                                                    <div class="col-md-3">
+                                                        <div class="mb-3">
+                                                            <label for="nat-sudanese" class="form-label">Sudanese</label>
+                                                            <input type="number" min="0" class="form-control nationality-input" id="nat-sudanese" value="0">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <div class="mb-3">
+                                                            <label for="nat-congolese" class="form-label">Congolese</label>
+                                                            <input type="number" min="0" class="form-control nationality-input" id="nat-congolese" value="0">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <div class="mb-3">
+                                                            <label for="nat-south-sudanese" class="form-label">South Sudanese</label>
+                                                            <input type="number" min="0" class="form-control nationality-input" id="nat-south-sudanese" value="0">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <div class="mb-3">
+                                                            <label for="nat-others" class="form-label">Others</label>
+                                                            <input type="number" min="0" class="form-control nationality-input" id="nat-others" value="0">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div id="nationality-alert" class="alert alert-warning d-none">
+                                                    <i class="bi bi-exclamation-triangle"></i> 
+                                                    <strong>Warning:</strong> Nationality breakdown (<span id="nat-sum">0</span>) 
+                                                    does not match Total Refugee Beneficiaries (<span id="nat-expected">0</span>)
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Budget & Expenditure -->
+                                        <div class="card mb-4">
+                                            <div class="card-header bg-secondary text-white">
+                                                <h5 class="mb-0"><i class="bi bi-currency-dollar"></i> Financial Information</h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label for="form-budget" class="form-label">Budget (USD) *</label>
+                                                            <input type="number" min="0" step="0.01" class="form-control" id="form-budget" placeholder="0.00" required>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label for="form-expenditure" class="form-label">Expenditure (USD) *</label>
+                                                            <input type="number" min="0" step="0.01" class="form-control" id="form-expenditure" placeholder="0.00" required>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Narrative -->
+                                        <div class="card mb-4">
+                                            <div class="card-header bg-light">
+                                                <h5 class="mb-0"><i class="bi bi-chat-text"></i> Qualitative Notes</h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="mb-3">
+                                                    <label for="form-narrative" class="form-label">Activity Narrative *</label>
+                                                    <textarea class="form-control" id="form-narrative" rows="5" 
+                                                              placeholder="Describe the activity, outcomes, challenges, and lessons learned..." required></textarea>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- File Upload -->
+                                        <div class="card mb-4">
+                                            <div class="card-header bg-light">
+                                                <h5 class="mb-0"><i class="bi bi-paperclip"></i> Supporting Evidence</h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="mb-3">
+                                                    <label for="form-file" class="form-label">Upload Evidence (Images, PDF, Word)</label>
+                                                    <input type="file" class="form-control" id="form-file" accept="image/*,.pdf,.doc,.docx" multiple>
+                                                    <small class="text-muted">Accepted: Images, PDF, Word documents</small>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Action Buttons -->
+                                        <div class="d-flex justify-content-end gap-3 mb-4">
+                                            <button type="button" class="btn btn-outline-secondary" id="reset-form-btn">
+                                                <i class="bi bi-x-circle"></i> Reset Form
+                                            </button>
+                                            <button type="button" class="btn btn-warning" id="save-draft-btn">
+                                                <i class="bi bi-save"></i> Save as Draft
+                                            </button>
+                                            <button type="submit" class="btn btn-success">
+                                                <i class="bi bi-check-circle"></i> Submit for Review
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            `;
+                            
+                            // Populate dropdowns
+                            const [formProjRes, formIndRes] = await Promise.all([
+                                authManager.authenticatedFetch('/api/v1/projects'),
+                                authManager.authenticatedFetch('/api/v1/indicators')
+                            ]);
+                            const formProjData = await formProjRes.json();
+                            const formIndData = await formIndRes.json();
+                            const formProjects = formProjData.data?.projects || [];
+                            const formIndicators = formIndData.data?.indicators || [];
+                            
+                            const projectSelect = document.getElementById('form-project');
+                            formProjects.forEach(p => {
+                                const option = document.createElement('option');
+                                option.value = p.id;
+                                option.textContent = p.name;
+                                projectSelect.appendChild(option);
+                            });
+                            
+                            const indicatorSelect = document.getElementById('form-indicator');
+                            formIndicators.forEach(ind => {
+                                const option = document.createElement('option');
+                                option.value = ind.id;
+                                option.textContent = `${ind.indicator_code} - ${ind.indicator_name}`;
+                                indicatorSelect.appendChild(option);
+                            });
+                            
+                            // Auto-calculation for refugee beneficiaries
+                            const refugeeInputs = document.querySelectorAll('.refugee-input');
+                            refugeeInputs.forEach(input => {
+                                input.addEventListener('input', () => {
+                                    // Calculate subtotals for each age group
+                                    ['0-4', '5-17', '18-49', '50'].forEach(age => {
+                                        const male = parseInt(document.getElementById(`ref-m-${age}`).value) || 0;
+                                        const female = parseInt(document.getElementById(`ref-f-${age}`).value) || 0;
+                                        document.getElementById(`ref-sub-${age}`).textContent = male + female;
+                                    });
+                                    
+                                    // Calculate column totals
+                                    let refMaleTotal = 0, refFemaleTotal = 0;
+                                    ['0-4', '5-17', '18-49', '50'].forEach(age => {
+                                        refMaleTotal += parseInt(document.getElementById(`ref-m-${age}`).value) || 0;
+                                        refFemaleTotal += parseInt(document.getElementById(`ref-f-${age}`).value) || 0;
+                                    });
+                                    document.getElementById('ref-male-total').textContent = refMaleTotal;
+                                    document.getElementById('ref-female-total').textContent = refFemaleTotal;
+                                    document.getElementById('ref-total').textContent = refMaleTotal + refFemaleTotal;
+                                    
+                                    // Update grand total
+                                    const hostTotal = parseInt(document.getElementById('host-total').textContent) || 0;
+                                    document.getElementById('grand-total').textContent = (refMaleTotal + refFemaleTotal + hostTotal);
+                                    
+                                    // Update nationality expected
+                                    document.getElementById('nat-expected').textContent = refMaleTotal + refFemaleTotal;
+                                    checkNationalityMatch();
+                                });
+                            });
+                            
+                            // Auto-calculation for host beneficiaries
+                            const hostInputs = document.querySelectorAll('.host-input');
+                            hostInputs.forEach(input => {
+                                input.addEventListener('input', () => {
+                                    // Calculate subtotals for each age group
+                                    ['0-4', '5-17', '18-49', '50'].forEach(age => {
+                                        const male = parseInt(document.getElementById(`host-m-${age}`).value) || 0;
+                                        const female = parseInt(document.getElementById(`host-f-${age}`).value) || 0;
+                                        document.getElementById(`host-sub-${age}`).textContent = male + female;
+                                    });
+                                    
+                                    // Calculate column totals
+                                    let hostMaleTotal = 0, hostFemaleTotal = 0;
+                                    ['0-4', '5-17', '18-49', '50'].forEach(age => {
+                                        hostMaleTotal += parseInt(document.getElementById(`host-m-${age}`).value) || 0;
+                                        hostFemaleTotal += parseInt(document.getElementById(`host-f-${age}`).value) || 0;
+                                    });
+                                    document.getElementById('host-male-total').textContent = hostMaleTotal;
+                                    document.getElementById('host-female-total').textContent = hostFemaleTotal;
+                                    document.getElementById('host-total').textContent = hostMaleTotal + hostFemaleTotal;
+                                    
+                                    // Update grand total
+                                    const refTotal = parseInt(document.getElementById('ref-total').textContent) || 0;
+                                    document.getElementById('grand-total').textContent = (refTotal + hostMaleTotal + hostFemaleTotal);
+                                });
+                            });
+                            
+                            // Nationality validation
+                            const nationalityInputs = document.querySelectorAll('.nationality-input');
+                            nationalityInputs.forEach(input => {
+                                input.addEventListener('input', checkNationalityMatch);
+                            });
+                            
+                            function checkNationalityMatch() {
+                                const sudanese = parseInt(document.getElementById('nat-sudanese').value) || 0;
+                                const congolese = parseInt(document.getElementById('nat-congolese').value) || 0;
+                                const southSudanese = parseInt(document.getElementById('nat-south-sudanese').value) || 0;
+                                const others = parseInt(document.getElementById('nat-others').value) || 0;
+                                const natSum = sudanese + congolese + southSudanese + others;
+                                
+                                const refTotal = parseInt(document.getElementById('ref-total').textContent) || 0;
+                                
+                                document.getElementById('nat-sum').textContent = natSum;
+                                const alert = document.getElementById('nationality-alert');
+                                
+                                if (natSum !== refTotal && refTotal > 0) {
+                                    alert.classList.remove('d-none');
+                                } else {
+                                    alert.classList.add('d-none');
+                                }
+                            }
+                            
+                            // Reset form button
+                            document.getElementById('reset-form-btn').addEventListener('click', () => {
+                                document.getElementById('activity-form').reset();
+                                // Reset all calculated fields
+                                refugeeInputs.forEach(input => input.value = 0);
+                                hostInputs.forEach(input => input.value = 0);
+                                nationalityInputs.forEach(input => input.value = 0);
+                                refugeeInputs[0].dispatchEvent(new Event('input'));
+                                hostInputs[0].dispatchEvent(new Event('input'));
+                            });
+                            
+                            // Form submission (save draft or submit)
+                            document.getElementById('save-draft-btn').addEventListener('click', () => {
+                                alert('Draft saved successfully! (API integration pending)');
+                            });
+                            
+                            document.getElementById('activity-form').addEventListener('submit', (e) => {
+                                e.preventDefault();
+                                alert('Activity submitted for review! (API integration pending)');
+                            });
+                            
+                            break;
+                        case 'demo-guide':
+                            document.getElementById('nav-demo-guide').classList.add('active');
+                            contentArea.innerHTML = `
+                                <div class="container-fluid">
+                                    <h2><i class="bi bi-book"></i> Demo Guide</h2>
+                                    <div class="card mt-3">
+                                        <div class="card-body">
+                                            <h5>Welcome to AWYAD MES</h5>
+                                            <p>This is a comprehensive Monitoring, Evaluation, and Learning (MEL) system for managing projects, tracking indicators, and monitoring activities.</p>
+                                            <h6 class="mt-3">Key Features:</h6>
+                                            <ul>
+                                                <li><strong>Dashboard:</strong> Overview of projects, indicators, and activities</li>
+                                                <li><strong>Projects:</strong> Manage project information, budgets, and timelines</li>
+                                                <li><strong>Indicator Tracking:</strong> Track key performance indicators</li>
+                                                <li><strong>Activity Tracking:</strong> Monitor activities with beneficiary data</li>
+                                                <li><strong>Case Management:</strong> Track and manage individual cases</li>
+                                                <li><strong>User Management:</strong> Admin-only feature to manage users and permissions</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            break;
+                        case 'users':
+                            document.getElementById('nav-users').classList.add('active');
+                            // Check if user has admin role
+                            if (!authManager.hasRole('admin')) {
+                                contentArea.innerHTML = `
+                                    <div class="container-fluid">
+                                        <div class="alert alert-danger mt-3">
+                                            <i class="bi bi-exclamation-triangle"></i> Access Denied. Admin privileges required.
+                                        </div>
+                                    </div>
+                                `;
+                                break;
+                            }
+                            const usersResponse = await authManager.authenticatedFetch('/api/v1/users');
+                            const usersData = await usersResponse.json();
+                            contentArea.innerHTML = `
+                                <div class="container-fluid">
+                                    <h2><i class="bi bi-people"></i> User Management</h2>
+                                    <div class="table-responsive mt-3">
+                                        <table class="table table-striped table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th>Email</th>
+                                                    <th>Username</th>
+                                                    <th>Status</th>
+                                                    <th>Roles</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${usersData.data?.users?.map(user => `
+                                                    <tr>
+                                                        <td>${user.first_name} ${user.last_name}</td>
+                                                        <td>${user.email}</td>
+                                                        <td>${user.username}</td>
+                                                        <td><span class="badge ${user.is_active ? 'bg-success' : 'bg-danger'}">${user.is_active ? 'Active' : 'Inactive'}</span></td>
+                                                        <td>${user.roles?.map(r => r.display_name || r.name).join(', ') || 'None'}</td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-primary" onclick="alert('Edit user feature coming soon')">
+                                                                <i class="bi bi-pencil"></i>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                `).join('') || '<tr><td colspan="6" class="text-center">No users found</td></tr>'}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            `;
+                            break;
+                        default:
+                            contentArea.innerHTML = '<div class="container-fluid"><h2>Welcome to AWYAD MES</h2><p>Select an option from the menu.</p></div>';
+                    }
+                } catch (error) {
+                    console.error('Navigation error:', error);
+                    showError(error.message || 'Failed to load data');
+                }
+            }
+
+            // Attach navigation handlers
+            document.getElementById('nav-dashboard')?.addEventListener('click', (e) => { e.preventDefault(); navigate('dashboard'); });
+            document.getElementById('nav-projects')?.addEventListener('click', (e) => { e.preventDefault(); navigate('projects'); });
+            document.getElementById('nav-indicators')?.addEventListener('click', (e) => { e.preventDefault(); navigate('indicators'); });
+            document.getElementById('nav-activities')?.addEventListener('click', (e) => { e.preventDefault(); navigate('activities'); });
+            document.getElementById('nav-case-management')?.addEventListener('click', (e) => { e.preventDefault(); navigate('cases'); });
+            document.getElementById('nav-monthly-tracking')?.addEventListener('click', (e) => { e.preventDefault(); navigate('monthly-tracking'); });
+            document.getElementById('nav-new-activity-report')?.addEventListener('click', (e) => { e.preventDefault(); navigate('new-activity-report'); });
+            document.getElementById('nav-demo-guide')?.addEventListener('click', (e) => { e.preventDefault(); navigate('demo-guide'); });
+            document.getElementById('nav-users')?.addEventListener('click', (e) => { e.preventDefault(); navigate('users'); });
+            document.getElementById('nav-profile')?.addEventListener('click', (e) => { e.preventDefault(); window.location.href = 'profile.html'; });
+
+            // Load dashboard by default
+            navigate('dashboard');
+        });
+    </script>
+</body>
+</html>

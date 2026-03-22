@@ -14,6 +14,7 @@ export function renderProjects(data) {
                                     <th>Donor</th>
                                     <th>Status</th>
                                     <th style="width: 20%;">Budget Burn Rate</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -45,6 +46,11 @@ export function renderProjects(data) {
                                                         ${project.burnRate.toFixed(1)}%
                                                     </div>
                                                 </div>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-primary" onclick="viewProjectDashboard('${project.id}')">
+                                                    <i class="bi bi-eye"></i> View
+                                                </button>
                                             </td>
                                         </tr>
                                     `;

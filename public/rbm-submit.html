@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Submit Indicator Data — AWYAD MES</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/rbm.css" />
+</head>
+<body>
+  <!-- ── Navigation ─────────────────────────────────────────── -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary no-print">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold" href="/dashboard.html">
+        <i class="bi bi-grid-3x3-gap-fill me-2"></i>AWYAD MES
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item"><a class="nav-link" href="/dashboard.html"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-dashboard.html"><i class="bi bi-bar-chart-steps me-1"></i>RBM</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-strategy.html"><i class="bi bi-diagram-3 me-1"></i>Strategy</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-indicators.html"><i class="bi bi-list-check me-1"></i>Indicators</a></li>
+          <li class="nav-item"><a class="nav-link" href="/non-program-activities.html"><i class="bi bi-card-list me-1"></i>Non-Program</a></li>
+          <li class="nav-item"><a class="nav-link active" href="/rbm-submit.html"><i class="bi bi-pencil-square me-1"></i>Submit Data</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-validation.html"><i class="bi bi-shield-check me-1"></i>Validation</a></li>
+          <li class="nav-item"><a class="nav-link" href="/activities.html"><i class="bi bi-calendar-check me-1"></i>Activities</a></li>
+          <li class="nav-item"><a class="nav-link" href="/projects.html"><i class="bi bi-folder2 me-1"></i>Projects</a></li>
+        </ul>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-light" id="userName"></span>
+          <a href="/login.html" class="btn btn-outline-light btn-sm" id="logoutBtn">Logout</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Page Header ────────────────────────────────────────── -->
+  <div class="bg-light border-bottom py-3">
+    <div class="container">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+          <h4 class="mb-0 fw-semibold"><i class="bi bi-pencil-square text-primary me-2"></i>Submit Indicator Data</h4>
+          <nav aria-label="breadcrumb" class="small">
+            <ol class="breadcrumb mb-0">
+              <li class="breadcrumb-item"><a href="/dashboard.html">Home</a></li>
+              <li class="breadcrumb-item"><a href="/rbm-dashboard.html">RBM Dashboard</a></li>
+              <li class="breadcrumb-item active">Submit Data</li>
+            </ol>
+          </nav>
+        </div>
+        <a href="/rbm-dashboard.html" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main Content ───────────────────────────────────────── -->
+  <div class="container py-4">
+    <div class="row justify-content-center">
+      <div class="col-lg-8">
+
+        <!-- Success alert (hidden by default) -->
+        <div class="alert alert-success d-none" id="successAlert" role="alert">
+          <i class="bi bi-check-circle-fill me-2"></i>
+          <span id="successMsg">Data submitted successfully and queued for validation.</span>
+          <div class="mt-2">
+            <a href="/rbm-submit.html" class="btn btn-sm btn-success me-2">Submit Another</a>
+            <a href="/rbm-dashboard.html" class="btn btn-sm btn-outline-success">Back to Dashboard</a>
+          </div>
+        </div>
+
+        <!-- Error alert (hidden by default) -->
+        <div class="alert alert-danger d-none" id="errorAlert" role="alert">
+          <i class="bi bi-exclamation-circle-fill me-2"></i>
+          <span id="errorMsg">An error occurred.</span>
+        </div>
+
+        <!-- Submission Form -->
+        <div class="card shadow-sm" id="formCard">
+          <div class="card-header py-3">
+            <h5 class="card-title mb-0"><i class="bi bi-database-add text-primary me-2"></i>New Indicator Value Entry</h5>
+            <p class="card-text text-muted small mb-0 mt-1">
+              Enter the observed value for an indicator. Submissions are queued for validation before being counted in reports.
+            </p>
+          </div>
+          <div class="card-body p-4">
+            <form id="submitForm" novalidate>
+
+              <!-- ── Indicator & Project ─────────────────────── -->
+              <h6 class="text-uppercase text-muted small fw-bold mb-3">
+                <i class="bi bi-diagram-3 me-1"></i>Indicator & Project
+              </h6>
+
+              <div class="mb-3">
+                <label for="indicatorSelect" class="form-label">
+                  Organizational Indicator <span class="text-danger">*</span>
+                </label>
+                <select class="form-select" id="indicatorSelect" required>
+                  <option value="">Loading indicators…</option>
+                </select>
+                <div class="form-text" id="indicatorHint"></div>
+                <div class="invalid-feedback">Please select an indicator.</div>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-8">
+                  <label for="projectSelect" class="form-label">Project <span class="text-muted small">(optional)</span></label>
+                  <select class="form-select" id="projectSelect">
+                    <option value="">— Not project-specific —</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label for="unitDisplay" class="form-label">Unit of Measure</label>
+                  <input type="text" class="form-control" id="unitDisplay" readonly placeholder="—" tabindex="-1" />
+                </div>
+              </div>
+
+              <hr class="my-4" />
+
+              <!-- ── Reported Value ──────────────────────────── -->
+              <h6 class="text-uppercase text-muted small fw-bold mb-3">
+                <i class="bi bi-123 me-1"></i>Reported Value
+              </h6>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label for="valueInput" class="form-label">
+                    Value <span class="text-danger">*</span>
+                  </label>
+                  <input type="number" class="form-control" id="valueInput" step="any"
+                         placeholder="e.g. 1250" required />
+                  <div class="invalid-feedback">Please enter a numeric value.</div>
+                </div>
+                <div class="col-md-6">
+                  <label for="dataSourceInput" class="form-label">Data Source</label>
+                  <input type="text" class="form-control" id="dataSourceInput"
+                         placeholder="e.g. Monthly survey, FIS export" maxlength="255" />
+                </div>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label for="disaggTypeSelect" class="form-label">Disaggregation Type</label>
+                  <select class="form-select" id="disaggTypeSelect">
+                    <option value="">— None —</option>
+                    <option value="gender">Gender</option>
+                    <option value="age">Age</option>
+                    <option value="location">Location</option>
+                    <option value="beneficiary_type">Beneficiary Type</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label for="disaggValueInput" class="form-label">Disaggregation Value</label>
+                  <input type="text" class="form-control" id="disaggValueInput"
+                         placeholder="e.g. Female, 18-35, Urban" maxlength="255" />
+                </div>
+              </div>
+
+              <hr class="my-4" />
+
+              <!-- ── Reporting Period ────────────────────────── -->
+              <h6 class="text-uppercase text-muted small fw-bold mb-3">
+                <i class="bi bi-calendar-range me-1"></i>Reporting Period
+              </h6>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label for="periodStart" class="form-label">
+                    Period Start <span class="text-danger">*</span>
+                  </label>
+                  <input type="date" class="form-control" id="periodStart" required />
+                  <div class="invalid-feedback">Please select a start date.</div>
+                </div>
+                <div class="col-md-6">
+                  <label for="periodEnd" class="form-label">
+                    Period End <span class="text-danger">*</span>
+                  </label>
+                  <input type="date" class="form-control" id="periodEnd" required />
+                  <div class="invalid-feedback">Please select an end date after the start date.</div>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="collectionMethodInput" class="form-label">Collection Method</label>
+                <input type="text" class="form-control" id="collectionMethodInput"
+                       placeholder="e.g. Field visit, Remote survey, Administrative data" maxlength="255" />
+              </div>
+
+              <hr class="my-4" />
+
+              <!-- ── Notes ───────────────────────────────────── -->
+              <h6 class="text-uppercase text-muted small fw-bold mb-3">
+                <i class="bi bi-chat-left-text me-1"></i>Notes
+              </h6>
+
+              <div class="mb-4">
+                <label for="notesTextarea" class="form-label">Additional Notes <span class="text-muted small">(optional)</span></label>
+                <textarea class="form-control" id="notesTextarea" rows="3"
+                          placeholder="Describe any data quality issues, methodology notes, or context for this submission…"
+                          maxlength="2000"></textarea>
+                <div class="form-text text-end"><span id="notesCount">0</span>/2000</div>
+              </div>
+
+              <!-- ── Submit buttons ─────────────────────────── -->
+              <div class="d-flex gap-2 justify-content-end">
+                <a href="/rbm-dashboard.html" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                  <span class="spinner-border spinner-border-sm d-none me-1" id="submitSpinner"></span>
+                  <i class="bi bi-send me-1" id="submitIcon"></i>
+                  Submit Entry
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+
+      </div><!-- /col -->
+    </div><!-- /row -->
+  </div><!-- /container -->
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/rbm-submit.js"></script>
+</body>
+</html>

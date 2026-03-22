@@ -103,23 +103,39 @@ export function exportIndicatorTracking(indicators, thematicAreas) {
             ? ((indicator.achieved / indicator.annualTarget) * 100).toFixed(1) 
             : 0;
         
+        // Smart value formatting
+        const formatValue = (value) => {
+            if (value === null || value === undefined) return '0';
+            const num = parseFloat(value);
+            if (indicator.data_type === 'percentage') {
+                return num.toFixed(1) + '%';
+            }
+            return num.toString();
+        };
+        
         return {
+            'Indicator Scope': indicator.indicator_scope === 'awyad' ? 'AWYAD' : 'Project',
+            'Indicator Level': (indicator.indicator_level || 'N/A').toUpperCase(),
             'Indicator Code': indicator.code,
             'Indicator Name': indicator.name,
             'Thematic Area': ta ? `${ta.code}: ${ta.name}` : 'N/A',
-            'Type': indicator.type,
-            'Baseline': indicator.baseline || 0,
-            'Baseline Date': indicator.baselineDate,
-            'LOP Target': indicator.lopTarget || 0,
-            'Annual Target': indicator.annualTarget || 0,
-            'Achieved': indicator.achieved || 0,
-            'Variance': variance,
+            'Data Type': indicator.data_type || 'number',
+            'Baseline': formatValue(indicator.baseline),
+            'Baseline Date': indicator.baseline_date || indicator.baselineDate || 'N/A',
+            'LOP Target': formatValue(indicator.lop_target || indicator.lopTarget),
+            'Annual Target': formatValue(indicator.annual_target || indicator.annualTarget),
+            'Q1 Target': formatValue(indicator.q1_target || indicator.q1Target),
+            'Q2 Target': formatValue(indicator.q2_target || indicator.q2Target),
+            'Q3 Target': formatValue(indicator.q3_target || indicator.q3Target),
+            'Q4 Target': formatValue(indicator.q4_target || indicator.q4Target),
+            'Q1 Achieved': formatValue(indicator.q1_achieved || indicator.q1Achieved),
+            'Q2 Achieved': formatValue(indicator.q2_achieved || indicator.q2Achieved),
+            'Q3 Achieved': formatValue(indicator.q3_achieved || indicator.q3Achieved),
+            'Q4 Achieved': formatValue(indicator.q4_achieved || indicator.q4Achieved),
+            'Achieved': formatValue(indicator.achieved),
+            'Variance': formatValue(variance),
             'Percentage Achieved': percentage + '%',
-            'Q1 Target': indicator.q1Target || 0,
-            'Q2 Target': indicator.q2Target || 0,
-            'Q3 Target': indicator.q3Target || 0,
-            'Q4 Target': indicator.q4Target || 0,
-            'Unit': indicator.unit
+            'Unit': indicator.unit || 'N/A'
         };
     });
     

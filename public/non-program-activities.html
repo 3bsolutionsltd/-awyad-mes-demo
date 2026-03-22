@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Non-Program Activities — AWYAD MES</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/rbm.css" />
+</head>
+<body>
+
+  <!-- ── Navigation ─────────────────────────────────────────── -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary no-print">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold" href="/dashboard.html">
+        <i class="bi bi-grid-3x3-gap-fill me-2"></i>AWYAD MES
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item"><a class="nav-link" href="/dashboard.html"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-dashboard.html"><i class="bi bi-bar-chart-steps me-1"></i>RBM</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-indicators.html"><i class="bi bi-list-check me-1"></i>Indicators</a></li>
+          <li class="nav-item"><a class="nav-link active" href="/non-program-activities.html"><i class="bi bi-card-list me-1"></i>Non-Program</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-submit.html"><i class="bi bi-pencil-square me-1"></i>Submit Data</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-validation.html"><i class="bi bi-shield-check me-1"></i>Validation</a></li>
+        </ul>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-light" id="userName"></span>
+          <a href="/login.html" class="btn btn-outline-light btn-sm" id="logoutBtn">Logout</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Page Header ────────────────────────────────────────── -->
+  <div class="bg-light border-bottom py-3">
+    <div class="container-fluid">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+          <h4 class="mb-0 fw-semibold"><i class="bi bi-card-list text-primary me-2"></i>Non-Program Activities</h4>
+          <nav aria-label="breadcrumb" class="small">
+            <ol class="breadcrumb mb-0">
+              <li class="breadcrumb-item"><a href="/dashboard.html">Home</a></li>
+              <li class="breadcrumb-item"><a href="/rbm-dashboard.html">RBM</a></li>
+              <li class="breadcrumb-item active">Non-Program Activities</li>
+            </ol>
+          </nav>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary btn-sm" id="manageCategoriesBtn">
+            <i class="bi bi-tags me-1"></i>Manage Categories
+          </button>
+          <button class="btn btn-primary btn-sm" id="newActivityBtn">
+            <i class="bi bi-plus-lg me-1"></i>New Activity
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main Content ───────────────────────────────────────── -->
+  <div class="container-fluid py-4">
+    <div class="row g-3">
+
+      <!-- Left: Category list -->
+      <div class="col-md-3 col-lg-2">
+        <div class="card">
+          <div class="card-header py-2 fw-semibold small d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-tags me-1 text-secondary"></i>Categories</span>
+            <button class="btn btn-sm btn-link p-0 text-primary" id="addCategoryBtn" title="Add category">
+              <i class="bi bi-plus-circle"></i>
+            </button>
+          </div>
+          <div class="list-group list-group-flush" id="categoryList">
+            <a href="#" class="list-group-item list-group-item-action active" data-cat-id="">
+              <i class="bi bi-grid me-1"></i>All Categories
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Activities table -->
+      <div class="col-md-9 col-lg-10">
+
+        <!-- Filters -->
+        <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+          <input class="form-control form-control-sm" type="search" id="filterSearch"
+                 placeholder="Search activities…" style="width:220px" />
+          <select class="form-select form-select-sm" id="filterPeriod" style="width:auto;min-width:160px">
+            <option value="">All Periods</option>
+          </select>
+          <select class="form-select form-select-sm" id="filterStatus" style="width:auto">
+            <option value="">All Status</option>
+            <option value="Planned">Planned</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+          <span class="text-muted small ms-auto" id="countLabel">Loading…</span>
+        </div>
+
+        <!-- Table -->
+        <div class="card shadow-sm">
+          <div class="table-responsive">
+            <table class="table table-hover table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:28%">Activity</th>
+                  <th>Category</th>
+                  <th>Period</th>
+                  <th class="text-end">Target</th>
+                  <th class="text-end">Achieved</th>
+                  <th style="width:18%">Progress</th>
+                  <th class="text-center">Status</th>
+                  <th class="text-center no-print">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="activitiesTableBody">
+                <tr><td colspan="8" class="text-center text-muted py-4">
+                  <div class="spinner-border spinner-border-sm text-primary me-2"></div>Loading…
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Create / Edit Activity Modal ──────────────────────── -->
+  <div class="modal fade" id="activityModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="activityModalTitle">New Non-Program Activity</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form id="activityForm" novalidate>
+          <div class="modal-body">
+            <input type="hidden" id="editActivityId" />
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label fw-semibold">Activity Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="fldActivityName" required maxlength="500" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
+                <select class="form-select" id="fldCategory" required>
+                  <option value="">— Select category —</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Reporting Period</label>
+                <input type="text" class="form-control" id="fldReportingPeriod"
+                       placeholder="e.g. Q1 2025 or Jan–Mar 2025" maxlength="100" />
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold">Description</label>
+                <textarea class="form-control" id="fldDescription" rows="2" maxlength="1000"></textarea>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Target <span class="text-danger">*</span></label>
+                <input type="number" class="form-control" id="fldTarget" required min="0" step="any" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Achieved</label>
+                <input type="number" class="form-control" id="fldAchieved" min="0" step="any" value="0" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Unit of Measure</label>
+                <input type="text" class="form-control" id="fldUnit" placeholder="e.g. people, sessions" maxlength="100" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Start Date</label>
+                <input type="date" class="form-control" id="fldStartDate" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">End Date</label>
+                <input type="date" class="form-control" id="fldEndDate" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Status</label>
+                <select class="form-select" id="fldStatus">
+                  <option value="Planned">Planned</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold">Notes</label>
+                <textarea class="form-control" id="fldNotes" rows="2"></textarea>
+              </div>
+            </div>
+            <div class="alert alert-danger mt-3 d-none" id="activityFormError"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="saveActivityBtn">
+              <i class="bi bi-check-lg me-1"></i>Save Activity
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Category Modal ─────────────────────────────────────── -->
+  <div class="modal fade" id="categoryModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="categoryModalTitle">Manage Categories</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Add New Category</label>
+            <div class="input-group">
+              <input type="text" class="form-control" id="newCategoryName" placeholder="Category name…" maxlength="200" />
+              <input type="text" class="form-control" id="newCategoryColor" placeholder="Color (optional, e.g. #3b82f6)" maxlength="50" style="max-width:180px" />
+              <button class="btn btn-primary" id="addCategoryConfirmBtn"><i class="bi bi-plus-lg"></i> Add</button>
+            </div>
+          </div>
+          <hr />
+          <ul class="list-group" id="categoriesManageList">
+            <li class="list-group-item text-muted text-center small">Loading…</li>
+          </ul>
+          <div class="alert alert-danger mt-2 d-none" id="categoryError"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script type="module" src="/js/rbm-non-prog.js"></script>
+</body>
+</html>

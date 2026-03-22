@@ -101,6 +101,16 @@ This is a comprehensive Monitoring, Evaluation, and Learning (MES) system demo f
 
 ## Data Features
 
+### 📱 Mobile Responsiveness ✨ NEW!
+The system is now **fully responsive** and optimized for all devices:
+- **Phone Support (<576px)**: Hamburger menu, swipe gestures, card-based tables
+- **Tablet Support (576-992px)**: Compact sidebar, optimized layouts
+- **Desktop (>992px)**: Full sidebar, multi-column views
+- **Touch-Friendly**: 44x44px minimum touch targets (WCAG 2.5.5)
+- **Accessibility**: Skip-to-main link, keyboard navigation, screen reader support
+
+See [docs/MOBILE_GUIDE.md](docs/MOBILE_GUIDE.md) for complete mobile features documentation.
+
 ### Real Data Integration
 The demo uses **real data extracted from your CSV files**:
 - 2 Thematic Areas from Results Framework
@@ -148,6 +158,25 @@ All modules support CSV export:
 - Congolese (typically 30% of refugees)
 - South Sudanese (typically 20% of refugees)
 - Others (typically 5% of refugees)
+
+## Documentation
+
+All project documentation is in the [`docs/`](docs/) folder:
+
+| Document | Description |
+|----------|-------------|
+| [docs/QUICKSTART.md](docs/QUICKSTART.md) | Quick start guide |
+| [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) | Developer reference |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Deployment instructions |
+| [docs/USER_MANUAL.md](docs/USER_MANUAL.md) | End-user manual |
+| [docs/USER_TEST_GUIDE_COMPLETE.md](docs/USER_TEST_GUIDE_COMPLETE.md) | User testing guide |
+| [docs/PRESENTATION_GUIDE.md](docs/PRESENTATION_GUIDE.md) | Demo & presentation guide |
+| [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) | Test procedures |
+| [docs/DATA_ENTRY_GUIDE.md](docs/DATA_ENTRY_GUIDE.md) | Data entry guide |
+| [docs/MOBILE_GUIDE.md](docs/MOBILE_GUIDE.md) | Mobile usage guide |
+
+---
 
 ## Technical Details
 

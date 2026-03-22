@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RBM Validation Queue — AWYAD MES</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/rbm.css" />
+</head>
+<body>
+  <!-- ── Navigation ─────────────────────────────────────────── -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary no-print">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold" href="/dashboard.html">
+        <i class="bi bi-grid-3x3-gap-fill me-2"></i>AWYAD MES
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item"><a class="nav-link" href="/dashboard.html"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-dashboard.html"><i class="bi bi-bar-chart-steps me-1"></i>RBM</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-strategy.html"><i class="bi bi-diagram-3 me-1"></i>Strategy</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-indicators.html"><i class="bi bi-list-check me-1"></i>Indicators</a></li>
+          <li class="nav-item"><a class="nav-link" href="/non-program-activities.html"><i class="bi bi-card-list me-1"></i>Non-Program</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-submit.html"><i class="bi bi-pencil-square me-1"></i>Submit Data</a></li>
+          <li class="nav-item"><a class="nav-link active" href="/rbm-validation.html"><i class="bi bi-shield-check me-1"></i>Validation</a></li>
+          <li class="nav-item"><a class="nav-link" href="/activities.html"><i class="bi bi-calendar-check me-1"></i>Activities</a></li>
+          <li class="nav-item"><a class="nav-link" href="/projects.html"><i class="bi bi-folder2 me-1"></i>Projects</a></li>
+        </ul>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-light" id="userName"></span>
+          <a href="/login.html" class="btn btn-outline-light btn-sm" id="logoutBtn">Logout</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Page Header ────────────────────────────────────────── -->
+  <div class="bg-light border-bottom py-3">
+    <div class="container-fluid">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+          <h4 class="mb-0 fw-semibold"><i class="bi bi-shield-check text-primary me-2"></i>Validation Queue</h4>
+          <nav aria-label="breadcrumb" class="small">
+            <ol class="breadcrumb mb-0">
+              <li class="breadcrumb-item"><a href="/dashboard.html">Home</a></li>
+              <li class="breadcrumb-item"><a href="/rbm-dashboard.html">RBM</a></li>
+              <li class="breadcrumb-item active">Validation</li>
+            </ol>
+          </nav>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <select class="form-select form-select-sm" id="statusFilter" style="width:auto">
+            <option value="pending">Pending</option>
+            <option value="flagged">Flagged</option>
+            <option value="verified">Verified</option>
+            <option value="rejected">Rejected</option>
+            <option value="">All Statuses</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main Content ───────────────────────────────────────── -->
+  <div class="container-fluid py-4">
+    <div class="row g-3">
+
+      <!-- Queue Panel -->
+      <div class="col-lg-4 col-xl-3">
+        <div class="card">
+          <div class="card-header py-2 d-flex align-items-center justify-content-between">
+            <span class="fw-semibold small">
+              Queue
+              <span class="badge bg-warning text-dark ms-1" id="queueCount">0</span>
+            </span>
+            <button class="btn btn-sm btn-outline-secondary" onclick="RBMValidation.refreshQueue()" title="Refresh">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+          </div>
+          <!-- Search within queue -->
+          <div class="p-2 border-bottom">
+            <input class="form-control form-control-sm" type="search" id="queueSearch"
+                   placeholder="Search queue…" />
+          </div>
+          <div class="list-group list-group-flush overflow-auto" id="queueList" style="max-height:70vh">
+            <div class="p-3 text-center text-muted small">
+              <div class="spinner-border spinner-border-sm me-2"></div>Loading queue…
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detail Panel -->
+      <div class="col-lg-8 col-xl-9">
+        <div id="detailPlaceholder" class="card h-100 d-flex align-items-center justify-content-center">
+          <div class="empty-state">
+            <i class="bi bi-shield-check"></i>
+            <h6 class="text-muted">Select a value from the queue</h6>
+            <p class="small text-muted">Click any item on the left to review, verify, or reject it.</p>
+          </div>
+        </div>
+
+        <div id="detailPanel" style="display:none">
+
+          <!-- Value Summary Card -->
+          <div class="card mb-3">
+            <div class="card-header d-flex align-items-center justify-content-between py-2">
+              <span class="fw-semibold" id="detailIndicatorName">—</span>
+              <span class="badge" id="detailStatusBadge">—</span>
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-sm-4">
+                  <div class="detail-field">
+                    <div class="field-label">Project</div>
+                    <div id="detailProject">—</div>
+                  </div>
+                </div>
+                <div class="col-sm-4">
+                  <div class="detail-field">
+                    <div class="field-label">Reporting Period</div>
+                    <div id="detailPeriod">—</div>
+                  </div>
+                </div>
+                <div class="col-sm-4">
+                  <div class="detail-field">
+                    <div class="field-label">Submitted By</div>
+                    <div id="detailSubmittedBy">—</div>
+                  </div>
+                </div>
+                <div class="col-sm-4">
+                  <div class="detail-field">
+                    <div class="field-label">Value</div>
+                    <div class="fs-4 fw-bold" id="detailValue">—</div>
+                  </div>
+                </div>
+                <div class="col-sm-4">
+                  <div class="detail-field">
+                    <div class="field-label">Unit</div>
+                    <div id="detailUnit">—</div>
+                  </div>
+                </div>
+                <div class="col-sm-4">
+                  <div class="detail-field">
+                    <div class="field-label">Quality Score</div>
+                    <div id="detailQuality">—</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Auto-check results -->
+              <div class="mt-3" id="autoChecksSection" style="display:none">
+                <div class="field-label mb-2">Automated Checks</div>
+                <div id="autoChecksList" class="d-flex flex-wrap gap-2"></div>
+              </div>
+
+              <!-- Notes -->
+              <div class="mt-3" id="notesSection" style="display:none">
+                <div class="field-label mb-1">Validation Notes</div>
+                <p class="small mb-0" id="detailNotes"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons (only for pending/flagged) -->
+          <div class="card mb-3" id="actionCard">
+            <div class="card-header py-2 fw-semibold small">Actions</div>
+            <div class="card-body">
+              <div class="row g-2">
+                <div class="col-md-6">
+                  <div class="mb-2">
+                    <label class="form-label small fw-semibold" for="verifyNotes">Notes (optional)</label>
+                    <textarea class="form-control form-control-sm" id="verifyNotes" rows="2"
+                              placeholder="Add verification notes…"></textarea>
+                  </div>
+                  <button class="btn btn-success w-100" id="verifyBtn" onclick="RBMValidation.verify()">
+                    <i class="bi bi-check-circle me-1"></i>Verify
+                  </button>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-2">
+                    <label class="form-label small fw-semibold" for="rejectReason">Rejection Reason <span class="text-danger">*</span></label>
+                    <textarea class="form-control form-control-sm" id="rejectReason" rows="2"
+                              placeholder="Explain why this value is rejected…"></textarea>
+                  </div>
+                  <button class="btn btn-danger w-100" id="rejectBtn" onclick="RBMValidation.reject()">
+                    <i class="bi bi-x-circle me-1"></i>Reject
+                  </button>
+                </div>
+              </div>
+              <div id="actionFeedback" class="mt-2" style="display:none"></div>
+            </div>
+          </div>
+
+          <!-- Audit Trail -->
+          <div class="card">
+            <div class="card-header py-2 fw-semibold small">
+              <i class="bi bi-clock-history me-1"></i>Audit Trail
+            </div>
+            <div class="card-body">
+              <div class="audit-timeline" id="auditTimeline">
+                <p class="text-muted small">No audit entries.</p>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /detailPanel -->
+      </div><!-- /col detail -->
+
+    </div><!-- /row -->
+  </div><!-- /container-fluid -->
+
+  <!-- ── Scripts ────────────────────────────────────────────── -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/rbm-validation.js"></script>
+</body>
+</html>

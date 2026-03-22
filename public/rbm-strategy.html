@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Strategy Framework — AWYAD MES</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/rbm.css" />
+  <style>
+    .strategy-card   { border-left: 4px solid #0d6efd; }
+    .pillar-card     { border-left: 4px solid #198754; }
+    .cpc-card        { border-left: 4px solid #fd7e14; }
+    .ta-card         { border-left: 4px solid #6f42c1; }
+    .hierarchy-line  { border-left: 2px dashed #dee2e6; margin-left: 1rem; padding-left: 1rem; }
+    .badge-strategy  { background-color: #0d6efd; }
+    .badge-pillar    { background-color: #198754; }
+    .badge-cpc       { background-color: #fd7e14; }
+    .badge-ta        { background-color: #6f42c1; }
+    .collapse-toggle { cursor: pointer; }
+    .collapse-toggle:hover { text-decoration: none; opacity: 0.85; }
+  </style>
+</head>
+<body>
+  <!-- ── Navigation ─────────────────────────────────────────── -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary no-print">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold" href="/dashboard.html">
+        <i class="bi bi-grid-3x3-gap-fill me-2"></i>AWYAD MES
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item"><a class="nav-link" href="/dashboard.html"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-dashboard.html"><i class="bi bi-bar-chart-steps me-1"></i>RBM</a></li>
+          <li class="nav-item"><a class="nav-link active" href="/rbm-strategy.html"><i class="bi bi-diagram-3 me-1"></i>Strategy</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-indicators.html"><i class="bi bi-list-check me-1"></i>Indicators</a></li>
+          <li class="nav-item"><a class="nav-link" href="/non-program-activities.html"><i class="bi bi-card-list me-1"></i>Non-Program</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-submit.html"><i class="bi bi-pencil-square me-1"></i>Submit Data</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-validation.html"><i class="bi bi-shield-check me-1"></i>Validation</a></li>
+          <li class="nav-item"><a class="nav-link" href="/activities.html"><i class="bi bi-calendar-check me-1"></i>Activities</a></li>
+          <li class="nav-item"><a class="nav-link" href="/projects.html"><i class="bi bi-folder2 me-1"></i>Projects</a></li>
+        </ul>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-light" id="userName"></span>
+          <a href="/login.html" class="btn btn-outline-light btn-sm" id="logoutBtn">Logout</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Page Header ────────────────────────────────────────── -->
+  <div class="bg-light border-bottom py-3 no-print">
+    <div class="container-fluid">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+          <h4 class="mb-0 fw-semibold"><i class="bi bi-diagram-3 text-primary me-2"></i>Strategy Framework</h4>
+          <nav aria-label="breadcrumb" class="small">
+            <ol class="breadcrumb mb-0">
+              <li class="breadcrumb-item"><a href="/dashboard.html">Home</a></li>
+              <li class="breadcrumb-item"><a href="/rbm-dashboard.html">RBM</a></li>
+              <li class="breadcrumb-item active">Strategy Framework</li>
+            </ol>
+          </nav>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary btn-sm" id="btnExpandAll">
+            <i class="bi bi-chevron-double-down me-1"></i>Expand All
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" id="btnCollapseAll">
+            <i class="bi bi-chevron-double-up me-1"></i>Collapse All
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Hierarchy Legend ───────────────────────────────────── -->
+  <div class="container-fluid py-3 no-print">
+    <div class="alert alert-info d-flex flex-wrap gap-3 align-items-center mb-0 small">
+      <strong><i class="bi bi-info-circle me-1"></i>Hierarchy levels:</strong>
+      <span><span class="badge badge-strategy text-white">Strategy</span> → Overall strategic framework</span>
+      <span><span class="badge badge-pillar text-white">Pillar</span> → Strategic pillars within a strategy</span>
+      <span><span class="badge badge-cpc text-white">Core Component</span> → Core program components under each pillar</span>
+      <span><span class="badge badge-ta text-white">Thematic Area</span> → Organizational thematic areas linked to indicators</span>
+    </div>
+  </div>
+
+  <!-- ── Main Content ───────────────────────────────────────── -->
+  <div class="container-fluid pb-5">
+    <div id="strategyTree">
+      <div class="text-center py-5 text-muted">
+        <div class="spinner-border text-primary me-2"></div>Loading strategy framework…
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    /* ── Auth ──────────────────────────────────────────────── */
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    if (!token) { location.href = '/login.html'; }
+
+    const userNameEl  = document.getElementById('userName');
+    const logoutBtn   = document.getElementById('logoutBtn');
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      userNameEl.textContent = payload.username || payload.email || '';
+    } catch {}
+    logoutBtn.addEventListener('click', e => {
+      e.preventDefault();
+      localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
+      location.href = '/login.html';
+    });
+
+    /* ── Helpers ───────────────────────────────────────────── */
+    const escHtml = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+    async function apiFetch(path) {
+      const res = await fetch(`/api/v1/rbm${path}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const json = await res.json();
+      return json.data ?? json;
+    }
+
+    /* ── Render ────────────────────────────────────────────── */
+    function renderThematicArea(ta) {
+      return `
+        <div class="card ta-card shadow-none mb-2">
+          <div class="card-body py-2 px-3 d-flex align-items-start gap-2">
+            <span class="badge badge-ta text-white mt-1 flex-shrink-0">Thematic Area</span>
+            <div>
+              <div class="fw-semibold small">${escHtml(ta.name)}</div>
+              <div class="text-muted" style="font-size:.8rem">${escHtml(ta.code)}</div>
+              ${ta.description ? `<div class="text-secondary small mt-1">${escHtml(ta.description)}</div>` : ''}
+            </div>
+            <a href="/rbm-dashboard.html?tab=thematic" class="btn btn-outline-secondary btn-sm ms-auto flex-shrink-0" style="font-size:.75rem">
+              <i class="bi bi-bar-chart-steps me-1"></i>View Dashboard
+            </a>
+          </div>
+        </div>`;
+    }
+
+    function renderComponent(cpc, cpcIdx) {
+      const collapseId = `cpc-${escHtml(cpc.id)}`;
+      const taHtml = cpc.thematicAreas.length
+        ? cpc.thematicAreas.map(renderThematicArea).join('')
+        : '<div class="text-muted small fst-italic py-1">No thematic areas linked.</div>';
+
+      return `
+        <div class="card cpc-card shadow-none mb-2">
+          <div class="card-header py-2 px-3 bg-transparent d-flex align-items-center gap-2 collapse-toggle"
+               data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="true">
+            <span class="badge badge-cpc text-white flex-shrink-0">Core Component</span>
+            <span class="fw-semibold small flex-grow-1">${escHtml(cpc.name)}</span>
+            <span class="text-muted" style="font-size:.78rem">${escHtml(cpc.code)}</span>
+            <i class="bi bi-chevron-down ms-2 small text-muted"></i>
+          </div>
+          <div class="collapse show" id="${collapseId}">
+            <div class="card-body pt-2 pb-2 px-3">
+              ${cpc.description ? `<p class="text-secondary small mb-2">${escHtml(cpc.description)}</p>` : ''}
+              ${cpc.interventions ? `<div class="small mb-2"><strong>Interventions:</strong> ${escHtml(cpc.interventions)}</div>` : ''}
+              <div class="hierarchy-line">${taHtml}</div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function renderPillar(pillar) {
+      const collapseId = `pillar-${escHtml(pillar.id)}`;
+      const cpcHtml = pillar.components.length
+        ? pillar.components.map(renderComponent).join('')
+        : '<div class="text-muted small fst-italic py-1">No core components defined.</div>';
+
+      return `
+        <div class="card pillar-card shadow-none mb-3">
+          <div class="card-header py-2 px-3 bg-transparent d-flex align-items-center gap-2 collapse-toggle"
+               data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="true">
+            <span class="badge badge-pillar text-white flex-shrink-0">Pillar</span>
+            <span class="fw-semibold flex-grow-1">${escHtml(pillar.name)}</span>
+            <span class="text-muted small">${escHtml(pillar.code)}</span>
+            <i class="bi bi-chevron-down ms-2 small text-muted"></i>
+          </div>
+          <div class="collapse show" id="${collapseId}">
+            <div class="card-body pt-2 pb-3 px-3">
+              ${pillar.description ? `<p class="text-secondary small mb-3">${escHtml(pillar.description)}</p>` : ''}
+              <div class="hierarchy-line">${cpcHtml}</div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function renderStrategy(strategy) {
+      const collapseId = `strategy-${escHtml(strategy.id)}`;
+      const pillarHtml = strategy.pillars.length
+        ? strategy.pillars.map(renderPillar).join('')
+        : '<div class="text-muted fst-italic py-2">No pillars defined for this strategy.</div>';
+
+      return `
+        <div class="card strategy-card shadow-sm mb-4">
+          <div class="card-header py-3 px-4 d-flex align-items-center gap-2 collapse-toggle"
+               data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="true">
+            <span class="badge badge-strategy text-white flex-shrink-0">Strategy</span>
+            <span class="fw-bold fs-6 flex-grow-1">${escHtml(strategy.name)}</span>
+            <span class="text-muted small">${escHtml(strategy.code)}</span>
+            <i class="bi bi-chevron-down ms-2 text-muted"></i>
+          </div>
+          <div class="collapse show" id="${collapseId}">
+            <div class="card-body px-4 pb-3 pt-2">
+              ${strategy.description ? `<p class="text-secondary mb-3">${escHtml(strategy.description)}</p>` : ''}
+              ${pillarHtml}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    /* ── Load & Render Tree ────────────────────────────────── */
+    async function loadStrategyTree() {
+      const container = document.getElementById('strategyTree');
+      try {
+        const tree = await apiFetch('/strategy-tree');
+        if (!tree.length) {
+          container.innerHTML = '<div class="alert alert-warning">No strategy data found. Please set up strategies in the database.</div>';
+          return;
+        }
+        container.innerHTML = tree.map(renderStrategy).join('');
+      } catch (e) {
+        container.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>${escHtml(e.message)}</div>`;
+      }
+    }
+
+    /* ── Expand / Collapse All ─────────────────────────────── */
+    document.getElementById('btnExpandAll').addEventListener('click', () => {
+      document.querySelectorAll('#strategyTree .collapse').forEach(el => {
+        bootstrap.Collapse.getOrCreateInstance(el).show();
+      });
+    });
+    document.getElementById('btnCollapseAll').addEventListener('click', () => {
+      document.querySelectorAll('#strategyTree .collapse').forEach(el => {
+        bootstrap.Collapse.getOrCreateInstance(el).hide();
+      });
+    });
+
+    loadStrategyTree();
+  </script>
+</body>
+</html>

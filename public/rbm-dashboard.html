@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RBM Dashboard — AWYAD MES</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/rbm.css" />
+</head>
+<body>
+  <!-- ── Navigation ─────────────────────────────────────────── -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary no-print">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold" href="/dashboard.html">
+        <i class="bi bi-grid-3x3-gap-fill me-2"></i>AWYAD MES
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item"><a class="nav-link" href="/dashboard.html"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link active" href="/rbm-dashboard.html"><i class="bi bi-bar-chart-steps me-1"></i>RBM</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-strategy.html"><i class="bi bi-diagram-3 me-1"></i>Strategy</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-indicators.html"><i class="bi bi-list-check me-1"></i>Indicators</a></li>
+          <li class="nav-item"><a class="nav-link" href="/non-program-activities.html"><i class="bi bi-card-list me-1"></i>Non-Program</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-submit.html"><i class="bi bi-pencil-square me-1"></i>Submit Data</a></li>
+          <li class="nav-item"><a class="nav-link" href="/rbm-validation.html"><i class="bi bi-shield-check me-1"></i>Validation</a></li>
+          <li class="nav-item"><a class="nav-link" href="/activities.html"><i class="bi bi-calendar-check me-1"></i>Activities</a></li>
+          <li class="nav-item"><a class="nav-link" href="/projects.html"><i class="bi bi-folder2 me-1"></i>Projects</a></li>
+        </ul>
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-outline-light btn-sm no-print" onclick="window.print()">
+            <i class="bi bi-printer me-1"></i>Print
+          </button>
+          <span class="text-light" id="userName"></span>
+          <a href="/login.html" class="btn btn-outline-light btn-sm" id="logoutBtn">Logout</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Page Header ────────────────────────────────────────── -->
+  <div class="bg-light border-bottom py-3 no-print">
+    <div class="container-fluid">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+          <h4 class="mb-0 fw-semibold"><i class="bi bi-bar-chart-steps text-primary me-2"></i>Results-Based Management</h4>
+          <nav aria-label="breadcrumb" class="small">
+            <ol class="breadcrumb mb-0">
+              <li class="breadcrumb-item"><a href="/dashboard.html">Home</a></li>
+              <li class="breadcrumb-item active">RBM Dashboard</li>
+            </ol>
+          </nav>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <!-- Reporting period filter -->
+          <select class="form-select form-select-sm" id="periodFilter" style="width:auto">
+            <option value="">All Periods</option>
+            <option value="2024">2024</option>
+            <option value="2023">2023</option>
+            <option value="2022">2022</option>
+          </select>
+          <a href="/rbm-validation.html" class="btn btn-primary btn-sm no-print">
+            <i class="bi bi-shield-check me-1"></i>Validation Queue
+            <span class="badge bg-warning text-dark ms-1" id="pendingBadge" style="display:none"></span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Dashboard Level Tabs ──────────────────────────────── -->
+  <div class="bg-white border-bottom no-print">
+    <div class="container-fluid">
+      <ul class="nav nav-tabs border-0 pt-2" id="dashboardLevelTabs">
+        <li class="nav-item">
+          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-awyad">
+            <i class="bi bi-globe2 me-1"></i>AWYAD Dashboard
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-thematic">
+            <i class="bi bi-layers me-1"></i>Thematic Dashboard
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-project">
+            <i class="bi bi-folder2-open me-1"></i>Project Dashboard
+          </button>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ── Tab Content ────────────────────────────────────────── -->
+  <div class="tab-content">
+
+    <!-- AWYAD Dashboard pane ──────────────────────────────── -->
+    <div class="tab-pane fade show active" id="tab-awyad">
+
+  <!-- ── Main Content ───────────────────────────────────────── -->
+  <div class="container-fluid py-4">
+
+    <!-- KPI Row -->
+    <div class="row g-3 mb-4" id="kpiRow">
+      <div class="col-sm-6 col-xl-3">
+        <div class="card rbm-kpi-card p-3">
+          <div class="kpi-label mb-1">Total Indicators</div>
+          <div class="kpi-value" id="kpiTotal"><span class="skeleton" style="width:60px;display:inline-block">&nbsp;</span></div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-xl-3">
+        <div class="card rbm-kpi-card p-3">
+          <div class="kpi-label mb-1">On Track</div>
+          <div class="kpi-value status-on-track" id="kpiOnTrack"><span class="skeleton" style="width:60px;display:inline-block">&nbsp;</span></div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-xl-3">
+        <div class="card rbm-kpi-card p-3">
+          <div class="kpi-label mb-1">At Risk</div>
+          <div class="kpi-value status-at-risk" id="kpiAtRisk"><span class="skeleton" style="width:60px;display:inline-block">&nbsp;</span></div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-xl-3">
+        <div class="card rbm-kpi-card p-3">
+          <div class="kpi-label mb-1">Off Track</div>
+          <div class="kpi-value status-off-track" id="kpiOffTrack"><span class="skeleton" style="width:60px;display:inline-block">&nbsp;</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Strategic Pillar Tabs + Content (side-by-side on lg+) -->
+    <div class="row g-3">
+
+      <!-- Left column: Pillar tabs -->
+      <div class="col-lg-3 col-xl-2">
+        <div class="card h-100">
+          <div class="card-header py-2 fw-semibold small">
+            <i class="bi bi-grid-1x2 me-1"></i>Strategic Pillars
+          </div>
+          <div class="list-group list-group-flush" id="pillarTabs" role="tablist">
+            <!-- Populated by JS -->
+            <div class="p-3">
+              <div class="skeleton mb-2" style="height:1.5rem">&nbsp;</div>
+              <div class="skeleton mb-2" style="height:1.5rem">&nbsp;</div>
+              <div class="skeleton mb-2" style="height:1.5rem">&nbsp;</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right column: Tab content -->
+      <div class="col-lg-9 col-xl-10">
+        <div class="tab-content" id="pillarTabContent">
+
+          <!-- Indicators Table Panel (inside active pillar tab) -->
+          <div class="tab-pane fade show active" id="tabPanelAll">
+            <div class="card mb-3">
+              <div class="card-header d-flex align-items-center justify-content-between py-2">
+                <span class="fw-semibold small">Indicator Results</span>
+                <div class="d-flex gap-2 align-items-center">
+                  <select class="form-select form-select-sm no-print" id="resultLevelFilter" style="width:auto">
+                    <option value="">All Levels</option>
+                    <option value="impact">Impact</option>
+                    <option value="outcome">Outcome</option>
+                    <option value="output">Output</option>
+                  </select>
+                  <input class="form-control form-control-sm no-print" type="search" id="indicatorSearch"
+                         placeholder="Search indicators…" style="width:200px" />
+                </div>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-hover table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="width:40%">Indicator</th>
+                      <th>Level</th>
+                      <th class="text-end">Baseline</th>
+                      <th class="text-end">Target</th>
+                      <th class="text-end">Actual</th>
+                      <th style="width:20%">Achievement</th>
+                      <th class="no-print">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="indicatorTableBody">
+                    <tr><td colspan="7" class="text-center py-4">
+                      <div class="spinner-border spinner-border-sm text-primary me-2"></div>Loading…
+                    </td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="card-footer d-flex align-items-center justify-content-between py-2 small text-muted no-print">
+                <span id="tableFooterInfo">—</span>
+                <div id="tablePagination" class="d-flex gap-1"></div>
+              </div>
+            </div>
+
+            <!-- Pending Validations mini-panel -->
+            <div class="card">
+              <div class="card-header d-flex align-items-center justify-content-between py-2">
+                <span class="fw-semibold small"><i class="bi bi-hourglass-split text-warning me-1"></i>Pending Validations</span>
+                <a href="/rbm-validation.html" class="btn btn-outline-primary btn-sm no-print">View All</a>
+              </div>
+              <ul class="list-group list-group-flush" id="pendingValidationsList">
+                <li class="list-group-item text-center text-muted small py-3">Loading…</li>
+              </ul>
+            </div>
+          </div><!-- /tabPanelAll -->
+
+        </div><!-- /tab-content -->
+      </div><!-- /right column -->
+    </div><!-- /row -->
+
+    <!-- ── Trends / Time-Series Chart ─────────────────────────── -->
+    <div class="row g-3 mt-1">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header d-flex align-items-center justify-content-between py-2 flex-wrap gap-2">
+            <span class="fw-semibold small"><i class="bi bi-graph-up-arrow text-primary me-1"></i>Indicator Trend</span>
+            <div class="d-flex align-items-center gap-2 flex-wrap no-print">
+              <select class="form-select form-select-sm" id="trendIndicatorSelect" style="min-width:220px;max-width:340px">
+                <option value="">— Select an indicator to chart —</option>
+              </select>
+              <select class="form-select form-select-sm" id="trendGranularity" style="width:auto">
+                <option value="monthly" selected>Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="annual">Annual</option>
+              </select>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="trendPlaceholder" class="text-center text-muted py-5">
+              <i class="bi bi-bar-chart-line display-4 d-block mb-2 opacity-25"></i>
+              <span class="small">Select an indicator above to display its historical trend.</span>
+            </div>
+            <div id="trendChartWrap" style="display:none; position:relative; height:300px">
+              <canvas id="trendChart"></canvas>
+            </div>
+            <div id="trendError" class="alert alert-warning d-none mt-2 small" role="alert"></div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /trends row -->
+
+  </div><!-- /container-fluid (AWYAD tab) -->
+
+    </div><!-- /tab-pane #tab-awyad -->
+
+    <!-- Thematic Dashboard pane ──────────────────────────── -->
+    <div class="tab-pane fade" id="tab-thematic">
+      <div class="container-fluid py-4">
+        <div class="alert alert-info alert-sm py-2 px-3 small mb-3" role="note">
+          <i class="bi bi-info-circle me-1"></i>
+          <strong>Thematic Areas</strong> are organizational-level strategic groupings that span multiple projects.
+          For project-level breakdown, see the <strong>Project Dashboard</strong> tab.
+        </div>
+        <div class="row g-3" id="thematicCardsRow">
+          <div class="col-12 text-center text-muted py-5">
+            <i class="bi bi-layers display-4 d-block mb-2 opacity-25"></i>
+            <span class="small">Click this tab to load thematic areas.</span>
+          </div>
+        </div>
+      </div>
+    </div><!-- /tab-pane #tab-thematic -->
+
+    <!-- Project Dashboard pane ───────────────────────────── -->
+    <div class="tab-pane fade" id="tab-project">
+      <div class="container-fluid py-4">
+        <div class="alert alert-info alert-sm py-2 px-3 small mb-3" role="note">
+          <i class="bi bi-info-circle me-1"></i>
+          <strong>Result Areas</strong> are project-level classifications that group indicators within a specific project.
+          Organizational-level groupings are tracked under the <strong>Thematic Dashboard</strong> tab.
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Select Project</label>
+          <select class="form-select" id="projectTabSelect" style="max-width:360px">
+            <option value="">— Select a project —</option>
+          </select>
+        </div>
+        <div class="card">
+          <div class="card-header py-2 fw-semibold small">
+            <i class="bi bi-bar-chart-steps me-1 text-primary"></i>Project Indicators
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:32%">Indicator</th>
+                  <th>Result Area</th>
+                  <th>Level</th>
+                  <th class="text-end">Baseline</th>
+                  <th class="text-end">Target</th>
+                  <th class="text-end">Actual</th>
+                  <th style="width:18%">Achievement</th>
+                </tr>
+              </thead>
+              <tbody id="projectIndicatorTableBody">
+                <tr><td colspan="7" class="text-center text-muted py-4">Select a project to view its indicators.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Monthly Performance Card -->
+        <div class="card mt-4" id="monthlyPerfCard" style="display:none">
+          <div class="card-header py-2 d-flex justify-content-between align-items-center">
+            <span class="fw-semibold small">
+              <i class="bi bi-calendar3 me-1 text-success"></i>Monthly Performance Snapshots
+            </span>
+            <span class="badge bg-secondary" id="monthlyPerfCount">0 records</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Month</th>
+                  <th class="text-center">Activities<br><small class="text-muted">Done / Planned</small></th>
+                  <th class="text-center">Beneficiaries<br><small class="text-muted">Reached / Target</small></th>
+                  <th class="text-end">Budget Used</th>
+                  <th class="text-center">Perf Rate</th>
+                  <th class="text-center">Burn Rate</th>
+                </tr>
+              </thead>
+              <tbody id="monthlyPerfTableBody">
+                <tr><td colspan="6" class="text-center text-muted py-3">No monthly data.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div><!-- /tab-pane #tab-project -->
+
+  </div><!-- /tab-content -->
+
+  <!-- ── Indicator Detail Modal ────────────────────────────── -->
+  <div class="modal fade" id="indicatorDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalIndicatorName">Indicator Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="modalIndicatorBody">
+          <div class="text-center py-4">
+            <div class="spinner-border text-primary"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Scripts ────────────────────────────────────────────── -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/rbm-dashboard.js"></script>
+</body>
+</html>

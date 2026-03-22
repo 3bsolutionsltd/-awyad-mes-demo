@@ -18,6 +18,10 @@ export function renderDashboard(data) {
     const totalExpenditure = data.projects.reduce((sum, p) => sum + p.expenditure, 0);
     const avgBurnRate = (totalExpenditure / totalBudget) * 100;
     
+    // Calculate case statistics
+    const totalCases = data.cases ? data.cases.length : 0;
+    const activeCases = data.cases ? data.cases.filter(c => c.status === 'Open' || c.status === 'In Progress').length : 0;
+    
     // Generate HTML
     return `
         <div class="container-fluid">
@@ -28,36 +32,58 @@ export function renderDashboard(data) {
                 <div class="col-md-3">
                     <div class="card text-white bg-primary mb-3">
                         <div class="card-body">
-                            <h5 class="card-title">Active Projects</h5>
-                            <p class="card-text display-4">${activeProjects}</p>
-                            <small>of ${data.projects.length} total</small>
+                            <h5 class="card-title">Projects</h5>
+                            <p class="card-text display-4">${data.projects.length}</p>
+                            <small>${activeProjects} active</small>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="card text-white bg-success mb-3">
                         <div class="card-body">
-                            <h5 class="card-title">Indicators On-Track</h5>
-                            <p class="card-text display-4">${indicatorsOnTrack}</p>
-                            <small>of ${data.indicators.length} total</small>
+                            <h5 class="card-title">Indicators</h5>
+                            <p class="card-text display-4">${data.indicators.length}</p>
+                            <small>${indicatorsOnTrack} on track</small>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="card text-white bg-info mb-3">
                         <div class="card-body">
-                            <h5 class="card-title">Activities This Month</h5>
-                            <p class="card-text display-4">${activitiesThisMonth}</p>
-                            <small>Total: ${data.activities.length}</small>
+                            <h5 class="card-title">Activities</h5>
+                            <p class="card-text display-4">${data.activities.length}</p>
+                            <small>${activitiesThisMonth} this month</small>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
+                    <div class="card text-white bg-danger mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Cases</h5>
+                            <p class="card-text display-4">${totalCases}</p>
+                            <small>${activeCases} active</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Second Row: Budget and Stats -->
+            <div class="row mb-4">
+                <div class="col-md-6">
                     <div class="card text-white bg-warning mb-3">
                         <div class="card-body">
                             <h5 class="card-title">Budget Burn Rate</h5>
                             <p class="card-text display-4">${avgBurnRate.toFixed(1)}%</p>
                             <small>$${totalExpenditure.toLocaleString()} / $${totalBudget.toLocaleString()}</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card text-white bg-secondary mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Thematic Areas</h5>
+                            <p class="card-text display-4">${data.thematicAreas.length}</p>
+                            <small>Focus areas</small>
                         </div>
                     </div>
                 </div>
