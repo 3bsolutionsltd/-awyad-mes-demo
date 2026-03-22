@@ -9,7 +9,7 @@
 
   /* ── Auth ─────────────────────────────────────────────────── */
   function getToken() {
-    return localStorage.getItem('token') || sessionStorage.getItem('token');
+    return localStorage.getItem('awyad_access_token') || sessionStorage.getItem('awyad_access_token');
   }
   function authHdr() {
     return { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` };
@@ -339,8 +339,8 @@
     // Logout
     document.getElementById('logoutBtn')?.addEventListener('click', e => {
       e.preventDefault();
-      localStorage.removeItem('token');
-      sessionStorage.removeItem('token');
+      localStorage.removeItem('awyad_access_token');
+      sessionStorage.removeItem('awyad_access_token');
       window.location.href = '/login.html';
     });
 
