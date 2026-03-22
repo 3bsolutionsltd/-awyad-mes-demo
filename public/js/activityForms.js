@@ -136,14 +136,35 @@ export async function showCreateActivityModal(onSuccess) {
                 
                 <h6 class="mt-3 mb-2">Financial Information</h6>
                 <div class="row">
-                    <div class="col-md-6 mb-3">
+                    <div class="col-md-4 mb-3">
+                        <label for="activityType" class="form-label">Activity Type</label>
+                        <select class="form-select" id="activityType" name="activity_type">
+                            <option value="program" selected>Program Activity</option>
+                            <option value="non_program">Non-Program Activity</option>
+                        </select>
+                        <div class="form-text">Program activities are linked to a project and indicator.</div>
+                    </div>
+                    <div class="col-md-4 mb-3">
                         <label for="activityBudget" class="form-label">Budget</label>
                         <input type="number" class="form-control" id="activityBudget" name="budget" min="0" step="0.01" value="0">
                     </div>
-                    <div class="col-md-6 mb-3">
+                    <div class="col-md-4 mb-3">
                         <label for="activityActualCost" class="form-label">Actual Cost</label>
                         <input type="number" class="form-control" id="activityActualCost" name="actual_cost" min="0" step="0.01" value="0">
                     </div>
+                </div>
+
+                <h6 class="mt-3 mb-2">Funding Sources <small class="text-muted fw-normal">(optional)</small></h6>
+                <div id="fundingSourcesContainer">
+                    <table class="table table-sm table-bordered mb-2" id="fundingSourcesTable">
+                        <thead class="table-light"><tr>
+                            <th>Source Name</th><th>Type</th><th>Amount</th><th>Currency</th><th></th>
+                        </tr></thead>
+                        <tbody id="fundingSourcesBody"></tbody>
+                    </table>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="addFundingSourceBtn">
+                        <i class="bi bi-plus-circle me-1"></i>Add Funding Source
+                    </button>
                 </div>
                 
                 <div class="mb-3">
@@ -173,19 +194,42 @@ export async function showCreateActivityModal(onSuccess) {
 
         document.body.insertAdjacentHTML('beforeend', modalHTML);
 
+        // Funding sources state for create form
+        let _createFundingSources = [];
+        function renderCreateFundingRows() {
+            const tbody = document.getElementById('fundingSourcesBody');
+            if (!tbody) return;
+            tbody.innerHTML = _createFundingSources.map((src, i) => `
+                <tr>
+                    <td><input class="form-control form-control-sm" value="${src.source_name}" oninput="window._csFS[${i}].source_name=this.value" required></td>
+                    <td><select class="form-select form-select-sm" onchange="window._csFS[${i}].source_type=this.value">
+                        ${['donor','grant','co-funding','own-funds','other'].map(t=>`<option value="${t}" ${src.source_type===t?'selected':''}>${t}</option>`).join('')}
+                    </select></td>
+                    <td><input type="number" class="form-control form-control-sm" min="0" step="0.01" value="${src.amount}" oninput="window._csFS[${i}].amount=parseFloat(this.value)||0"></td>
+                    <td><select class="form-select form-select-sm" onchange="window._csFS[${i}].currency=this.value">
+                        ${['UGX','USD','EUR','GBP'].map(c=>`<option value="${c}" ${src.currency===c?'selected':''}>${c}</option>`).join('')}
+                    </select></td>
+                    <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="window._csFS.splice(${i},1);window._renderCsFS()"><i class="bi bi-trash"></i></button></td>
+                </tr>`).join('');
+        }
+        window._csFS = _createFundingSources;
+        window._renderCsFS = renderCreateFundingRows;
+
+        document.getElementById('addFundingSourceBtn').addEventListener('click', () => {
+            _createFundingSources.push({ source_name: '', source_type: 'donor', amount: 0, currency: 'UGX' });
+            renderCreateFundingRows();
+        });
+
         const modal = new bootstrap.Modal(document.getElementById('createActivityModal'));
         modal.show();
 
         document.getElementById('createActivityBtn').addEventListener('click', async () => {
             const form = document.getElementById('createActivityForm');
-            
-            if (!form.checkValidity()) {
-                form.reportValidity();
-                return;
-            }
+            if (!form.checkValidity()) { form.reportValidity(); return; }
 
             const formData = new FormData(form);
             const data = Object.fromEntries(formData.entries());
+            data.activity_type = document.getElementById('activityType').value || 'program';
 
             // Convert numeric fields
             ['direct_male', 'direct_female', 'direct_other', 'indirect_male', 'indirect_female', 'indirect_other', 'budget', 'actual_cost'].forEach(field => {
@@ -205,6 +249,15 @@ export async function showCreateActivityModal(onSuccess) {
                 const response = await apiService.post('/activities', data);
 
                 if (response.success) {
+                    // Save any funding sources
+                    const activityId = response.data?.id;
+                    if (activityId && _createFundingSources.length > 0) {
+                        for (const src of _createFundingSources) {
+                            if (src.source_name && src.amount > 0) {
+                                try { await apiService.post(`/activities/${activityId}/funding-sources`, src); } catch {}
+                            }
+                        }
+                    }
                     showNotification('Activity created successfully!', 'success');
                     modal.hide();
                     if (onSuccess) onSuccess(response.data);
@@ -231,17 +284,19 @@ export async function showCreateActivityModal(onSuccess) {
  */
 export async function showEditActivityModal(activityId, onSuccess) {
     try {
-        const [activityRes, projectsRes, indicatorsRes, thematicAreasRes] = await Promise.all([
+        const [activityRes, projectsRes, indicatorsRes, thematicAreasRes, fundingRes] = await Promise.all([
             apiService.get(`/activities/${activityId}`),
             apiService.get('/projects'),
             apiService.get('/indicators'),
-            apiService.get('/dashboard/thematic-areas')
+            apiService.get('/dashboard/thematic-areas'),
+            apiService.get(`/activities/${activityId}/funding-sources`).catch(() => ({ data: [] })),
         ]);
 
         const activity = activityRes.data;
         const projects = Array.isArray(projectsRes.data?.projects) ? projectsRes.data.projects : (Array.isArray(projectsRes.data) ? projectsRes.data : []);
         const indicators = Array.isArray(indicatorsRes.data?.indicators) ? indicatorsRes.data.indicators : (Array.isArray(indicatorsRes.data) ? indicatorsRes.data : []);
         const thematicAreas = Array.isArray(thematicAreasRes.data) ? thematicAreasRes.data : [];
+        const existingFunding = Array.isArray(fundingRes.data) ? fundingRes.data : (fundingRes.data?.data || []);
 
         const formHTML = `
             <form id="editActivityForm">
@@ -339,14 +394,34 @@ export async function showEditActivityModal(activityId, onSuccess) {
                 
                 <h6 class="mt-3 mb-2">Financial Information</h6>
                 <div class="row">
-                    <div class="col-md-6 mb-3">
+                    <div class="col-md-4 mb-3">
+                        <label for="editActivityType" class="form-label">Activity Type</label>
+                        <select class="form-select" id="editActivityType" name="activity_type">
+                            <option value="program" ${(activity.activity_type || 'program') === 'program' ? 'selected' : ''}>Program Activity</option>
+                            <option value="non_program" ${activity.activity_type === 'non_program' ? 'selected' : ''}>Non-Program Activity</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
                         <label for="editActivityBudget" class="form-label">Budget</label>
                         <input type="number" class="form-control" id="editActivityBudget" name="budget" min="0" step="0.01" value="${activity.budget || 0}">
                     </div>
-                    <div class="col-md-6 mb-3">
+                    <div class="col-md-4 mb-3">
                         <label for="editActivityActualCost" class="form-label">Actual Cost</label>
                         <input type="number" class="form-control" id="editActivityActualCost" name="actual_cost" min="0" step="0.01" value="${activity.actual_cost || 0}">
                     </div>
+                </div>
+
+                <h6 class="mt-3 mb-2">Funding Sources <small class="text-muted fw-normal">(optional)</small></h6>
+                <div id="editFundingSourcesContainer">
+                    <table class="table table-sm table-bordered mb-2" id="editFundingSourcesTable">
+                        <thead class="table-light"><tr>
+                            <th>Source Name</th><th>Type</th><th>Amount</th><th>Currency</th><th></th>
+                        </tr></thead>
+                        <tbody id="editFundingSourcesBody"></tbody>
+                    </table>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="editAddFundingSourceBtn">
+                        <i class="bi bi-plus-circle me-1"></i>Add Funding Source
+                    </button>
                 </div>
                 
                 <div class="mb-3">
@@ -379,6 +454,66 @@ export async function showEditActivityModal(activityId, onSuccess) {
         const modal = new bootstrap.Modal(document.getElementById('editActivityModal'));
         modal.show();
 
+        // --- Funding sources wiring ---
+        let _editNewFundingSources = [];
+
+        function renderEditExistingFunding(sources) {
+            const tbody = document.getElementById('editFundingSourcesBody');
+            if (!tbody) return;
+            // Clear rows added by this renderer (existing rows have data-existing="true")
+            [...tbody.querySelectorAll('tr[data-existing="true"]')].forEach(r => r.remove());
+            sources.forEach(src => {
+                const tr = document.createElement('tr');
+                tr.dataset.existing = 'true';
+                tr.dataset.id = src.id;
+                tr.innerHTML = `
+                    <td>${src.source_name || ''}</td>
+                    <td>${src.source_type || ''}</td>
+                    <td>${src.amount != null ? Number(src.amount).toLocaleString() : ''}</td>
+                    <td>${src.currency || 'UGX'}</td>
+                    <td><button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" data-del-id="${src.id}"><i class="bi bi-trash"></i></button></td>`;
+                tbody.appendChild(tr);
+                tr.querySelector('[data-del-id]').addEventListener('click', async () => {
+                    try {
+                        await apiService.delete(`/activities/${activityId}/funding-sources/${src.id}`);
+                        tr.remove();
+                    } catch (e) {
+                        showNotification(`Failed to delete funding source: ${e.message}`, 'danger');
+                    }
+                });
+            });
+        }
+
+        function renderEditNewFundingRows() {
+            const tbody = document.getElementById('editFundingSourcesBody');
+            if (!tbody) return;
+            [...tbody.querySelectorAll('tr[data-new="true"]')].forEach(r => r.remove());
+            _editNewFundingSources.forEach((src, idx) => {
+                const tr = document.createElement('tr');
+                tr.dataset.new = 'true';
+                tr.innerHTML = `
+                    <td><input class="form-control form-control-sm" placeholder="Source name *" value="${src.source_name || ''}" oninput="window._editFSNew[${idx}].source_name=this.value"></td>
+                    <td><select class="form-select form-select-sm" onchange="window._editFSNew[${idx}].source_type=this.value">
+                        ${['donor','grant','co-funding','own-funds','other'].map(t => `<option value="${t}" ${src.source_type===t?'selected':''}>${t}</option>`).join('')}
+                    </select></td>
+                    <td><input type="number" class="form-control form-control-sm" min="0" step="0.01" value="${src.amount || 0}" oninput="window._editFSNew[${idx}].amount=parseFloat(this.value)||0"></td>
+                    <td><input class="form-control form-control-sm" value="${src.currency || 'UGX'}" oninput="window._editFSNew[${idx}].currency=this.value"></td>
+                    <td><button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="window._editFSNew.splice(${idx},1);window._renderEditFSNew()"><i class="bi bi-trash"></i></button></td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        window._editFSNew = _editNewFundingSources;
+        window._renderEditFSNew = renderEditNewFundingRows;
+
+        renderEditExistingFunding(existingFunding);
+
+        document.getElementById('editAddFundingSourceBtn').addEventListener('click', () => {
+            _editNewFundingSources.push({ source_name: '', source_type: 'donor', amount: 0, currency: 'UGX' });
+            renderEditNewFundingRows();
+        });
+        // --- End funding sources wiring ---
+
         document.getElementById('updateActivityBtn').addEventListener('click', async () => {
             const form = document.getElementById('editActivityForm');
             
@@ -389,6 +524,9 @@ export async function showEditActivityModal(activityId, onSuccess) {
 
             const formData = new FormData(form);
             const data = Object.fromEntries(formData.entries());
+
+            // Activity type
+            data.activity_type = document.getElementById('editActivityType').value || 'program';
 
             // Convert numeric fields
             ['direct_male', 'direct_female', 'direct_other', 'indirect_male', 'indirect_female', 'indirect_other', 'budget', 'actual_cost'].forEach(field => {
@@ -415,6 +553,16 @@ export async function showEditActivityModal(activityId, onSuccess) {
                 const response = await apiService.put(`/activities/${activityId}`, data);
 
                 if (response.success) {
+                    // POST any new funding sources
+                    for (const src of _editNewFundingSources) {
+                        if (src.source_name && src.amount > 0) {
+                            try {
+                                await apiService.post(`/activities/${activityId}/funding-sources`, src);
+                            } catch (fsErr) {
+                                console.warn('Failed to save funding source:', fsErr.message);
+                            }
+                        }
+                    }
                     showNotification('Activity updated successfully!', 'success');
                     modal.hide();
                     if (onSuccess) onSuccess(response.data);

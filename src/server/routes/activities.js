@@ -90,7 +90,10 @@ const createActivitySchema = Joi.object({
     // New fields — Mission req 2026
     beneficiary_id: Joi.string().max(100).allow('', null),
     latitude: Joi.number().min(-90).max(90).allow(null),
-    longitude: Joi.number().min(-180).max(180).allow(null)
+    longitude: Joi.number().min(-180).max(180).allow(null),
+
+    // Activity classification
+    activity_type: Joi.string().valid('program', 'non_program').default('program'),
 });
 
 const updateActivitySchema = Joi.object({
@@ -108,6 +111,7 @@ const updateActivitySchema = Joi.object({
     budget: Joi.number().min(0),
     actual_cost: Joi.number().min(0),
     is_costed: Joi.boolean(),
+    activity_type: Joi.string().valid('program', 'non_program'),
     age_0_4_male: Joi.number().integer().min(0),
     age_0_4_female: Joi.number().integer().min(0),
     age_0_4_other: Joi.number().integer().min(0),
@@ -324,7 +328,7 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
                 nationals, refugees, idps, returnees,
                 direct_male, direct_female, direct_other,
                 indirect_male, indirect_female, indirect_other,
-                notes, created_by, updated_by
+                notes, activity_type, created_by, updated_by
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
@@ -333,7 +337,7 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
                 $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
                 $41, $42, $43, $44, $45, $46, $47, $48, $49, $50,
                 $51, $52, $53, $54, $55, $56, $57, $58, $59, $60,
-                $61, $62
+                $61, $62, $63
             )
             RETURNING *
         `;
@@ -399,7 +403,9 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
             value.indirect_female || 0,
             value.indirect_other || 0,
             value.notes,
-            req.user.id
+            value.activity_type || 'program',
+            req.user.id,
+            req.user.id,
         ]);
 
         res.status(201).json({
