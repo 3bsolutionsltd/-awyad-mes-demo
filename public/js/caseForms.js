@@ -1,107 +1,313 @@
 /**
  * Case Forms Module
  * Handles Create, Edit, View operations for Cases
+ *
+ * PRIVACY: No name fields — cases are identified by case_number only.
+ * Fields aligned with /api/v1/cases backend (casesNew.js / caseService.js).
  */
 
 import { apiService } from './apiService.js';
 import { createModal } from './components.js';
 import { showNotification } from './components.js';
 
+/* ── Helpers ──────────────────────────────────────────────────────────── */
+
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function toDateVal(v) {
+    if (!v) return '';
+    try { return new Date(v).toISOString().split('T')[0]; } catch { return ''; }
+}
+
+async function loadDropdowns() {
+    const [typesRes, projectsRes] = await Promise.all([
+        apiService.get('/cases/types/active'),
+        apiService.get('/projects'),
+    ]);
+    return {
+        caseTypes: typesRes.data || [],
+        projects: projectsRes.data?.projects || projectsRes.data || [],
+    };
+}
+
+async function loadCategories(caseTypeId) {
+    if (!caseTypeId) return [];
+    try {
+        const res = await apiService.get(`/cases/categories/type/${caseTypeId}`);
+        return res.data || [];
+    } catch { return []; }
+}
+
+function caseTypeOptions(types, selectedId = '') {
+    return types.map(t =>
+        `<option value="${esc(t.id)}" ${t.id === selectedId ? 'selected' : ''}>${esc(t.name)}</option>`
+    ).join('');
+}
+
+function projectOptions(projects, selectedId = '') {
+    return projects.map(p =>
+        `<option value="${esc(p.id)}" ${p.id === selectedId ? 'selected' : ''}>${esc(p.name)}</option>`
+    ).join('');
+}
+
+function categoryOptions(categories, selectedId = '') {
+    if (!categories.length) return '<option value="">— Select Type First —</option>';
+    return `<option value="">— Select Category —</option>` +
+        categories.map(c =>
+            `<option value="${esc(c.id)}" ${c.id === selectedId ? 'selected' : ''}>${esc(c.name)}</option>`
+        ).join('');
+}
+
+function getStatusBadge(status) {
+    const map = { Open: 'primary', 'In Progress': 'info', Pending: 'warning', Closed: 'secondary' };
+    return `<span class="badge bg-${map[status] || 'secondary'}">${esc(status)}</span>`;
+}
+
+function buildFormHTML(id, caseData, { caseTypes, projects, categories }) {
+    const isEdit = !!caseData;
+    const d = caseData || {};
+    return `
+<div class="alert alert-info py-2 mb-3 small">
+  <i class="bi bi-shield-lock me-1"></i>
+  <strong>Confidential:</strong> No names are recorded. Cases are identified by case number only.
+</div>
+<form id="${id}" novalidate>
+
+  <!-- Row 1: Case Number + Date Reported -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <label class="form-label">Case Number ${isEdit ? '' : '<span class="text-danger">*</span>'}</label>
+      <input type="text" class="form-control" name="case_number" ${isEdit ? 'readonly' : 'required'}
+        maxlength="50" placeholder="e.g. CASE-2026-001" value="${esc(d.case_number || '')}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Date Reported <span class="text-danger">*</span></label>
+      <input type="date" class="form-control" name="date_reported" required
+        value="${toDateVal(d.date_reported) || toDateVal(new Date())}">
+    </div>
+  </div>
+
+  <!-- Row 2: Case Type + Category -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <label class="form-label">Case Type <span class="text-danger">*</span></label>
+      <select class="form-select" name="case_type_id" id="${id}_typeSelect" required>
+        <option value="">— Select Type —</option>
+        ${caseTypeOptions(caseTypes, d.case_type_id)}
+      </select>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Case Category</label>
+      <select class="form-select" name="case_category_id" id="${id}_categorySelect"
+        ${!d.case_type_id ? 'disabled' : ''}>
+        ${categoryOptions(categories, d.case_category_id)}
+      </select>
+    </div>
+  </div>
+
+  <!-- Row 3: Status + Case Worker -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <label class="form-label">Status</label>
+      <select class="form-select" name="status">
+        ${['Open','In Progress','Pending','Closed'].map(s =>
+            `<option value="${s}" ${(d.status || 'Open') === s ? 'selected' : ''}>${s}</option>`
+        ).join('')}
+      </select>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Case Worker</label>
+      <input type="text" class="form-control" name="case_worker"
+        maxlength="200" placeholder="Assigned case worker" value="${esc(d.case_worker || '')}">
+    </div>
+  </div>
+
+  <!-- Row 4: Project + Location -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <label class="form-label">Project</label>
+      <select class="form-select" name="project_id">
+        <option value="">— None —</option>
+        ${projectOptions(projects, d.project_id)}
+      </select>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Location</label>
+      <input type="text" class="form-control" name="location"
+        maxlength="100" placeholder="e.g., Adjumani, Kampala" value="${esc(d.location || '')}">
+    </div>
+  </div>
+
+  <!-- Row 5: Demographics -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <label class="form-label">Gender <span class="text-danger">*</span></label>
+      <select class="form-select" name="gender" required>
+        <option value="">— Select —</option>
+        ${['Male','Female','Other','Prefer not to say'].map(g =>
+            `<option value="${g}" ${d.gender === g ? 'selected' : ''}>${g}</option>`
+        ).join('')}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Age Group <span class="text-danger">*</span></label>
+      <select class="form-select" name="age_group" required>
+        <option value="">— Select —</option>
+        ${['0-4','5-17','18-49','50+'].map(a =>
+            `<option value="${a}" ${d.age_group === a ? 'selected' : ''}>${a} years</option>`
+        ).join('')}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Nationality</label>
+      <input type="text" class="form-control" name="nationality"
+        maxlength="100" placeholder="e.g., Sudanese Refugee" value="${esc(d.nationality || '')}">
+    </div>
+  </div>
+
+  <!-- Row 6: Disability -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <label class="form-label">Person with Disability?</label>
+      <select class="form-select" name="has_disability" id="${id}_disabilityToggle">
+        <option value="false" ${!d.has_disability ? 'selected' : ''}>No</option>
+        <option value="true" ${d.has_disability ? 'selected' : ''}>Yes</option>
+      </select>
+    </div>
+    <div class="col-md-8" id="${id}_disabilityDetails" style="display:${d.has_disability ? 'block' : 'none'}">
+      <label class="form-label">Disability Details</label>
+      <input type="text" class="form-control" name="disability_status"
+        maxlength="50" placeholder="Type of disability" value="${esc(d.disability_status || '')}">
+    </div>
+  </div>
+
+  <!-- Row 7: Case Source (NEW) -->
+  <div class="row g-3 mb-3">
+    <div class="col-12">
+      <label class="form-label">Case Source</label>
+      <input type="text" class="form-control" name="case_source"
+        maxlength="200" placeholder="How/where the case originated (e.g., Community referral, Self-referral, Partner NGO)"
+        value="${esc(d.case_source || '')}">
+      <div class="form-text">Where or how this case was first identified or received.</div>
+    </div>
+  </div>
+
+  <!-- Row 8: Referral -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-5">
+      <label class="form-label">Referred From</label>
+      <input type="text" class="form-control" name="referred_from"
+        maxlength="200" placeholder="Organization/partner who referred" value="${esc(d.referred_from || '')}">
+    </div>
+    <div class="col-md-5">
+      <label class="form-label">Referred To</label>
+      <input type="text" class="form-control" name="referred_to"
+        maxlength="200" placeholder="Organization/partner we referred to" value="${esc(d.referred_to || '')}">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label">Referral Date</label>
+      <input type="date" class="form-control" name="referral_date" value="${toDateVal(d.referral_date)}">
+    </div>
+  </div>
+
+  <!-- Row 9: Support Offered -->
+  <div class="mb-3">
+    <label class="form-label">Support Offered <span class="text-danger">*</span></label>
+    <textarea class="form-control" name="support_offered" rows="4" required minlength="50"
+      placeholder="Describe the support/services offered (minimum 50 characters)…">${esc(d.support_offered || '')}</textarea>
+    <div class="form-text"><span id="${id}_charCount">${(d.support_offered || '').length}</span> characters (50 minimum)</div>
+  </div>
+
+  <!-- Row 10: Follow-up -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <label class="form-label">Follow-up Date</label>
+      <input type="date" class="form-control" name="follow_up_date" value="${toDateVal(d.follow_up_date)}">
+    </div>
+    ${isEdit ? `
+    <div class="col-md-6">
+      <label class="form-label">Closure Date</label>
+      <input type="date" class="form-control" name="closure_date" value="${toDateVal(d.closure_date)}">
+    </div>` : ''}
+  </div>
+
+  <!-- Row 11: Notes -->
+  <div class="mb-3">
+    <label class="form-label">Notes</label>
+    <textarea class="form-control" name="notes" rows="2"
+      placeholder="Additional notes…">${esc(d.notes || '')}</textarea>
+  </div>
+
+</form>`;
+}
+
+function attachFormBehaviours(formId, caseTypeId = '') {
+    // Disability toggle
+    const disToggle = document.getElementById(`${formId}_disabilityToggle`);
+    const disDetails = document.getElementById(`${formId}_disabilityDetails`);
+    if (disToggle && disDetails) {
+        disToggle.addEventListener('change', () => {
+            disDetails.style.display = disToggle.value === 'true' ? 'block' : 'none';
+        });
+    }
+
+    // Support offered char count
+    const supportField = document.querySelector(`#${formId} [name="support_offered"]`);
+    const charCount = document.getElementById(`${formId}_charCount`);
+    if (supportField && charCount) {
+        supportField.addEventListener('input', () => {
+            charCount.textContent = supportField.value.length;
+        });
+    }
+
+    // Case type → categories
+    const typeSelect = document.getElementById(`${formId}_typeSelect`);
+    const catSelect = document.getElementById(`${formId}_categorySelect`);
+    if (typeSelect && catSelect) {
+        typeSelect.addEventListener('change', async () => {
+            const id = typeSelect.value;
+            catSelect.disabled = !id;
+            if (!id) { catSelect.innerHTML = '<option value="">— Select Type First —</option>'; return; }
+            catSelect.innerHTML = '<option>Loading…</option>';
+            const cats = await loadCategories(id);
+            catSelect.innerHTML = categoryOptions(cats);
+            catSelect.disabled = false;
+        });
+        // Pre-load categories if editing with existing type
+        if (caseTypeId) {
+            loadCategories(caseTypeId).then(cats => {
+                const prev = catSelect.dataset.selected;
+                catSelect.innerHTML = categoryOptions(cats, prev);
+                catSelect.disabled = false;
+            });
+        }
+    }
+}
+
+function collectFormData(formId) {
+    const form = document.getElementById(formId);
+    const fd = new FormData(form);
+    const data = Object.fromEntries(fd.entries());
+    // Coerce has_disability to boolean
+    if ('has_disability' in data) data.has_disability = data.has_disability === 'true';
+    // Remove empty strings for optional fields (let backend COALESCE handle)
+    for (const k of Object.keys(data)) {
+        if (data[k] === '') delete data[k];
+    }
+    return data;
+}
+
+/* ── Exported Modal Functions ─────────────────────────────────────────── */
+
 /**
- * Show create case modal
+ * Show modal to create a new case.
+ * @param {Function} onSuccess - called with the new case object on success
  */
 export async function showCreateCaseModal(onSuccess) {
     try {
-        const projectsRes = await apiService.get('/projects');
-        const projects = projectsRes.data?.projects || projectsRes.data || [];
+        const { caseTypes, projects } = await loadDropdowns();
 
-        const formHTML = `
-            <form id="createCaseForm">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="caseNumber" class="form-label">Case Number <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="caseNumber" name="case_number" required maxlength="100" placeholder="e.g., CASE-2026-001">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="caseProject" class="form-label">Project</label>
-                        <select class="form-select" id="caseProject" name="project_id">
-                            <option value="">Select Project (Optional)</option>
-                            ${projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="clientName" class="form-label">Client Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="clientName" name="client_name" required maxlength="255">
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <label for="clientAge" class="form-label">Client Age</label>
-                        <input type="number" class="form-control" id="clientAge" name="client_age" min="0" max="120">
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <label for="clientGender" class="form-label">Gender <span class="text-danger">*</span></label>
-                        <select class="form-select" id="clientGender" name="client_gender" required>
-                            <option value="">Select</option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="caseType" class="form-label">Case Type <span class="text-danger">*</span></label>
-                        <select class="form-select" id="caseType" name="case_type" required>
-                            <option value="">Select Type</option>
-                            <option value="GBV">GBV (Gender-Based Violence)</option>
-                            <option value="Protection">Protection</option>
-                            <option value="Legal">Legal</option>
-                            <option value="Medical">Medical</option>
-                            <option value="Psychosocial">Psychosocial</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="openedDate" class="form-label">Opened Date <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" id="openedDate" name="opened_date" required value="${new Date().toISOString().split('T')[0]}">
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="casePriority" class="form-label">Priority</label>
-                        <select class="form-select" id="casePriority" name="priority">
-                            <option value="Low">Low</option>
-                            <option value="Medium" selected>Medium</option>
-                            <option value="High">High</option>
-                            <option value="Critical">Critical</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="caseStatus" class="form-label">Status</label>
-                        <select class="form-select" id="caseStatus" name="status">
-                            <option value="Open" selected>Open</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Closed">Closed</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="mb-3">
-                    <label for="caseDescription" class="form-label">Description</label>
-                    <textarea class="form-control" id="caseDescription" name="description" rows="3"></textarea>
-                </div>
-                
-                <div class="mb-3">
-                    <label for="caseNotes" class="form-label">Additional Notes</label>
-                    <textarea class="form-control" id="caseNotes" name="notes" rows="2"></textarea>
-                </div>
-            </form>
-        `;
+        const formHTML = buildFormHTML('createCaseForm', null, { caseTypes, projects, categories: [] });
 
         const footerHTML = `
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -115,7 +321,7 @@ export async function showCreateCaseModal(onSuccess) {
             title: '<i class="bi bi-plus-circle"></i> Create New Case',
             body: formHTML,
             footer: footerHTML,
-            size: 'lg'
+            size: 'xl'
         });
 
         const existingModal = document.getElementById('createCaseModal');
@@ -126,16 +332,17 @@ export async function showCreateCaseModal(onSuccess) {
         const modal = new bootstrap.Modal(document.getElementById('createCaseModal'));
         modal.show();
 
+        attachFormBehaviours('createCaseForm');
+
         document.getElementById('saveCaseBtn').addEventListener('click', async () => {
             const form = document.getElementById('createCaseForm');
-            
+
             if (!form.checkValidity()) {
                 form.reportValidity();
                 return;
             }
 
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
+            const data = collectFormData('createCaseForm');
 
             try {
                 const saveBtn = document.getElementById('saveCaseBtn');
@@ -167,105 +374,24 @@ export async function showCreateCaseModal(onSuccess) {
 }
 
 /**
- * Show edit case modal
+ * Show modal to edit an existing case.
+ * @param {number|string} caseId
+ * @param {Function} onSuccess - called with updated case object on success
  */
 export async function showEditCaseModal(caseId, onSuccess) {
     try {
-        const [caseRes, projectsRes] = await Promise.all([
+        const [caseRes, { caseTypes, projects }] = await Promise.all([
             apiService.get(`/cases/${caseId}`),
-            apiService.get('/projects')
+            loadDropdowns(),
         ]);
 
         const caseData = caseRes.data;
-        const projects = projectsRes.data?.projects || projectsRes.data || [];
+        // Load categories for the existing type (needed to pre-populate select)
+        const categories = caseData.case_type_id
+            ? await loadCategories(caseData.case_type_id)
+            : [];
 
-        const formHTML = `
-            <form id="editCaseForm">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="editCaseNumber" class="form-label">Case Number <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="editCaseNumber" name="case_number" required maxlength="100" value="${caseData.case_number || ''}">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="editCaseProject" class="form-label">Project</label>
-                        <select class="form-select" id="editCaseProject" name="project_id">
-                            <option value="">Select Project (Optional)</option>
-                            ${projects.map(p => `<option value="${p.id}" ${p.id === caseData.project_id ? 'selected' : ''}>${p.name}</option>`).join('')}
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="editClientName" class="form-label">Client Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="editClientName" name="client_name" required maxlength="255" value="${caseData.client_name || ''}">
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <label for="editClientAge" class="form-label">Client Age</label>
-                        <input type="number" class="form-control" id="editClientAge" name="client_age" min="0" max="120" value="${caseData.client_age || ''}">
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <label for="editClientGender" class="form-label">Gender <span class="text-danger">*</span></label>
-                        <select class="form-select" id="editClientGender" name="client_gender" required>
-                            <option value="">Select</option>
-                            <option value="Male" ${caseData.client_gender === 'Male' ? 'selected' : ''}>Male</option>
-                            <option value="Female" ${caseData.client_gender === 'Female' ? 'selected' : ''}>Female</option>
-                            <option value="Other" ${caseData.client_gender === 'Other' ? 'selected' : ''}>Other</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="editCaseType" class="form-label">Case Type <span class="text-danger">*</span></label>
-                        <select class="form-select" id="editCaseType" name="case_type" required>
-                            <option value="">Select Type</option>
-                            <option value="GBV" ${caseData.case_type === 'GBV' ? 'selected' : ''}>GBV (Gender-Based Violence)</option>
-                            <option value="Protection" ${caseData.case_type === 'Protection' ? 'selected' : ''}>Protection</option>
-                            <option value="Legal" ${caseData.case_type === 'Legal' ? 'selected' : ''}>Legal</option>
-                            <option value="Medical" ${caseData.case_type === 'Medical' ? 'selected' : ''}>Medical</option>
-                            <option value="Psychosocial" ${caseData.case_type === 'Psychosocial' ? 'selected' : ''}>Psychosocial</option>
-                            <option value="Other" ${caseData.case_type === 'Other' ? 'selected' : ''}>Other</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="editOpenedDate" class="form-label">Opened Date <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" id="editOpenedDate" name="opened_date" required value="${caseData.opened_date ? caseData.opened_date.split('T')[0] : ''}">
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="editCasePriority" class="form-label">Priority</label>
-                        <select class="form-select" id="editCasePriority" name="priority">
-                            <option value="Low" ${caseData.priority === 'Low' ? 'selected' : ''}>Low</option>
-                            <option value="Medium" ${caseData.priority === 'Medium' ? 'selected' : ''}>Medium</option>
-                            <option value="High" ${caseData.priority === 'High' ? 'selected' : ''}>High</option>
-                            <option value="Critical" ${caseData.priority === 'Critical' ? 'selected' : ''}>Critical</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="editCaseStatus" class="form-label">Status</label>
-                        <select class="form-select" id="editCaseStatus" name="status">
-                            <option value="Open" ${caseData.status === 'Open' ? 'selected' : ''}>Open</option>
-                            <option value="In Progress" ${caseData.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
-                            <option value="Pending" ${caseData.status === 'Pending' ? 'selected' : ''}>Pending</option>
-                            <option value="Closed" ${caseData.status === 'Closed' ? 'selected' : ''}>Closed</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="mb-3">
-                    <label for="editCaseDescription" class="form-label">Description</label>
-                    <textarea class="form-control" id="editCaseDescription" name="description" rows="3">${caseData.description || ''}</textarea>
-                </div>
-                
-                <div class="mb-3">
-                    <label for="editCaseNotes" class="form-label">Additional Notes</label>
-                    <textarea class="form-control" id="editCaseNotes" name="notes" rows="2">${caseData.notes || ''}</textarea>
-                </div>
-            </form>
-        `;
+        const formHTML = buildFormHTML('editCaseForm', caseData, { caseTypes, projects, categories });
 
         const footerHTML = `
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -279,7 +405,7 @@ export async function showEditCaseModal(caseId, onSuccess) {
             title: '<i class="bi bi-pencil-square"></i> Edit Case',
             body: formHTML,
             footer: footerHTML,
-            size: 'lg'
+            size: 'xl'
         });
 
         const existingModal = document.getElementById('editCaseModal');
@@ -290,16 +416,23 @@ export async function showEditCaseModal(caseId, onSuccess) {
         const modal = new bootstrap.Modal(document.getElementById('editCaseModal'));
         modal.show();
 
+        // Mark selected category after DOM insertion
+        const catSelect = document.getElementById('editCaseForm_categorySelect');
+        if (catSelect && caseData.case_category_id) {
+            catSelect.dataset.selected = caseData.case_category_id;
+        }
+
+        attachFormBehaviours('editCaseForm', caseData.case_type_id);
+
         document.getElementById('updateCaseBtn').addEventListener('click', async () => {
             const form = document.getElementById('editCaseForm');
-            
+
             if (!form.checkValidity()) {
                 form.reportValidity();
                 return;
             }
 
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
+            const data = collectFormData('editCaseForm');
 
             try {
                 const updateBtn = document.getElementById('updateCaseBtn');
@@ -331,118 +464,72 @@ export async function showEditCaseModal(caseId, onSuccess) {
 }
 
 /**
- * Show view case modal (read-only)
+ * Show read-only view modal for a case.
+ * @param {number|string} caseId
  */
 export async function showViewCaseModal(caseId) {
     try {
         const caseRes = await apiService.get(`/cases/${caseId}`);
-        const caseData = caseRes.data;
+        const d = caseRes.data;
 
-        const getPriorityBadge = (priority) => {
-            const colors = {
-                'Critical': 'danger',
-                'High': 'warning',
-                'Medium': 'info',
-                'Low': 'secondary'
-            };
-            return `<span class="badge bg-${colors[priority] || 'secondary'}">${priority}</span>`;
-        };
-
-        const getStatusBadge = (status) => {
-            const colors = {
-                'Open': 'primary',
-                'In Progress': 'info',
-                'Pending': 'warning',
-                'Closed': 'secondary'
-            };
-            return `<span class="badge bg-${colors[status] || 'secondary'}">${status}</span>`;
-        };
+        const row = (label, value) => value
+            ? `<div class="col-md-6 mb-2"><strong>${esc(label)}:</strong><br>${esc(String(value))}</div>`
+            : '';
+        const rowFull = (label, value) => value
+            ? `<div class="col-12 mb-2"><strong>${esc(label)}:</strong><br><p class="text-muted mb-0">${esc(String(value))}</p></div>`
+            : '';
 
         const bodyHTML = `
-            <div class="row">
-                <div class="col-12 mb-3">
-                    <h5 class="text-primary">Case #${caseData.case_number}</h5>
-                    ${caseData.description ? `<p class="text-muted">${caseData.description}</p>` : ''}
-                </div>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <strong>Client Name:</strong><br>
-                    ${caseData.client_name || 'N/A'}
-                </div>
-                <div class="col-md-3 mb-3">
-                    <strong>Age:</strong><br>
-                    ${caseData.client_age || 'Not specified'}
-                </div>
-                <div class="col-md-3 mb-3">
-                    <strong>Gender:</strong><br>
-                    ${caseData.client_gender || 'Not specified'}
-                </div>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <strong>Case Type:</strong><br>
-                    ${caseData.case_type || 'Not specified'}
-                </div>
-                <div class="col-md-6 mb-3">
-                    <strong>Project:</strong><br>
-                    ${caseData.project_name || 'N/A'}
-                </div>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <strong>Priority:</strong><br>
-                    ${getPriorityBadge(caseData.priority)}
-                </div>
-                <div class="col-md-6 mb-3">
-                    <strong>Status:</strong><br>
-                    ${getStatusBadge(caseData.status)}
-                </div>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <strong>Opened Date:</strong><br>
-                    ${caseData.opened_date ? new Date(caseData.opened_date).toLocaleDateString() : 'N/A'}
-                </div>
-                ${caseData.closed_date ? `
-                    <div class="col-md-6 mb-3">
-                        <strong>Closed Date:</strong><br>
-                        ${new Date(caseData.closed_date).toLocaleDateString()}
-                    </div>
-                ` : ''}
-            </div>
-            
-            ${caseData.notes ? `
-                <div class="row">
-                    <div class="col-12 mb-3">
-                        <strong>Notes:</strong><br>
-                        <p class="text-muted">${caseData.notes}</p>
-                    </div>
-                </div>
-            ` : ''}
-            
-            ${caseData.resolution ? `
-                <div class="row">
-                    <div class="col-12 mb-3">
-                        <strong>Resolution:</strong><br>
-                        <p class="text-muted">${caseData.resolution}</p>
-                    </div>
-                </div>
-            ` : ''}
-            
-            <hr>
-            
-            <div class="row mt-3">
+            <div class="row mb-3">
                 <div class="col-12">
-                    <small class="text-muted">
-                        Created by ${caseData.created_by_username || 'Unknown'} on ${caseData.created_at ? new Date(caseData.created_at).toLocaleDateString() : 'N/A'}
-                    </small>
+                    <h5 class="text-primary mb-1">Case #${esc(d.case_number || '—')}</h5>
+                    <div class="d-flex gap-2 flex-wrap">
+                        ${getStatusBadge(d.status)}
+                        ${d.case_type_name ? `<span class="badge bg-dark">${esc(d.case_type_name)}</span>` : ''}
+                        ${d.case_category_name ? `<span class="badge bg-secondary">${esc(d.case_category_name)}</span>` : ''}
+                    </div>
                 </div>
             </div>
+
+            <div class="row">
+                ${row('Date Reported', d.date_reported ? new Date(d.date_reported).toLocaleDateString() : null)}
+                ${row('Project', d.project_name)}
+                ${row('Location', d.location)}
+                ${row('Case Worker', d.case_worker)}
+            </div>
+
+            <hr class="my-2">
+            <h6 class="text-muted">Demographics</h6>
+            <div class="row">
+                ${row('Gender', d.gender)}
+                ${row('Age Group', d.age_group ? d.age_group + ' years' : null)}
+                ${row('Nationality', d.nationality)}
+                ${row('Person with Disability', d.has_disability ? 'Yes' : 'No')}
+                ${d.has_disability && d.disability_status ? row('Disability Details', d.disability_status) : ''}
+            </div>
+
+            <hr class="my-2">
+            <h6 class="text-muted">Referral &amp; Source</h6>
+            <div class="row">
+                ${row('Case Source', d.case_source)}
+                ${row('Referred From', d.referred_from)}
+                ${row('Referred To', d.referred_to)}
+                ${row('Referral Date', d.referral_date ? new Date(d.referral_date).toLocaleDateString() : null)}
+            </div>
+
+            <hr class="my-2">
+            <h6 class="text-muted">Support &amp; Follow-up</h6>
+            <div class="row">
+                ${rowFull('Support Offered', d.support_offered)}
+                ${row('Follow-up Date', d.follow_up_date ? new Date(d.follow_up_date).toLocaleDateString() : null)}
+                ${row('Closure Date', d.closure_date ? new Date(d.closure_date).toLocaleDateString() : null)}
+                ${rowFull('Notes', d.notes)}
+            </div>
+
+            <hr class="my-2">
+            <small class="text-muted">
+                Created: ${d.created_at ? new Date(d.created_at).toLocaleString() : 'N/A'}
+            </small>
         `;
 
         const footerHTML = `
