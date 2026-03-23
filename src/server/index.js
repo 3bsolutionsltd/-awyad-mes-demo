@@ -29,16 +29,35 @@ const HOST = process.env.HOST || 'localhost';
 // ============ Security Middleware ============
 
 // Helmet for security headers
+const isProd = process.env.NODE_ENV === 'production';
 app.use(
   helmet({
-    contentSecurityPolicy: false, // Disable for development; configure properly in production
+    contentSecurityPolicy: isProd ? {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+        fontSrc: ["'self'", "https://cdn.jsdelivr.net"],
+        imgSrc: ["'self'", "data:"],
+        connectSrc: ["'self'"],
+      },
+    } : false,
     crossOriginEmbedderPolicy: false,
   })
 );
 
 // CORS configuration
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',')
+  : (isProd ? [] : ['*']);
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: isProd
+    ? (origin, cb) => {
+        if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+        cb(new Error(`CORS: origin '${origin}' not allowed`));
+      }
+    : '*',
   credentials: true,
   optionsSuccessStatus: 200,
 };
