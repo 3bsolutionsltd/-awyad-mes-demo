@@ -10,6 +10,7 @@
 import { dashboardService } from '../services/dashboardService.js';
 
 import { showEditProjectModal } from '../projectForms.js';
+import { showCreateProjectIndicatorModal, showEditIndicatorModal } from '../indicatorForms.js';
 
 /**
  * Render Project Dashboard
@@ -275,7 +276,12 @@ function renderIndicatorPerformance(indicators, project) {
         return `
             <div class="row mb-4">
                 <div class="col-12">
-                    <h4><i class="bi bi-graph-up"></i> Indicator Performance</h4>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h4><i class="bi bi-graph-up"></i> Indicator Performance</h4>
+                        <button class="btn btn-sm btn-primary" onclick="window.addProjectIndicator('${project?.id}', '${escapeHtml(project?.name || '')}')">
+                            <i class="bi bi-plus-lg"></i> Add Indicator
+                        </button>
+                    </div>
                     <div class="alert alert-info">No indicators defined for this project.</div>
                 </div>
             </div>
@@ -285,10 +291,15 @@ function renderIndicatorPerformance(indicators, project) {
     return `
         <div class="row mb-4">
             <div class="col-12">
-                <h4>
-                    <i class="bi bi-graph-up"></i> Indicator Performance
-                    <span class="badge bg-warning text-dark ms-2">Project Indicators</span>
-                </h4>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h4>
+                        <i class="bi bi-graph-up"></i> Indicator Performance
+                        <span class="badge bg-warning text-dark ms-2">Project Indicators</span>
+                    </h4>
+                    <button class="btn btn-sm btn-primary" onclick="window.addProjectIndicator('${project?.id}', '${escapeHtml(project?.name || '')}')">
+                        <i class="bi bi-plus-lg"></i> Add Indicator
+                    </button>
+                </div>
                 <div class="card">
                     <div class="card-body">
                         <div class="table-responsive">
@@ -304,12 +315,13 @@ function renderIndicatorPerformance(indicators, project) {
                                         <th>Q3</th>
                                         <th>Q4</th>
                                         <th>Status</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     ${indicators.map(ind => `
-                                        <tr onclick="showIndicatorDetail('${ind.id}')" style="cursor: pointer;">
-                                            <td>
+                                        <tr>
+                                            <td onclick="showIndicatorDetail('${ind.id}')" style="cursor: pointer;">
                                                 <strong>${escapeHtml(ind.name)}</strong>
                                             </td>
                                             <td>${formatNumber(ind.target || 0)}</td>
@@ -322,6 +334,11 @@ function renderIndicatorPerformance(indicators, project) {
                                             <td>${formatNumber(ind.q3 || 0)}</td>
                                             <td>${formatNumber(ind.q4 || 0)}</td>
                                             <td>${renderStatusBadgeSimple(ind.achieved || 0, ind.target || 0)}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-secondary" onclick="window.editProjectIndicator('${ind.id}')" title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                            </td>
                                         </tr>
                                     `).join('')}
                                 </tbody>
@@ -756,6 +773,29 @@ window.showIndicatorDetail = (id) => {
     if (window.viewIndicatorDetail) {
         window.viewIndicatorDetail(id);
     }
+};
+
+window.addProjectIndicator = (projectId, projectName) => {
+    showCreateProjectIndicatorModal(projectId, projectName, () => {
+        // Reload the dashboard after adding a new indicator
+        renderProjectDashboardNew(projectId).then(html => {
+            const container = document.getElementById('main-content') || document.querySelector('[data-section="project-dashboard"]');
+            if (container) container.innerHTML = html;
+        });
+    });
+};
+
+window.editProjectIndicator = (indicatorId) => {
+    showEditIndicatorModal(indicatorId, () => {
+        const hash = window.location.hash;
+        const projectId = new URLSearchParams(hash.split('?')[1] || '').get('id');
+        if (projectId) {
+            renderProjectDashboardNew(projectId).then(html => {
+                const container = document.getElementById('main-content') || document.querySelector('[data-section="project-dashboard"]');
+                if (container) container.innerHTML = html;
+            });
+        }
+    });
 };
 
 window.viewCase = (id) => {

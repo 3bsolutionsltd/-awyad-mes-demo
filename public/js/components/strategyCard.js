@@ -94,7 +94,10 @@ function renderComponents(components) {
     }
     
     return components.map(component => `
-        <div class="component-item ms-4 mb-2 p-2 rounded" data-component-id="${component.id}">
+        <div class="component-item ms-4 mb-2 p-2 rounded" data-component-id="${component.id}"
+             data-component-name="${escapeHtml(component.name)}"
+             data-component-code="${escapeHtml(component.code)}"
+             data-projects="${escapeHtml(JSON.stringify(component.projects || []))}">
             <div class="d-flex justify-content-between align-items-start">
                 <div class="flex-grow-1">
                     <strong class="component-code">${escapeHtml(component.code)}</strong>
@@ -165,12 +168,85 @@ window.togglePillar = function(pillarId) {
 };
 
 /**
- * Show component details in modal
+ * Show component details modal with linked projects drill-down
  */
 window.showComponentDetails = function(componentId) {
-    // Will be implemented with modal
-    console.log('Show component details:', componentId);
-    // TODO: Trigger component detail modal
+    const el = document.querySelector(`[data-component-id="${componentId}"]`);
+    if (!el) return;
+
+    const name = el.dataset.componentName || 'Component';
+    const code = el.dataset.componentCode || '';
+    let projects = [];
+    try { projects = JSON.parse(el.dataset.projects || '[]'); } catch (e) { /* ignore */ }
+
+    const projectRows = projects.length
+        ? projects.map(p => `
+            <tr>
+                <td><strong>${escapeHtml(p.name)}</strong></td>
+                <td><span class="badge bg-${p.status === 'Active' ? 'success' : p.status === 'Completed' ? 'primary' : 'secondary'}">${p.status || 'N/A'}</span></td>
+                <td class="text-center">${p.activity_count || 0}</td>
+                <td class="text-center">${p.indicator_count || 0}</td>
+                <td class="text-center">${p.case_count || 0}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="window.location.hash='project-dashboard?id=${p.id}'; document.getElementById('componentDetailsModal')?.remove();" title="Open Dashboard">
+                        <i class="bi bi-kanban"></i> Open
+                    </button>
+                </td>
+            </tr>
+        `).join('')
+        : `<tr><td colspan="6" class="text-center text-muted">No projects linked to this component.</td></tr>`;
+
+    const bodyHTML = `
+        <div class="mb-3">
+            <span class="badge bg-secondary me-2">${escapeHtml(code)}</span>
+            <strong>${escapeHtml(name)}</strong>
+        </div>
+        <h6 class="mb-2"><i class="bi bi-folder"></i> Linked Projects (${projects.length})</h6>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Project</th>
+                        <th>Status</th>
+                        <th class="text-center">Activities</th>
+                        <th class="text-center">Indicators</th>
+                        <th class="text-center">Cases</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>${projectRows}</tbody>
+            </table>
+        </div>
+    `;
+
+    const existingModal = document.getElementById('componentDetailsModal');
+    if (existingModal) existingModal.remove();
+
+    // Build a minimal Bootstrap modal inline (no import needed — components.js createModal not available here)
+    const modalHTML = `
+        <div class="modal fade" id="componentDetailsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-boxes"></i> Component Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">${bodyHTML}</div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    const modal = new bootstrap.Modal(document.getElementById('componentDetailsModal'));
+    modal.show();
+
+    document.getElementById('componentDetailsModal').addEventListener('hidden.bs.modal', function () {
+        this.remove();
+    });
 };
 
 /**

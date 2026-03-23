@@ -130,6 +130,8 @@ export function transformIndicator(indicator) {
     return {
         id: indicator.id,
         projectId: indicator.project_id,
+        projectName: indicator.project_name,
+        indicatorScope: indicator.indicator_scope,
         thematicAreaId: indicator.thematic_area_id,
         thematicArea: indicator.thematic_area_name,
         code: indicator.indicator_code || indicator.code,

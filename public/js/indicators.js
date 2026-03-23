@@ -131,11 +131,34 @@ export async function renderIndicators(contentArea) {
             </div>
         `;
 
-        // Group indicators by thematic area
-        const indicatorsByArea = groupIndicatorsByThematicArea(indicators, thematicAreas);
+        // Separate by scope
+        const orgIndicators = indicators.filter(i => !i.indicatorScope || i.indicatorScope === 'awyad');
+        const projectIndicators = indicators.filter(i => i.indicatorScope === 'project');
 
-        // Create indicators table
-        const indicatorsTable = createIndicatorsTable(indicatorsByArea);
+        // Group by thematic area (all + org scope)
+        const indicatorsByArea = groupIndicatorsByThematicArea(indicators, thematicAreas);
+        const orgByArea = groupIndicatorsByThematicArea(orgIndicators, thematicAreas);
+
+        // Group project indicators by project name
+        const projectsMap = new Map();
+        projectIndicators.forEach(ind => {
+            const key = ind.projectId || 'unknown';
+            const label = ind.projectName || 'No Project';
+            if (!projectsMap.has(key)) projectsMap.set(key, { name: label, indicators: [] });
+            projectsMap.get(key).indicators.push(ind);
+        });
+        const projectByProject = Object.fromEntries(
+            Array.from(projectsMap.entries()).map(([k, v]) => [k, v])
+        );
+
+        // Create indicators tables
+        const allTable = createIndicatorsTable(indicatorsByArea);
+        const orgTable = orgIndicators.length
+            ? createIndicatorsTable(orgByArea)
+            : '<div class="alert alert-info">No organizational (AWYAD-level) indicators found.</div>';
+        const projTable = projectIndicators.length
+            ? createProjectScopedTable(projectByProject)
+            : '<div class="alert alert-info">No project-specific indicators found. Open a project and add indicators from within it.</div>';
 
         // Create quarterly breakdown
         const quarterlyBreakdown = createQuarterlyBreakdown(indicators);
@@ -162,12 +185,50 @@ export async function renderIndicators(contentArea) {
                     })}
                 </div>
             </div>
-            
-            ${createCard({
-                title: 'Results Framework',
-                subtitle: `${totalIndicators} indicator(s) | Avg: ${avgAchievement}% achieved`,
-                body: indicatorsTable
-            })}
+
+            <!-- Scope Tabs -->
+            <div class="mb-3">
+                <ul class="nav nav-tabs" id="indicatorScopeTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="tab-all" data-bs-toggle="tab" data-bs-target="#panel-all" type="button" role="tab">
+                            <i class="bi bi-list-check"></i> All Indicators
+                            <span class="badge bg-secondary ms-1">${totalIndicators}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-org" data-bs-toggle="tab" data-bs-target="#panel-org" type="button" role="tab">
+                            <i class="bi bi-building"></i> Organizational (AWYAD)
+                            <span class="badge bg-primary ms-1">${orgIndicators.length}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-proj" data-bs-toggle="tab" data-bs-target="#panel-proj" type="button" role="tab">
+                            <i class="bi bi-folder"></i> Project-Specific
+                            <span class="badge bg-warning text-dark ms-1">${projectIndicators.length}</span>
+                        </button>
+                    </li>
+                </ul>
+                <div class="tab-content border border-top-0 rounded-bottom p-3 bg-white">
+                    <div class="tab-pane fade show active" id="panel-all" role="tabpanel">
+                        ${allTable}
+                    </div>
+                    <div class="tab-pane fade" id="panel-org" role="tabpanel">
+                        <div class="alert alert-primary py-2 mb-3 small">
+                            <i class="bi bi-building me-1"></i>
+                            <strong>Organizational Indicators</strong> are AWYAD-level strategic indicators aggregated across all projects.
+                        </div>
+                        ${orgTable}
+                    </div>
+                    <div class="tab-pane fade" id="panel-proj" role="tabpanel">
+                        <div class="alert alert-warning py-2 mb-3 small">
+                            <i class="bi bi-folder me-1"></i>
+                            <strong>Project-Specific Indicators</strong> belong to individual projects. Manage them from within each project's dashboard.
+                        </div>
+                        ${projTable}
+                    </div>
+                </div>
+            </div>
+
             ${createCard({
                 title: 'Quarterly Breakdown',
                 subtitle: 'Performance by quarter',
@@ -209,6 +270,75 @@ export async function renderIndicators(contentArea) {
             () => renderIndicators(contentArea)
         );
     }
+}
+
+/**
+ * Create a project-grouped table for project-scope indicators
+ * @param {Object} projectByProject - Indicators grouped by project (key=projectId, value={name, indicators})
+ * @returns {string} HTML string
+ */
+function createProjectScopedTable(projectByProject) {
+    if (!Object.keys(projectByProject).length) return createEmptyState('No project-specific indicators', 'folder');
+
+    let html = `<div class="table-responsive"><table class="table table-hover table-sm">
+        <thead class="table-light">
+            <tr>
+                <th rowspan="2">Code</th>
+                <th rowspan="2">Indicator Name</th>
+                <th rowspan="2">Level</th>
+                <th rowspan="2">Baseline</th>
+                <th colspan="5" class="text-center">Targets</th>
+                <th rowspan="2">Achieved</th>
+                <th rowspan="2">Variance</th>
+                <th rowspan="2" style="width:120px;">Progress</th>
+                <th rowspan="2" style="width:140px;">Actions</th>
+            </tr>
+            <tr>
+                <th class="text-center">LOP</th>
+                <th class="text-center">Annual</th>
+                <th class="text-center">Q1</th>
+                <th class="text-center">Q2</th>
+                <th class="text-center">Q3</th>
+            </tr>
+        </thead>
+        <tbody>`;
+
+    Object.values(projectByProject).forEach(group => {
+        html += `<tr class="table-warning">
+            <td colspan="14"><strong><i class="bi bi-folder"></i> ${group.name}</strong></td>
+        </tr>`;
+        group.indicators.forEach(indicator => {
+            const pct = indicator.percentAchieved || 0;
+            const progressBar = createProgressBar(pct, true);
+            html += `<tr>
+                <td><small class="text-muted">${indicator.code || 'N/A'}</small></td>
+                <td><strong>${indicator.name || 'Unnamed'}</strong></td>
+                <td><span class="badge bg-secondary">${indicator.type || 'N/A'}</span></td>
+                <td class="text-end">${formatNumber(indicator.baseline || 0)}</td>
+                <td class="text-end">${formatNumber(indicator.targetLOP || 0)}</td>
+                <td class="text-end">${formatNumber(indicator.targetAnnual || 0)}</td>
+                <td class="text-end">${formatNumber(indicator.targetQ1 || 0)}</td>
+                <td class="text-end">${formatNumber(indicator.targetQ2 || 0)}</td>
+                <td class="text-end">${formatNumber(indicator.targetQ3 || 0)}</td>
+                <td class="text-end"><strong>${formatNumber(indicator.achieved || 0)}</strong></td>
+                <td class="text-end ${indicator.variance >= 0 ? 'text-success' : 'text-danger'}">
+                    ${indicator.variance >= 0 ? '+' : ''}${formatNumber(indicator.variance || 0)}
+                </td>
+                <td>${progressBar}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary view-indicator-btn" data-indicator-id="${indicator.id}" title="View">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary edit-indicator-btn" data-indicator-id="${indicator.id}" title="Edit">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                </td>
+            </tr>`;
+        });
+    });
+
+    html += '</tbody></table></div>';
+    return html;
 }
 
 /**

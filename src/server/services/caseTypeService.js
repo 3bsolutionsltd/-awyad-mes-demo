@@ -19,7 +19,7 @@ class CaseTypeService {
       FROM case_types
       ORDER BY display_order, name
     `;
-    return await databaseService.query(query);
+    return await databaseService.queryMany(query);
   }
 
   /**
@@ -34,7 +34,7 @@ class CaseTypeService {
       WHERE is_active = TRUE
       ORDER BY display_order, name
     `;
-    return await databaseService.query(query);
+    return await databaseService.queryMany(query);
   }
 
   /**
@@ -187,7 +187,7 @@ class CaseTypeService {
       JOIN case_types ct ON cc.case_type_id = ct.id
       ORDER BY ct.display_order, cc.display_order, cc.name
     `;
-    return await databaseService.query(query);
+    return await databaseService.queryMany(query);
   }
 
   /**
@@ -202,7 +202,7 @@ class CaseTypeService {
       WHERE case_type_id = $1 AND is_active = TRUE
       ORDER BY display_order, name
     `;
-    return await databaseService.query(query, [typeId]);
+    return await databaseService.queryMany(query, [typeId]);
   }
 
   /**

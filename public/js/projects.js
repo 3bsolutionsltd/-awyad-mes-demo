@@ -233,8 +233,8 @@ function createProjectsTable(projects, thematicAreas) {
                 </td>
                 <td>
                     <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-primary view-project-btn" data-project-id="${project.id}" title="View">
-                            <i class="bi bi-eye"></i>
+                        <button class="btn btn-primary view-project-btn" data-project-id="${project.id}" title="Open Project Dashboard">
+                            <i class="bi bi-kanban"></i> Open
                         </button>
                         <button class="btn btn-outline-secondary edit-project-btn" data-project-id="${project.id}" title="Edit">
                             <i class="bi bi-pencil"></i>
@@ -295,7 +295,7 @@ window.exportProjects = async function() {
 };
 
 window.viewProject = function(projectId) {
-    showViewProjectModal(projectId);
+    window.location.hash = `project-dashboard?id=${projectId}`;
 };
 
 window.editProject = function(projectId) {
