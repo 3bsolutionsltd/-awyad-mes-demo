@@ -94,9 +94,9 @@ class CaseService {
         nationality, disability_status, has_disability,
         case_source, referred_from, referred_to, referral_date,
         support_offered, tracking_tags, case_worker,
-        follow_up_date, created_by
+        follow_up_date, notes, created_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
       RETURNING *
     `;
 
@@ -121,6 +121,7 @@ class CaseService {
       JSON.stringify(data.tracking_tags || []),
       data.case_worker || null,
       data.follow_up_date || null,
+      data.notes || null,
       userId
     ]);
 
@@ -163,9 +164,10 @@ class CaseService {
         case_worker = COALESCE($17, case_worker),
         follow_up_date = COALESCE($18, follow_up_date),
         closure_date = COALESCE($19, closure_date),
-        updated_by = $20,
+        notes = COALESCE($20, notes),
+        updated_by = $21,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $21
+      WHERE id = $22
       RETURNING *
     `;
 
@@ -189,6 +191,7 @@ class CaseService {
       data.case_worker,
       data.follow_up_date,
       data.closure_date,
+      data.notes,
       userId,
       id
     ]);

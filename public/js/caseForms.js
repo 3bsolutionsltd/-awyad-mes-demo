@@ -238,7 +238,48 @@ function buildFormHTML(id, caseData, { caseTypes, projects, categories }) {
       placeholder="Additional notes…">${esc(d.notes || '')}</textarea>
   </div>
 
+  <!-- Row 12: Tags (configurable metadata) -->
+  <div class="mb-3">
+    <label class="form-label">Tags <small class="text-muted">(configurable metadata)</small></label>
+    <div class="d-flex gap-2 mb-2">
+      <input type="text" class="form-control form-control-sm" id="${id}_tagInput"
+        placeholder="Type a tag and press Add…" maxlength="50">
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="${id}_addTagBtn">
+        <i class="bi bi-plus"></i> Add
+      </button>
+    </div>
+    <div id="${id}_tagsList" class="d-flex flex-wrap gap-1 mb-1"></div>
+    <input type="hidden" name="tracking_tags_json" value="${esc(JSON.stringify(d.tracking_tags || []))}">
+    <div class="form-text">Flexible labels for filtering and reporting (e.g. "urgent", "follow-up-needed").</div>
+  </div>
+
 </form>`;
+}
+
+function renderTags(formId) {
+    const tagsHidden = document.querySelector(`#${formId} [name="tracking_tags_json"]`);
+    const tagsList = document.getElementById(`${formId}_tagsList`);
+    if (!tagsHidden || !tagsList) return;
+
+    let tags = [];
+    try { tags = JSON.parse(tagsHidden.value) || []; } catch { /* empty array */ }
+
+    tagsList.innerHTML = tags.map(t =>
+        `<span class="badge bg-secondary d-flex align-items-center gap-1" style="font-size:0.8em">
+            ${esc(t)}
+            <span class="ms-1" style="cursor:pointer;line-height:1" data-remove-tag="${esc(t)}" title="Remove tag" aria-label="Remove ${esc(t)}">&times;</span>
+        </span>`
+    ).join('');
+
+    tagsList.querySelectorAll('[data-remove-tag]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            try {
+                const cur = JSON.parse(tagsHidden.value) || [];
+                tagsHidden.value = JSON.stringify(cur.filter(x => x !== btn.dataset.removeTag));
+            } catch { tagsHidden.value = '[]'; }
+            renderTags(formId);
+        });
+    });
 }
 
 function attachFormBehaviours(formId, caseTypeId = '') {
@@ -282,6 +323,36 @@ function attachFormBehaviours(formId, caseTypeId = '') {
             });
         }
     }
+
+    // Tags (configurable metadata)
+    const tagInput = document.getElementById(`${formId}_tagInput`);
+    const addTagBtn = document.getElementById(`${formId}_addTagBtn`);
+    if (tagInput && addTagBtn) {
+        renderTags(formId); // wire up initial tags and their remove buttons
+
+        const doAddTag = () => {
+            const tagsHidden = document.querySelector(`#${formId} [name="tracking_tags_json"]`);
+            if (!tagsHidden) return;
+            const tag = tagInput.value.trim();
+            if (!tag) return;
+            try {
+                const cur = JSON.parse(tagsHidden.value) || [];
+                if (!cur.includes(tag)) {
+                    tagsHidden.value = JSON.stringify([...cur, tag]);
+                    renderTags(formId);
+                }
+            } catch {
+                tagsHidden.value = JSON.stringify([tag]);
+                renderTags(formId);
+            }
+            tagInput.value = '';
+        };
+
+        addTagBtn.addEventListener('click', doAddTag);
+        tagInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); doAddTag(); }
+        });
+    }
 }
 
 function collectFormData(formId) {
@@ -290,6 +361,12 @@ function collectFormData(formId) {
     const data = Object.fromEntries(fd.entries());
     // Coerce has_disability to boolean
     if ('has_disability' in data) data.has_disability = data.has_disability === 'true';
+    // Convert tracking_tags_json hidden field → tracking_tags array
+    if ('tracking_tags_json' in data) {
+        try { data.tracking_tags = JSON.parse(data.tracking_tags_json) || []; }
+        catch { data.tracking_tags = []; }
+        delete data.tracking_tags_json;
+    }
     // Remove empty strings for optional fields (let backend COALESCE handle)
     for (const k of Object.keys(data)) {
         if (data[k] === '') delete data[k];
@@ -525,6 +602,13 @@ export async function showViewCaseModal(caseId) {
                 ${row('Closure Date', d.closure_date ? new Date(d.closure_date).toLocaleDateString() : null)}
                 ${rowFull('Notes', d.notes)}
             </div>
+
+            ${d.tracking_tags && d.tracking_tags.length ? `
+            <hr class="my-2">
+            <h6 class="text-muted">Tags</h6>
+            <div class="d-flex flex-wrap gap-1">
+                ${d.tracking_tags.map(t => `<span class="badge bg-secondary">${esc(t)}</span>`).join('')}
+            </div>` : ''}
 
             <hr class="my-2">
             <small class="text-muted">
