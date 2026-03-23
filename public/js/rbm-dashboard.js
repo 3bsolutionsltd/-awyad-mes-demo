@@ -650,6 +650,202 @@
   let _chartInstance = null;
   let _chartJsLoaded = false;
 
+  /* ── Performance Charts ──────────────────────────────────── */
+  let _perfLoaded = false;
+  let _perfRateChart = null;
+  let _reachChart = null;
+
+  async function loadPerformanceSummary(forceReload = false) {
+    if (_perfLoaded && !forceReload) return;
+    _perfLoaded = true;
+
+    await ensureChartJs();
+
+    async function dashFetch(path) {
+      const res = await fetch(`/api/v1/dashboard${path}`, { headers: authHeaders() });
+      if (res.status === 401) { window.location.href = '/login.html'; return null; }
+      if (!res.ok) throw new Error(`API error ${res.status}`);
+      return res.json();
+    }
+
+    const [perfRes, reachRes] = await Promise.allSettled([
+      dashFetch('/performance-summary'),
+      dashFetch('/reach-vs-target'),
+    ]);
+
+    const perfData  = perfRes.status  === 'fulfilled' ? perfRes.value  : null;
+    const reachData = reachRes.status === 'fulfilled' ? reachRes.value : null;
+
+    // ── KPI cards ──────────────────────────────────────────
+    if (perfData?.summary) {
+      const s = perfData.summary;
+      setText('perfKpiRate',    s.overall_performance_rate + '%');
+      setText('perfKpiOnTrack', `${s.on_track_projects} / ${s.projects_count}`);
+    }
+    if (reachData?.summary) {
+      const s = reachData.summary;
+      setText('perfKpiReach',  s.overall_reach_rate + '%');
+      setText('perfKpiBenef',  Number(s.total_actual_beneficiaries).toLocaleString());
+    }
+
+    // ── Performance Rate bar chart ─────────────────────────
+    const perfRows = perfData?.data ?? [];
+    if (perfRows.length) {
+      document.getElementById('perfChartPlaceholder').style.display = 'none';
+      const canvas = document.getElementById('perfRateChart');
+      canvas.style.display = 'block';
+
+      const labels = perfRows.map(r => shortenLabel(r.project_name));
+      const values = perfRows.map(r => Number(r.performance_rate));
+      const colors = values.map(v =>
+        v >= 80 ? 'rgba(40,167,69,0.75)' :
+        v >= 50 ? 'rgba(255,193,7,0.75)' :
+                  'rgba(220,53,69,0.75)'
+      );
+
+      if (_perfRateChart) _perfRateChart.destroy();
+      _perfRateChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Performance Rate (%)',
+            data: values,
+            backgroundColor: colors,
+            borderRadius: 4,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => ` ${ctx.parsed.y.toFixed(1)}%  — ${perfRows[ctx.dataIndex].project_name}`,
+              }
+            }
+          },
+          scales: {
+            y: {
+              min: 0, max: 100,
+              ticks: { callback: v => v + '%' },
+            }
+          }
+        }
+      });
+    } else {
+      document.getElementById('perfChartPlaceholder').innerHTML =
+        '<i class="bi bi-info-circle d-block mb-1"></i><span class="small">No indicator data yet.</span>';
+    }
+
+    // ── Reach vs Target horizontal bar chart ───────────────
+    const reachRows = (reachData?.data ?? [])
+      .filter(r => Number(r.total_target_beneficiaries) > 0 || Number(r.total_actual_beneficiaries) > 0);
+
+    if (reachRows.length) {
+      document.getElementById('reachChartPlaceholder').style.display = 'none';
+      const canvas = document.getElementById('reachChart');
+      canvas.style.display = 'block';
+
+      const labels  = reachRows.map(r => shortenLabel(r.project_name));
+      const targets = reachRows.map(r => Number(r.total_target_beneficiaries));
+      const actuals = reachRows.map(r => Number(r.total_actual_beneficiaries));
+
+      if (_reachChart) _reachChart.destroy();
+      _reachChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Target',
+              data: targets,
+              backgroundColor: 'rgba(13,110,253,0.25)',
+              borderColor: 'rgba(13,110,253,0.7)',
+              borderWidth: 1,
+              borderRadius: 3,
+            },
+            {
+              label: 'Reached',
+              data: actuals,
+              backgroundColor: 'rgba(32,201,151,0.7)',
+              borderRadius: 3,
+            },
+          ],
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          scales: {
+            x: { ticks: { callback: v => Number(v).toLocaleString() } }
+          }
+        }
+      });
+    } else {
+      document.getElementById('reachChartPlaceholder').innerHTML =
+        '<i class="bi bi-info-circle d-block mb-1"></i><span class="small">No beneficiary snapshot data yet.</span>';
+    }
+
+    // ── Performance table ──────────────────────────────────
+    const tbody = document.getElementById('perfTableBody');
+    if (!tbody) return;
+
+    const reachMap = Object.fromEntries((reachData?.data ?? []).map(r => [r.project_id, r]));
+
+    if (!perfRows.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">No data available.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = perfRows.map(row => {
+      const pr   = Number(row.performance_rate);
+      const rc   = reachMap[row.project_id];
+      const rr   = rc ? Number(rc.reach_rate) : null;
+      const rBadgeClass = rr === null ? 'bg-secondary' : rr >= 80 ? 'bg-success' : rr >= 50 ? 'bg-warning text-dark' : 'bg-danger';
+      const pBadgeClass = pr >= 80 ? 'bg-success' : pr >= 50 ? 'bg-warning text-dark' : 'bg-danger';
+      return `
+        <tr>
+          <td class="fw-semibold">${row.project_name}</td>
+          <td class="text-end">${row.indicator_count}</td>
+          <td class="text-end">${Number(row.total_target).toLocaleString()}</td>
+          <td class="text-end">${Number(row.total_achieved).toLocaleString()}</td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="progress flex-grow-1" style="height:8px">
+                <div class="progress-bar ${pr >= 80 ? 'bg-success' : pr >= 50 ? 'bg-warning' : 'bg-danger'}"
+                     style="width:${Math.min(pr,100)}%"></div>
+              </div>
+              <span class="badge ${pBadgeClass}" style="min-width:46px">${pr.toFixed(1)}%</span>
+            </div>
+          </td>
+          <td class="text-end">${rc ? Number(rc.total_actual_beneficiaries).toLocaleString() : '—'}</td>
+          <td class="text-end">${rc ? Number(rc.total_target_beneficiaries).toLocaleString() : '—'}</td>
+          <td>
+            ${rr !== null ? `
+            <div class="d-flex align-items-center gap-2">
+              <div class="progress flex-grow-1" style="height:8px">
+                <div class="progress-bar ${rr >= 80 ? 'bg-info' : rr >= 50 ? 'bg-warning' : 'bg-danger'}"
+                     style="width:${Math.min(rr,100)}%"></div>
+              </div>
+              <span class="badge ${rBadgeClass}" style="min-width:46px">${rr.toFixed(1)}%</span>
+            </div>` : '<span class="text-muted">—</span>'}
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  function shortenLabel(name, maxLen = 22) {
+    return name && name.length > maxLen ? name.slice(0, maxLen - 1) + '\u2026' : (name || '');
+  }
+
+  function setText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+
   async function ensureChartJs() {
     if (_chartJsLoaded) return;
     await new Promise((resolve, reject) => {
@@ -806,8 +1002,9 @@
     document.querySelectorAll('#dashboardLevelTabs [data-bs-toggle="tab"]').forEach(btn => {
       btn.addEventListener('shown.bs.tab', e => {
         const target = e.target.dataset.bsTarget;
-        if (target === '#tab-thematic') loadThematicDashboard();
-        if (target === '#tab-project')  loadProjectOptions();
+        if (target === '#tab-thematic')   loadThematicDashboard();
+        if (target === '#tab-project')    loadProjectOptions();
+        if (target === '#tab-performance') loadPerformanceSummary();
       });
     });
 
@@ -817,6 +1014,15 @@
       thematicRefreshBtn.addEventListener('click', () => {
         _thematicLoaded = false;
         loadThematicDashboard(true);
+      });
+    }
+
+    // Performance refresh button
+    const perfRefreshBtn = document.getElementById('perfRefreshBtn');
+    if (perfRefreshBtn) {
+      perfRefreshBtn.addEventListener('click', () => {
+        _perfLoaded = false;
+        loadPerformanceSummary(true);
       });
     }
 

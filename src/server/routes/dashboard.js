@@ -406,6 +406,72 @@ router.get('/overview', authenticate, async (req, res, next) => {
 });
 
 /**
+ * GET /api/v1/dashboard/performance-summary
+ * Per-project indicator performance rates (achieved / target) via v_project_performance view
+ */
+router.get('/performance-summary', authenticate, async (req, res, next) => {
+    try {
+        const result = await databaseService.query(`
+            SELECT * FROM v_project_performance
+            ORDER BY performance_rate DESC NULLS LAST
+        `);
+        const rows = result.rows;
+
+        const totalTarget   = rows.reduce((s, r) => s + Number(r.total_target),   0);
+        const totalAchieved = rows.reduce((s, r) => s + Number(r.total_achieved), 0);
+        const overallRate   = totalTarget > 0
+            ? Math.round((totalAchieved / totalTarget) * 1000) / 10
+            : 0;
+
+        res.json({
+            success: true,
+            data: rows,
+            summary: {
+                overall_performance_rate: overallRate,
+                projects_count:    rows.length,
+                on_track_projects:  rows.filter(r => Number(r.performance_rate) >= 80).length,
+                at_risk_projects:   rows.filter(r => Number(r.performance_rate) >= 50 && Number(r.performance_rate) < 80).length,
+                off_track_projects: rows.filter(r => Number(r.performance_rate) < 50).length,
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * GET /api/v1/dashboard/reach-vs-target
+ * Beneficiary reach vs target per project via v_reach_vs_target view
+ */
+router.get('/reach-vs-target', authenticate, async (req, res, next) => {
+    try {
+        const result = await databaseService.query(`
+            SELECT * FROM v_reach_vs_target
+            ORDER BY reach_rate DESC NULLS LAST
+        `);
+        const rows = result.rows;
+
+        const totalTarget = rows.reduce((s, r) => s + Number(r.total_target_beneficiaries), 0);
+        const totalActual = rows.reduce((s, r) => s + Number(r.total_actual_beneficiaries), 0);
+        const overallRate = totalTarget > 0
+            ? Math.round((totalActual / totalTarget) * 1000) / 10
+            : 0;
+
+        res.json({
+            success: true,
+            data: rows,
+            summary: {
+                overall_reach_rate:            overallRate,
+                total_target_beneficiaries:    totalTarget,
+                total_actual_beneficiaries:    totalActual,
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
  * GET /api/v1/dashboard/thematic-areas
  * Get all thematic areas (backward compatibility)
  */

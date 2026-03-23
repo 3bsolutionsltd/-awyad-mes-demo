@@ -91,6 +91,11 @@
             <i class="bi bi-folder2-open me-1"></i>Project Dashboard
           </button>
         </li>
+        <li class="nav-item">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-performance">
+            <i class="bi bi-speedometer me-1"></i>Performance
+          </button>
+        </li>
       </ul>
     </div>
   </div>
@@ -337,6 +342,103 @@
         </div>
       </div>
     </div><!-- /tab-pane #tab-project -->
+
+    <!-- Performance tab pane ──────────────────────────────── -->
+    <div class="tab-pane fade" id="tab-performance">
+      <div class="container-fluid py-4">
+
+        <!-- KPI row -->
+        <div class="row g-3 mb-4" id="perfKpiRow">
+          <div class="col-sm-6 col-xl-3">
+            <div class="card rbm-kpi-card p-3">
+              <div class="kpi-label mb-1 text-muted small">Overall Performance Rate</div>
+              <div class="kpi-value fw-bold" id="perfKpiRate"><span class="skeleton" style="width:60px;display:inline-block">&nbsp;</span></div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-xl-3">
+            <div class="card rbm-kpi-card p-3">
+              <div class="kpi-label mb-1 text-muted small">Projects On Track (&ge;80%)</div>
+              <div class="kpi-value fw-bold text-success" id="perfKpiOnTrack"><span class="skeleton" style="width:60px;display:inline-block">&nbsp;</span></div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-xl-3">
+            <div class="card rbm-kpi-card p-3">
+              <div class="kpi-label mb-1 text-muted small">Overall Reach Rate</div>
+              <div class="kpi-value fw-bold text-info" id="perfKpiReach"><span class="skeleton" style="width:60px;display:inline-block">&nbsp;</span></div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-xl-3">
+            <div class="card rbm-kpi-card p-3">
+              <div class="kpi-label mb-1 text-muted small">Total Beneficiaries Reached</div>
+              <div class="kpi-value fw-bold" id="perfKpiBenef"><span class="skeleton" style="width:60px;display:inline-block">&nbsp;</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts row -->
+        <div class="row g-3 mb-4">
+          <div class="col-lg-6">
+            <div class="card h-100">
+              <div class="card-header py-2 fw-semibold small">
+                <i class="bi bi-bar-chart-fill me-1 text-primary"></i>Performance Rate by Project
+                <span class="text-muted fw-normal">(achieved / target &times; 100)</span>
+              </div>
+              <div class="card-body" style="position:relative;min-height:260px">
+                <div id="perfChartPlaceholder" class="text-center text-muted py-5">
+                  <i class="bi bi-bar-chart display-4 d-block mb-2 opacity-25"></i>
+                  <span class="small">Loading chart…</span>
+                </div>
+                <canvas id="perfRateChart" style="display:none"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="card h-100">
+              <div class="card-header py-2 fw-semibold small">
+                <i class="bi bi-people-fill me-1 text-info"></i>Reach vs Target — Beneficiaries
+              </div>
+              <div class="card-body" style="position:relative;min-height:260px">
+                <div id="reachChartPlaceholder" class="text-center text-muted py-5">
+                  <i class="bi bi-people display-4 d-block mb-2 opacity-25"></i>
+                  <span class="small">Loading chart…</span>
+                </div>
+                <canvas id="reachChart" style="display:none"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Performance table -->
+        <div class="card">
+          <div class="card-header py-2 fw-semibold small d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-table me-1 text-secondary"></i>Project Performance Details</span>
+            <button class="btn btn-outline-secondary btn-sm no-print" id="perfRefreshBtn">
+              <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Project</th>
+                  <th class="text-end">Indicators</th>
+                  <th class="text-end">Target</th>
+                  <th class="text-end">Achieved</th>
+                  <th style="width:20%">Performance Rate</th>
+                  <th class="text-end">Reached</th>
+                  <th class="text-end">Target Benef.</th>
+                  <th style="width:16%">Reach Rate</th>
+                </tr>
+              </thead>
+              <tbody id="perfTableBody">
+                <tr><td colspan="8" class="text-center text-muted py-4">Click the Performance tab to load data.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /tab-pane #tab-performance -->
 
   </div><!-- /tab-content -->
 
