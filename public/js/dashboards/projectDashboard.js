@@ -10,7 +10,7 @@
 import { dashboardService } from '../services/dashboardService.js';
 
 import { showEditProjectModal } from '../projectForms.js';
-import { showCreateProjectIndicatorModal, showEditIndicatorModal } from '../indicatorForms.js';
+import { showCreateProjectIndicatorModal, showEditIndicatorModal, showViewIndicatorModal } from '../indicatorForms.js';
 
 /**
  * Render Project Dashboard
@@ -278,7 +278,7 @@ function renderIndicatorPerformance(indicators, project) {
                 <div class="col-12">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h4><i class="bi bi-graph-up"></i> Indicator Performance</h4>
-                        <button class="btn btn-sm btn-primary" onclick="window.addProjectIndicator('${project?.id}', '${escapeHtml(project?.name || '')}')">
+                        <button class="btn btn-sm btn-primary" onclick="window.addProjectIndicator('${project?.id}', '${escapeAttr(project?.name || '')}')">
                             <i class="bi bi-plus-lg"></i> Add Indicator
                         </button>
                     </div>
@@ -296,7 +296,7 @@ function renderIndicatorPerformance(indicators, project) {
                         <i class="bi bi-graph-up"></i> Indicator Performance
                         <span class="badge bg-warning text-dark ms-2">Project Indicators</span>
                     </h4>
-                    <button class="btn btn-sm btn-primary" onclick="window.addProjectIndicator('${project?.id}', '${escapeHtml(project?.name || '')}')">
+                    <button class="btn btn-sm btn-primary" onclick="window.addProjectIndicator('${project?.id}', '${escapeAttr(project?.name || '')}')">
                         <i class="bi bi-plus-lg"></i> Add Indicator
                     </button>
                 </div>
@@ -730,6 +730,11 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Escapes text for use inside single-quoted JS strings within HTML onclick attributes
+function escapeAttr(text) {
+    return escapeHtml(text).replace(/'/g, '&#39;');
+}
+
 function attachEventListeners(projectId) {
     console.log('Project dashboard event listeners attached for:', projectId);
 }
@@ -769,10 +774,7 @@ window.viewAllActivities = (projectId) => {
 };
 
 window.showIndicatorDetail = (id) => {
-    console.log('Show indicator:', id);
-    if (window.viewIndicatorDetail) {
-        window.viewIndicatorDetail(id);
-    }
+    showViewIndicatorModal(id);
 };
 
 window.addProjectIndicator = (projectId, projectName) => {

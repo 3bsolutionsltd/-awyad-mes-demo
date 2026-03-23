@@ -219,7 +219,7 @@
   async function loadDashboardSummary() {
     try {
       const data = await apiFetch('/dashboard/summary');
-      if (data) renderKPIs(data);
+      if (data) renderKPIs(data?.data || data);
     } catch (e) {
       console.error('Failed to load dashboard summary', e);
     }
@@ -235,10 +235,14 @@
       let data;
       if (state.activePillarId) {
         data = await apiFetch(`/aggregation/pillar/${state.activePillarId}`);
-        state.indicators = (data && data.indicators) ? data.indicators : [];
+        // Pillar aggregation returns { success, data: { thematicAreas: [{indicators:[],...},...] } }
+        const agg = data?.data || data || {};
+        const tas = Array.isArray(agg.thematicAreas) ? agg.thematicAreas : [];
+        state.indicators = tas.flatMap(ta => Array.isArray(ta.indicators) ? ta.indicators : []);
+        if (!state.indicators.length) state.indicators = agg.indicators || [];
       } else {
         data = await apiFetch('/organizational-indicators');
-        state.indicators = Array.isArray(data) ? data : (data && data.indicators ? data.indicators : []);
+        state.indicators = Array.isArray(data) ? data : (data?.data || data?.indicators || []);
       }
       renderTable();
     } catch (e) {
@@ -445,7 +449,7 @@
       const res = await fetch('/api/v1/projects?limit=200', { headers: authHeaders() });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const raw = await res.json();
-      const rows = Array.isArray(raw) ? raw : (raw?.projects || raw?.data || []);
+      const rows = Array.isArray(raw) ? raw : (raw?.data?.projects || raw?.projects || raw?.data || []);
       sel.innerHTML = '<option value="">— Select a project —</option>';
       rows.forEach(p => {
         const opt = document.createElement('option');

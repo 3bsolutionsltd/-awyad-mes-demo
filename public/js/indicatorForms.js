@@ -57,16 +57,16 @@ export async function showCreateIndicatorModal(onSuccess) {
                         <label for="indicatorLevel" class="form-label">Indicator Level <span class="text-danger">*</span></label>
                         <select class="form-select" id="indicatorLevel" name="indicator_level" required>
                             <option value="">Select Level</option>
-                            <option value="Output">Output</option>
-                            <option value="Outcome">Outcome</option>
-                            <option value="Impact">Impact</option>
+                            <option value="output">Output</option>
+                            <option value="outcome">Outcome</option>
+                            <option value="impact">Impact</option>
                         </select>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label for="indicatorDataType" class="form-label">Data Type</label>
                         <select class="form-select" id="indicatorDataType" name="data_type">
-                            <option value="Number" selected>Number</option>
-                            <option value="Percentage">Percentage</option>
+                            <option value="number" selected>Number</option>
+                            <option value="percentage">Percentage</option>
                         </select>
                     </div>
                 </div>
@@ -365,63 +365,91 @@ export async function showViewIndicatorModal(indicatorId) {
         const indicatorRes = await apiService.get(`/indicators/${indicatorId}`);
         const indicator = indicatorRes.data;
 
-        const bodyHTML = `
+        const pct = parseFloat(indicator.achievement_percentage) || 0;
+        const pctColor = pct >= 100 ? 'bg-success' : pct >= 75 ? 'bg-info' : pct >= 50 ? 'bg-warning' : 'bg-danger';
+
+        const detailsPane = `
             <div class="row">
                 <div class="col-12 mb-3">
                     <h5 class="text-primary">${indicator.name}</h5>
-                    <p class="text-muted">${indicator.description || 'No description provided'}</p>
+                    <p class="text-muted mb-0">${indicator.description || 'No description provided'}</p>
                 </div>
             </div>
-            
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <strong>Project:</strong><br>
-                    ${indicator.project_name || 'N/A'}
+                    <strong>Project:</strong><br>${indicator.project_name || 'N/A'}
                 </div>
                 <div class="col-md-6 mb-3">
                     <strong>Thematic Area:</strong><br>
                     <span class="badge bg-info">${indicator.thematic_area_name || 'N/A'}</span>
                 </div>
             </div>
-            
             <div class="row">
-                <div class="col-md-6 mb-3">
-                    <strong>Target:</strong><br>
-                    ${(indicator.target || 0).toLocaleString()} ${indicator.unit || 'units'}
+                <div class="col-md-4 mb-3">
+                    <strong>LOP Target:</strong><br>
+                    ${(indicator.lop_target || indicator.target || 0).toLocaleString()} ${indicator.unit || 'units'}
                 </div>
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
+                    <strong>Annual Target:</strong><br>
+                    ${(indicator.annual_target || 0).toLocaleString()} ${indicator.unit || 'units'}
+                </div>
+                <div class="col-md-4 mb-3">
                     <strong>Achieved:</strong><br>
                     ${(indicator.achieved || 0).toLocaleString()} ${indicator.unit || 'units'}
                 </div>
             </div>
-            
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <strong>Achievement Rate:</strong><br>
-                    <div class="progress">
-                        ${(() => { const pct = parseFloat(indicator.achievement_percentage) || 0; return `<div class="progress-bar ${pct >= 100 ? 'bg-success' : pct >= 75 ? 'bg-info' : pct >= 50 ? 'bg-warning' : 'bg-danger'}" style="width: ${Math.min(pct, 100)}%">${pct.toFixed(1)}%</div>`; })()}
+                    <div class="progress mt-1">
+                        <div class="progress-bar ${pctColor}" style="width:${Math.min(pct, 100)}%">${pct.toFixed(1)}%</div>
                     </div>
                 </div>
-                <div class="col-md-6 mb-3">
+                <div class="col-md-3 mb-3">
                     <strong>Status:</strong><br>
-                    <span class="badge bg-${indicator.status === 'Active' ? 'success' : indicator.status === 'Completed' ? 'primary' : 'secondary'}">${indicator.status}</span>
+                    <span class="badge bg-${indicator.status === 'Active' ? 'success' : indicator.status === 'Completed' ? 'primary' : 'secondary'}">${indicator.status || 'N/A'}</span>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <strong>Level:</strong><br>
+                    <span class="badge bg-secondary text-capitalize">${indicator.indicator_level || 'N/A'}</span>
                 </div>
             </div>
-            
             <div class="row">
-                <div class="col-md-6 mb-3">
-                    <strong>Reporting Frequency:</strong><br>
-                    ${indicator.reporting_frequency || 'Not specified'}
-                </div>
+                <div class="col-md-3 mb-2"><strong>Q1:</strong><br>${(indicator.q1_target || 0).toLocaleString()} / <span class="text-success">${(indicator.q1_achieved || 0).toLocaleString()}</span></div>
+                <div class="col-md-3 mb-2"><strong>Q2:</strong><br>${(indicator.q2_target || 0).toLocaleString()} / <span class="text-success">${(indicator.q2_achieved || 0).toLocaleString()}</span></div>
+                <div class="col-md-3 mb-2"><strong>Q3:</strong><br>${(indicator.q3_target || 0).toLocaleString()} / <span class="text-success">${(indicator.q3_achieved || 0).toLocaleString()}</span></div>
+                <div class="col-md-3 mb-2"><strong>Q4:</strong><br>${(indicator.q4_target || 0).toLocaleString()} / <span class="text-success">${(indicator.q4_achieved || 0).toLocaleString()}</span></div>
             </div>
-            
-            <hr>
-            
-            <div class="row mt-3">
-                <div class="col-12">
-                    <small class="text-muted">
-                        Created on ${indicator.created_at ? new Date(indicator.created_at).toLocaleDateString() : 'N/A'}
-                    </small>
+            <hr class="my-2">
+            <small class="text-muted">Created ${indicator.created_at ? new Date(indicator.created_at).toLocaleDateString() : 'N/A'}</small>
+        `;
+
+        const bodyHTML = `
+            <!-- Tabs -->
+            <ul class="nav nav-tabs mb-3" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#indTabDetails" type="button" role="tab">
+                        <i class="bi bi-info-circle"></i> Details
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#indTabActivities" type="button" role="tab"
+                            id="activitiesTabBtn">
+                        <i class="bi bi-calendar-check"></i> Linked Activities
+                    </button>
+                </li>
+            </ul>
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="indTabDetails" role="tabpanel">
+                    ${detailsPane}
+                </div>
+                <div class="tab-pane fade" id="indTabActivities" role="tabpanel">
+                    <div id="indicatorActivitiesBody">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary"></div>
+                            <p class="mt-2 text-muted small">Loading activities...</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -432,10 +460,10 @@ export async function showViewIndicatorModal(indicatorId) {
 
         const modalHTML = createModal({
             id: 'viewIndicatorModal',
-            title: '<i class="bi bi-eye"></i> Indicator Details',
+            title: `<i class="bi bi-graph-up"></i> ${indicator.code ? `[${indicator.code}]` : ''} Indicator Details`,
             body: bodyHTML,
             footer: footerHTML,
-            size: 'lg'
+            size: 'xl'
         });
 
         const existingModal = document.getElementById('viewIndicatorModal');
@@ -446,6 +474,22 @@ export async function showViewIndicatorModal(indicatorId) {
         const modal = new bootstrap.Modal(document.getElementById('viewIndicatorModal'));
         modal.show();
 
+        // Lazy-load activities when the Activities tab is first clicked
+        let activitiesLoaded = false;
+        document.getElementById('activitiesTabBtn').addEventListener('shown.bs.tab', async () => {
+            if (activitiesLoaded) return;
+            activitiesLoaded = true;
+            try {
+                const actRes = await apiService.get(`/activities?indicator_id=${indicatorId}&limit=100`);
+                const acts = actRes.data?.activities || actRes.data || [];
+                document.getElementById('indicatorActivitiesBody').innerHTML =
+                    _renderActivitiesTab(acts, indicator.unit);
+            } catch (err) {
+                document.getElementById('indicatorActivitiesBody').innerHTML =
+                    `<div class="alert alert-danger">Failed to load activities: ${err.message}</div>`;
+            }
+        });
+
         document.getElementById('viewIndicatorModal').addEventListener('hidden.bs.modal', function () {
             this.remove();
         });
@@ -453,6 +497,79 @@ export async function showViewIndicatorModal(indicatorId) {
     } catch (error) {
         showNotification(`Failed to load indicator: ${error.message}`, 'danger');
     }
+}
+
+function _renderActivitiesTab(activities, unit) {
+    if (activities.length === 0) {
+        return `
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-calendar-x fs-2 d-block mb-2"></i>
+                No activities linked to this indicator yet.
+            </div>`;
+    }
+
+    const statusColor = { 'Completed': 'success', 'In Progress': 'primary', 'Planned': 'secondary', 'Cancelled': 'danger' };
+
+    const rows = activities.map(a => {
+        const totalBenef = (a.age_18_49_female || 0) + (a.age_18_49_male || 0) +
+            (a.age_5_17_female || 0) + (a.age_5_17_male || 0) +
+            (a.age_0_4_female || 0) + (a.age_0_4_male || 0) +
+            (a.age_50_plus_female || 0) + (a.age_50_plus_male || 0);
+        const badgeColor = statusColor[a.status] || 'secondary';
+        const date = a.planned_date ? new Date(a.planned_date).toLocaleDateString() : '—';
+        const doneDate = a.completion_date ? new Date(a.completion_date).toLocaleDateString() : '—';
+        const budget = a.budget ? `${parseFloat(a.budget).toLocaleString()} ${a.currency || ''}` : '—';
+
+        return `
+        <tr>
+            <td>
+                <strong>${a.activity_name || 'Unnamed'}</strong>
+                ${a.description ? `<br><small class="text-muted">${a.description.substring(0, 80)}${a.description.length > 80 ? '…' : ''}</small>` : ''}
+            </td>
+            <td>${a.location || '—'}</td>
+            <td>${date}</td>
+            <td>${doneDate}</td>
+            <td class="text-center">
+                <span class="badge bg-${badgeColor}">${a.status || 'Unknown'}</span>
+            </td>
+            <td class="text-end">${totalBenef.toLocaleString()}</td>
+            <td class="text-end">${budget}</td>
+        </tr>`;
+    }).join('');
+
+    const total = activities.reduce((s, a) =>
+        s + (a.age_18_49_female || 0) + (a.age_18_49_male || 0) +
+        (a.age_5_17_female || 0) + (a.age_5_17_male || 0) +
+        (a.age_0_4_female || 0) + (a.age_0_4_male || 0) +
+        (a.age_50_plus_female || 0) + (a.age_50_plus_male || 0), 0);
+
+    const completed = activities.filter(a => a.status === 'Completed').length;
+    const inProgress = activities.filter(a => a.status === 'In Progress').length;
+    const planned = activities.filter(a => a.status === 'Planned').length;
+
+    return `
+        <div class="d-flex gap-3 mb-3 small">
+            <span class="badge bg-success py-1 px-2">${completed} Completed</span>
+            <span class="badge bg-primary py-1 px-2">${inProgress} In Progress</span>
+            <span class="badge bg-secondary py-1 px-2">${planned} Planned</span>
+            <span class="ms-auto text-muted"><strong>${total.toLocaleString()}</strong> total beneficiaries across ${activities.length} activit${activities.length === 1 ? 'y' : 'ies'}</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Activity</th>
+                        <th>Location</th>
+                        <th>Planned Date</th>
+                        <th>Completed</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end">Beneficiaries</th>
+                        <th class="text-end">Budget</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>`;
 }
 
 /**
@@ -486,16 +603,16 @@ export async function showCreateProjectIndicatorModal(projectId, projectName, on
                     <label for="piLevel" class="form-label">Indicator Level <span class="text-danger">*</span></label>
                     <select class="form-select" id="piLevel" name="indicator_level" required>
                         <option value="">Select Level</option>
-                        <option value="Output">Output</option>
-                        <option value="Outcome">Outcome</option>
-                        <option value="Impact">Impact</option>
+                        <option value="output">Output</option>
+                        <option value="outcome">Outcome</option>
+                        <option value="impact">Impact</option>
                     </select>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label for="piDataType" class="form-label">Data Type</label>
                     <select class="form-select" id="piDataType" name="data_type">
-                        <option value="Number" selected>Number</option>
-                        <option value="Percentage">Percentage</option>
+                        <option value="number" selected>Number</option>
+                        <option value="percentage">Percentage</option>
                     </select>
                 </div>
             </div>

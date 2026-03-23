@@ -48,17 +48,16 @@ export async function showCreateActivityModal(onSuccess) {
                         </select>
                     </div>
                     <div class="col-md-4 mb-3">
-                        <label for="activityIndicator" class="form-label">Indicator <span class="text-danger">*</span></label>
-                        <select class="form-select" id="activityIndicator" name="indicator_id" required>
-                            <option value="">Select Indicator</option>
-                            ${indicators.map(ind => `<option value="${ind.id}">${ind.name}</option>`).join('')}
+                        <label for="activityProject" class="form-label">Project <span class="text-danger">*</span></label>
+                        <select class="form-select" id="activityProject" name="project_id" required>
+                            <option value="">Select Project</option>
+                            ${projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
                         </select>
                     </div>
                     <div class="col-md-4 mb-3">
-                        <label for="activityProject" class="form-label">Project</label>
-                        <select class="form-select" id="activityProject" name="project_id">
-                            <option value="">Select Project (Optional)</option>
-                            ${projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                        <label for="activityIndicator" class="form-label">Indicator <span class="text-danger">*</span> <small class="text-muted fw-normal">(filtered by Thematic Area)</small></label>
+                        <select class="form-select" id="activityIndicator" name="indicator_id" required>
+                            <option value="">— Select Thematic Area first —</option>
                         </select>
                     </div>
                 </div>
@@ -215,6 +214,40 @@ export async function showCreateActivityModal(onSuccess) {
         window._csFS = _createFundingSources;
         window._renderCsFS = renderCreateFundingRows;
 
+        // ── Cascade filtering: Thematic Area → Indicator ────────────────────
+        const _allIndicators = indicators.slice();
+
+        function _repopulateCreateIndicators(taId, projectId, keepSelectedId) {
+            const sel = document.getElementById('activityIndicator');
+            if (!sel) return;
+            const filtered = _allIndicators.filter(ind => {
+                const taMatch = !taId || ind.thematic_area_id === taId;
+                const projMatch = !projectId || ind.project_id === projectId || ind.project_id == null;
+                return taMatch && projMatch;
+            });
+            sel.innerHTML = filtered.length
+                ? '<option value="">Select Indicator</option>'
+                : '<option value="">— No indicators for this Thematic Area —</option>';
+            filtered.forEach(ind => {
+                const opt = document.createElement('option');
+                opt.value = ind.id;
+                opt.textContent = ind.name;
+                if (ind.id === keepSelectedId) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        }
+
+        document.getElementById('activityThematicArea').addEventListener('change', function () {
+            const projectId = document.getElementById('activityProject').value;
+            _repopulateCreateIndicators(this.value, projectId, '');
+        });
+
+        document.getElementById('activityProject').addEventListener('change', function () {
+            const taId = document.getElementById('activityThematicArea').value;
+            _repopulateCreateIndicators(taId, this.value, document.getElementById('activityIndicator').value);
+        });
+        // ────────────────────────────────────────────────────────────────────
+
         document.getElementById('addFundingSourceBtn').addEventListener('click', () => {
             _createFundingSources.push({ source_name: '', source_type: 'donor', amount: 0, currency: 'UGX' });
             renderCreateFundingRows();
@@ -320,17 +353,20 @@ export async function showEditActivityModal(activityId, onSuccess) {
                         </select>
                     </div>
                     <div class="col-md-4 mb-3">
-                        <label for="editActivityIndicator" class="form-label">Indicator <span class="text-danger">*</span></label>
-                        <select class="form-select" id="editActivityIndicator" name="indicator_id" required>
-                            <option value="">Select Indicator</option>
-                            ${indicators.map(ind => `<option value="${ind.id}" ${ind.id === activity.indicator_id ? 'selected' : ''}>${ind.name}</option>`).join('')}
+                        <label for="editActivityProject" class="form-label">Project <span class="text-danger">*</span></label>
+                        <select class="form-select" id="editActivityProject" name="project_id" required>
+                            <option value="">Select Project</option>
+                            ${projects.map(p => `<option value="${p.id}" ${p.id === activity.project_id ? 'selected' : ''}>${p.name}</option>`).join('')}
                         </select>
                     </div>
                     <div class="col-md-4 mb-3">
-                        <label for="editActivityProject" class="form-label">Project</label>
-                        <select class="form-select" id="editActivityProject" name="project_id">
-                            <option value="">Select Project (Optional)</option>
-                            ${projects.map(p => `<option value="${p.id}" ${p.id === activity.project_id ? 'selected' : ''}>${p.name}</option>`).join('')}
+                        <label for="editActivityIndicator" class="form-label">Indicator <span class="text-danger">*</span> <small class="text-muted fw-normal">(filtered by Thematic Area)</small></label>
+                        <select class="form-select" id="editActivityIndicator" name="indicator_id" required>
+                            <option value="">Select Indicator</option>
+                            ${indicators
+                                .filter(ind => !activity.thematic_area_id || ind.thematic_area_id === activity.thematic_area_id)
+                                .map(ind => `<option value="${ind.id}" ${ind.id === activity.indicator_id ? 'selected' : ''}>${ind.name}</option>`)
+                                .join('')}
                         </select>
                     </div>
                 </div>
@@ -507,6 +543,40 @@ export async function showEditActivityModal(activityId, onSuccess) {
         window._renderEditFSNew = renderEditNewFundingRows;
 
         renderEditExistingFunding(existingFunding);
+
+        // ── Cascade filtering: Thematic Area → Indicator (edit modal) ──────────
+        const _allEditIndicators = indicators.slice();
+
+        function _repopulateEditIndicators(taId, projectId, keepSelectedId) {
+            const sel = document.getElementById('editActivityIndicator');
+            if (!sel) return;
+            const filtered = _allEditIndicators.filter(ind => {
+                const taMatch = !taId || ind.thematic_area_id === taId;
+                const projMatch = !projectId || ind.project_id === projectId || ind.project_id == null;
+                return taMatch && projMatch;
+            });
+            sel.innerHTML = filtered.length
+                ? '<option value="">Select Indicator</option>'
+                : '<option value="">— No indicators for this Thematic Area —</option>';
+            filtered.forEach(ind => {
+                const opt = document.createElement('option');
+                opt.value = ind.id;
+                opt.textContent = ind.name;
+                if (ind.id === keepSelectedId) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        }
+
+        document.getElementById('editActivityThematicArea').addEventListener('change', function () {
+            const projectId = document.getElementById('editActivityProject').value;
+            _repopulateEditIndicators(this.value, projectId, document.getElementById('editActivityIndicator').value);
+        });
+
+        document.getElementById('editActivityProject').addEventListener('change', function () {
+            const taId = document.getElementById('editActivityThematicArea').value;
+            _repopulateEditIndicators(taId, this.value, document.getElementById('editActivityIndicator').value);
+        });
+        // ────────────────────────────────────────────────────────────────────────
 
         document.getElementById('editAddFundingSourceBtn').addEventListener('click', () => {
             _editNewFundingSources.push({ source_name: '', source_type: 'donor', amount: 0, currency: 'UGX' });

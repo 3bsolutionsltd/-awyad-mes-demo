@@ -23,6 +23,7 @@ import { renderAuditLogs } from './renderAuditLogs.js';
 import { renderPermissionMatrix } from './permissionMatrix.js';
 import { renderSessionManagement } from './sessionManagement.js';
 import { renderThematicAreas } from './thematicAreas.js';
+import { renderSupportData } from './supportData.js';
 import { renderHelp } from './help.js';
 import { renderProfile } from './renderProfile.js';
 import { renderStrategicDashboard } from './renderStrategicDashboard.js';
@@ -83,6 +84,7 @@ const routes = {
     'permissions': renderPermissionMatrix,
     'sessions': renderSessionManagement,
     'thematic-areas': renderThematicAreas,
+    'support-data': renderSupportData,
     'help': renderHelp,
     'demo-guide': renderHelp,
     'profile': renderProfile

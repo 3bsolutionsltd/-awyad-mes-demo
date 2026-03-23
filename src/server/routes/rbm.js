@@ -36,15 +36,32 @@ function engines() {
 
 /**
  * GET /api/v1/rbm/dashboard/summary
- * Returns pillar count, pending validation count, and recent activity.
+ * Returns KPI counts (total, on-track, at-risk, off-track) plus pending validations.
  */
 router.get('/dashboard/summary', async (req, res) => {
   try {
-    const [pillarsResult, pendingResult, recentResult] = await Promise.all([
-      databaseService.query(
-        `SELECT DISTINCT core_program_component_id AS id
-         FROM thematic_areas
-         WHERE core_program_component_id IS NOT NULL`
+    const [kpiResult, pendingResult, recentResult] = await Promise.all([
+      databaseService.query(`
+        WITH achievement AS (
+          SELECT
+            oi.id,
+            CASE
+              WHEN COALESCE(oi.target_value, 0) > 0
+              THEN COALESCE(SUM(iv.value) FILTER (WHERE iv.validation_status = 'verified'), 0)
+                   / oi.target_value * 100
+              ELSE 0
+            END AS pct
+          FROM organizational_indicators oi
+          LEFT JOIN indicator_values iv ON iv.organizational_indicator_id = oi.id
+          WHERE oi.is_active = TRUE
+          GROUP BY oi.id, oi.target_value
+        )
+        SELECT
+          COUNT(*)                                     AS total,
+          COUNT(*) FILTER (WHERE pct >= 70)            AS on_track,
+          COUNT(*) FILTER (WHERE pct >= 40 AND pct < 70) AS at_risk,
+          COUNT(*) FILTER (WHERE pct < 40)             AS off_track
+        FROM achievement`
       ),
       databaseService.query(
         `SELECT COUNT(*) AS cnt FROM indicator_values WHERE validation_status = 'pending'`
@@ -60,13 +77,17 @@ router.get('/dashboard/summary', async (req, res) => {
       ),
     ]);
 
+    const kpi = kpiResult.rows[0] || {};
     res.json({
       success: true,
       data: {
-        pillarCount: pillarsResult.rows.length,
+        totalIndicators:   parseInt(kpi.total    ?? 0, 10),
+        onTrack:           parseInt(kpi.on_track ?? 0, 10),
+        atRisk:            parseInt(kpi.at_risk  ?? 0, 10),
+        offTrack:          parseInt(kpi.off_track ?? 0, 10),
         pendingValidations: parseInt(pendingResult.rows[0]?.cnt ?? 0, 10),
-        recentActivity: recentResult.rows,
-        generatedAt: new Date().toISOString(),
+        recentActivity:    recentResult.rows,
+        generatedAt:       new Date().toISOString(),
       },
     });
   } catch (err) {
@@ -148,6 +169,55 @@ router.get('/projects/:id/indicators/calculate', async (req, res) => {
 });
 
 // ── Aggregation ───────────────────────────────────────────────────────────
+
+/**
+ * GET /api/v1/rbm/aggregation/pillar/all
+ * Returns all strategic pillars (for sidebar nav).
+ * Must be defined before /:pillarId to avoid "all" being treated as an ID.
+ */
+router.get('/aggregation/pillar/all', async (req, res) => {
+  try {
+    const result = await databaseService.query(
+      `SELECT id, name, code, strategy_id
+       FROM pillars
+       ORDER BY code`
+    );
+    res.json({ success: true, data: result.rows, pillars: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * GET /api/v1/rbm/indicator-values
+ * Query params: status, indicatorId, projectId, limit, offset
+ */
+router.get('/indicator-values', async (req, res) => {
+  try {
+    const { status, indicatorId, projectId, limit = 20, offset = 0 } = req.query;
+    const conditions = [];
+    const params = [];
+    let idx = 1;
+    if (status)      { conditions.push(`iv.validation_status = $${idx++}`); params.push(status); }
+    if (indicatorId) { conditions.push(`iv.organizational_indicator_id = $${idx++}`); params.push(indicatorId); }
+    if (projectId)   { conditions.push(`iv.project_id = $${idx++}`); params.push(projectId); }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    params.push(parseInt(limit), parseInt(offset));
+    const result = await databaseService.query(
+      `SELECT iv.*, oi.name AS indicator_name, p.name AS project_name
+       FROM indicator_values iv
+       JOIN organizational_indicators oi ON oi.id = iv.organizational_indicator_id
+       LEFT JOIN projects p ON p.id = iv.project_id
+       ${where}
+       ORDER BY iv.created_at DESC
+       LIMIT $${idx++} OFFSET $${idx++}`,
+      params
+    );
+    res.json({ success: true, data: result.rows, items: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 /**
  * GET /api/v1/rbm/aggregation/pillar/:pillarId
@@ -774,6 +844,65 @@ router.post('/result-areas', async (req, res) => {
       [name, description ?? null, project_id ?? null, userId]
     );
     res.status(201).json({ success: true, data: row });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── Monthly Tracking Snapshots ────────────────────────────────────────────
+
+/**
+ * GET /api/v1/rbm/monthly-tracking/snapshots/project/:projectId
+ * Monthly performance snapshots for a project (last 24 months).
+ */
+router.get('/monthly-tracking/snapshots/project/:projectId', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const result = await databaseService.query(
+      `SELECT
+         ms.id,
+         ms.snapshot_month,
+         ms.planned_activities,
+         ms.completed_activities,
+         ms.target_beneficiaries,
+         ms.actual_beneficiaries,
+         ms.target_value,
+         ms.achieved_value,
+         ms.planned_budget,
+         ms.actual_expenditure              AS total_expenditure,
+         ms.performance_rate               AS programmatic_performance_rate,
+         ms.activity_completion_rate,
+         ms.beneficiary_reach_rate,
+         ms.burn_rate                       AS financial_burn_rate,
+         ind.name                           AS indicator_name
+       FROM monthly_snapshots ms
+       LEFT JOIN indicators ind ON ind.id = ms.indicator_id
+       WHERE ms.project_id = $1
+       ORDER BY ms.snapshot_month DESC
+       LIMIT 24`,
+      [projectId]
+    );
+    res.json({ success: true, data: result.rows, snapshots: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * GET /api/v1/rbm/monthly-tracking/snapshots/:id
+ */
+router.get('/monthly-tracking/snapshots/:id', async (req, res) => {
+  try {
+    const result = await databaseService.query(
+      `SELECT ms.*, ind.name AS indicator_name, p.name AS project_name
+       FROM monthly_snapshots ms
+       LEFT JOIN indicators ind ON ind.id = ms.indicator_id
+       LEFT JOIN projects p ON p.id = ms.project_id
+       WHERE ms.id = $1`,
+      [req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ success: false, error: 'Snapshot not found' });
+    res.json({ success: true, data: result.rows[0] });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
