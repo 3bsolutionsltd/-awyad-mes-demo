@@ -35,6 +35,12 @@ ALTER TABLE system_configurations ADD COLUMN IF NOT EXISTS config_code VARCHAR(1
 ALTER TABLE system_configurations ADD COLUMN IF NOT EXISTS config_value VARCHAR(500);
 ALTER TABLE system_configurations ADD COLUMN IF NOT EXISTS display_order INTEGER DEFAULT 0;
 
+-- Drop NOT NULL from columns created by migration 007 with different names,
+-- so inserts using the new column names don't violate the constraint
+ALTER TABLE system_configurations ALTER COLUMN config_category DROP NOT NULL;
+ALTER TABLE system_configurations ALTER COLUMN code DROP NOT NULL;
+ALTER TABLE system_configurations ALTER COLUMN name DROP NOT NULL;
+
 -- ============================================
 -- SEED INITIAL DATA
 -- ============================================
