@@ -31,6 +31,19 @@ const config = process.env.DATABASE_URL
       password: process.env.DB_PASSWORD || 'postgres',
     };
 
+async function ensureBaseSchema(client) {
+  const res = await client.query(
+    `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'users') AS exists`
+  );
+  if (!res.rows[0].exists) {
+    console.log('⚙️  Applying base schema (schema.sql)…');
+    const schemaPath = path.join(__dirname, 'schema.sql');
+    const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+    await client.query(schemaSql);
+    console.log('✅ Base schema applied.\n');
+  }
+}
+
 async function ensureMigrationsTable(client) {
   await client.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -54,6 +67,7 @@ async function runMigrations() {
     await client.connect();
     console.log(`✅ Connected to ${config.database}@${config.host}`);
 
+    await ensureBaseSchema(client);
     await ensureMigrationsTable(client);
     const applied = await getAppliedMigrations(client);
 
