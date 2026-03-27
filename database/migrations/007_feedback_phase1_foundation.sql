@@ -22,8 +22,8 @@ CREATE TABLE IF NOT EXISTS strategies (
     updated_by UUID REFERENCES users(id)
 );
 
-CREATE INDEX idx_strategies_code ON strategies(code);
-CREATE INDEX idx_strategies_active ON strategies(is_active);
+CREATE INDEX IF NOT EXISTS idx_strategies_code ON strategies(code);
+CREATE INDEX IF NOT EXISTS idx_strategies_active ON strategies(is_active);
 
 -- Pillars (Second level of hierarchy)
 CREATE TABLE IF NOT EXISTS pillars (
@@ -40,9 +40,9 @@ CREATE TABLE IF NOT EXISTS pillars (
     updated_by UUID REFERENCES users(id)
 );
 
-CREATE INDEX idx_pillars_strategy ON pillars(strategy_id);
-CREATE INDEX idx_pillars_code ON pillars(code);
-CREATE INDEX idx_pillars_active ON pillars(is_active);
+CREATE INDEX IF NOT EXISTS idx_pillars_strategy ON pillars(strategy_id);
+CREATE INDEX IF NOT EXISTS idx_pillars_code ON pillars(code);
+CREATE INDEX IF NOT EXISTS idx_pillars_active ON pillars(is_active);
 
 -- Core Program Components (Third level of hierarchy)
 CREATE TABLE IF NOT EXISTS core_program_components (
@@ -62,9 +62,9 @@ CREATE TABLE IF NOT EXISTS core_program_components (
     updated_by UUID REFERENCES users(id)
 );
 
-CREATE INDEX idx_core_components_pillar ON core_program_components(pillar_id);
-CREATE INDEX idx_core_components_code ON core_program_components(code);
-CREATE INDEX idx_core_components_active ON core_program_components(is_active);
+CREATE INDEX IF NOT EXISTS idx_core_components_pillar ON core_program_components(pillar_id);
+CREATE INDEX IF NOT EXISTS idx_core_components_code ON core_program_components(code);
+CREATE INDEX IF NOT EXISTS idx_core_components_active ON core_program_components(is_active);
 
 -- Update projects table to link to core program components
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS core_program_component_id UUID REFERENCES core_program_components(id);
@@ -92,10 +92,10 @@ CREATE TABLE IF NOT EXISTS system_configurations (
     UNIQUE(config_category, code)
 );
 
-CREATE INDEX idx_system_config_category ON system_configurations(config_category);
-CREATE INDEX idx_system_config_code ON system_configurations(code);
-CREATE INDEX idx_system_config_active ON system_configurations(is_active);
-CREATE INDEX idx_system_config_parent ON system_configurations(parent_id);
+CREATE INDEX IF NOT EXISTS idx_system_config_category ON system_configurations(config_category);
+CREATE INDEX IF NOT EXISTS idx_system_config_code ON system_configurations(code);
+CREATE INDEX IF NOT EXISTS idx_system_config_active ON system_configurations(is_active);
+CREATE INDEX IF NOT EXISTS idx_system_config_parent ON system_configurations(parent_id);
 
 -- Seed initial configuration data
 INSERT INTO system_configurations (config_category, code, name, description, is_active) VALUES
@@ -169,8 +169,8 @@ CREATE TABLE IF NOT EXISTS indicator_mappings (
     UNIQUE(awyad_indicator_id, project_indicator_id)
 );
 
-CREATE INDEX idx_indicator_mappings_awyad ON indicator_mappings(awyad_indicator_id);
-CREATE INDEX idx_indicator_mappings_project ON indicator_mappings(project_indicator_id);
+CREATE INDEX IF NOT EXISTS idx_indicator_mappings_awyad ON indicator_mappings(awyad_indicator_id);
+CREATE INDEX IF NOT EXISTS idx_indicator_mappings_project ON indicator_mappings(project_indicator_id);
 
 -- ============================================
 -- 4. ENHANCED CASE MANAGEMENT
@@ -188,8 +188,8 @@ CREATE TABLE IF NOT EXISTS case_types (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_case_types_code ON case_types(code);
-CREATE INDEX idx_case_types_active ON case_types(is_active);
+CREATE INDEX IF NOT EXISTS idx_case_types_code ON case_types(code);
+CREATE INDEX IF NOT EXISTS idx_case_types_active ON case_types(is_active);
 
 -- Case Categories lookup table
 CREATE TABLE IF NOT EXISTS case_categories (
@@ -204,8 +204,8 @@ CREATE TABLE IF NOT EXISTS case_categories (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_case_categories_type ON case_categories(case_type_id);
-CREATE INDEX idx_case_categories_code ON case_categories(code);
+CREATE INDEX IF NOT EXISTS idx_case_categories_type ON case_categories(case_type_id);
+CREATE INDEX IF NOT EXISTS idx_case_categories_code ON case_categories(code);
 
 -- Update cases table with new fields if not present
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS case_type_id UUID REFERENCES case_types(id);
@@ -278,8 +278,8 @@ CREATE TABLE IF NOT EXISTS currency_rates (
     UNIQUE(from_currency, to_currency, effective_date)
 );
 
-CREATE INDEX idx_currency_rates_date ON currency_rates(effective_date);
-CREATE INDEX idx_currency_rates_currencies ON currency_rates(from_currency, to_currency);
+CREATE INDEX IF NOT EXISTS idx_currency_rates_date ON currency_rates(effective_date);
+CREATE INDEX IF NOT EXISTS idx_currency_rates_currencies ON currency_rates(from_currency, to_currency);
 
 -- Budget transfers table (updated schema)
 CREATE TABLE IF NOT EXISTS activity_budget_transfers (
@@ -300,10 +300,10 @@ CREATE TABLE IF NOT EXISTS activity_budget_transfers (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_budget_transfers_activity ON activity_budget_transfers(activity_id);
-CREATE INDEX idx_budget_transfers_from_activity ON activity_budget_transfers(from_activity_id);
-CREATE INDEX idx_budget_transfers_to_activity ON activity_budget_transfers(to_activity_id);
-CREATE INDEX idx_budget_transfers_status ON activity_budget_transfers(status);
+CREATE INDEX IF NOT EXISTS idx_budget_transfers_activity ON activity_budget_transfers(activity_id);
+CREATE INDEX IF NOT EXISTS idx_budget_transfers_from_activity ON activity_budget_transfers(from_activity_id);
+CREATE INDEX IF NOT EXISTS idx_budget_transfers_to_activity ON activity_budget_transfers(to_activity_id);
+CREATE INDEX IF NOT EXISTS idx_budget_transfers_status ON activity_budget_transfers(status);
 
 -- ============================================
 -- 6. NON-PROGRAM ACTIVITIES MODULE
