@@ -21,13 +21,15 @@ const { Client } = pg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const config = {
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT) || 5432,
-  database: process.env.DB_NAME || 'awyad_mes',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-};
+const config = process.env.DATABASE_URL
+  ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }
+  : {
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT) || 5432,
+      database: process.env.DB_NAME || 'awyad_mes',
+      user: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD || 'postgres',
+    };
 
 async function ensureMigrationsTable(client) {
   await client.query(`

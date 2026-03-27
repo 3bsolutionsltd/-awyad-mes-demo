@@ -20,16 +20,26 @@ class DatabaseService {
    */
   async initialize() {
     try {
-      this.pool = new Pool({
-        host: process.env.DB_HOST || 'localhost',
-        port: process.env.DB_PORT || 5432,
-        database: process.env.DB_NAME || 'awyad_mes',
-        user: process.env.DB_USER || 'postgres',
-        password: process.env.DB_PASSWORD || 'postgres',
-        max: parseInt(process.env.DB_POOL_SIZE) || 20,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 5000,
-      });
+      const poolConfig = process.env.DATABASE_URL
+        ? {
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false },
+            max: parseInt(process.env.DB_POOL_SIZE) || 20,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 5000,
+          }
+        : {
+            host: process.env.DB_HOST || 'localhost',
+            port: process.env.DB_PORT || 5432,
+            database: process.env.DB_NAME || 'awyad_mes',
+            user: process.env.DB_USER || 'postgres',
+            password: process.env.DB_PASSWORD || 'postgres',
+            max: parseInt(process.env.DB_POOL_SIZE) || 20,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 5000,
+          };
+
+      this.pool = new Pool(poolConfig);
 
       // Test connection
       const client = await this.pool.connect();
@@ -43,7 +53,7 @@ class DatabaseService {
 
       return true;
     } catch (error) {
-      logger.error('Failed to initialize database pool:', error);
+      logger.error('Failed to initialize database pool:', error.message);
       throw error;
     }
   }
