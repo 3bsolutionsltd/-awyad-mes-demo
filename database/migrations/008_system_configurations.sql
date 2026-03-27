@@ -27,6 +27,15 @@ CREATE TABLE IF NOT EXISTS system_configurations (
 );
 
 -- ============================================
+-- ADD MISSING COLUMNS (if table was created by migration 007 with different schema)
+-- ============================================
+
+ALTER TABLE system_configurations ADD COLUMN IF NOT EXISTS config_type VARCHAR(100);
+ALTER TABLE system_configurations ADD COLUMN IF NOT EXISTS config_code VARCHAR(100);
+ALTER TABLE system_configurations ADD COLUMN IF NOT EXISTS config_value VARCHAR(500);
+ALTER TABLE system_configurations ADD COLUMN IF NOT EXISTS display_order INTEGER DEFAULT 0;
+
+-- ============================================
 -- SEED INITIAL DATA
 -- ============================================
 
@@ -37,7 +46,7 @@ INSERT INTO system_configurations (config_type, config_code, config_value, descr
 ('partner', 'WFP', 'WFP', 'World Food Programme', 3),
 ('partner', 'IOM', 'IOM', 'International Organization for Migration', 4),
 ('partner', 'OTHER', 'Other Partner', 'Other partner organization', 99)
-ON CONFLICT (config_type, config_code) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- Locations (Districts)
 INSERT INTO system_configurations (config_type, config_code, config_value, description, display_order) VALUES
@@ -45,7 +54,7 @@ INSERT INTO system_configurations (config_type, config_code, config_value, descr
 ('district', 'ARUA', 'Arua', 'Arua District', 2),
 ('district', 'KAMPALA', 'Kampala', 'Kampala District', 3),
 ('district', 'YUMBE', 'Yumbe', 'Yumbe District', 4)
-ON CONFLICT (config_type, config_code) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- Service Types
 INSERT INTO system_configurations (config_type, config_code, config_value, description, display_order) VALUES
@@ -56,7 +65,7 @@ INSERT INTO system_configurations (config_type, config_code, config_value, descr
 ('service_type', 'ECONOMIC', 'Economic Support', 'Livelihood and economic empowerment', 5),
 ('service_type', 'EDUCATION', 'Education Support', 'Educational assistance', 6),
 ('service_type', 'REFERRAL', 'Referral', 'Referral to other services', 7)
-ON CONFLICT (config_type, config_code) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- Donors
 INSERT INTO system_configurations (config_type, config_code, config_value, description, display_order) VALUES
@@ -65,7 +74,7 @@ INSERT INTO system_configurations (config_type, config_code, config_value, descr
 ('donor', 'EU', 'European Union', 'European Union Humanitarian Aid', 3),
 ('donor', 'SIDA', 'SIDA', 'Swedish International Development Cooperation Agency', 4),
 ('donor', 'DFID', 'DFID', 'UK Department for International Development', 5)
-ON CONFLICT (config_type, config_code) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- Organizations (for referrals)
 INSERT INTO system_configurations (config_type, config_code, config_value, description, display_order) VALUES
@@ -74,7 +83,7 @@ INSERT INTO system_configurations (config_type, config_code, config_value, descr
 ('organization', 'HEALTH_CENTER', 'Health Center', 'Local Health Center', 3),
 ('organization', 'HOSPITAL', 'Regional Hospital', 'Regional Referral Hospital', 4),
 ('organization', 'OTHER_NGO', 'Other NGO', 'Other NGO organization', 99)
-ON CONFLICT (config_type, config_code) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- Activity Types
 INSERT INTO system_configurations (config_type, config_code, config_value, description, display_order) VALUES
@@ -85,7 +94,7 @@ INSERT INTO system_configurations (config_type, config_code, config_value, descr
 ('activity_type', 'ASSESSMENT', 'Assessment', 'Needs assessment or evaluation', 5),
 ('activity_type', 'MEETING', 'Meeting', 'Stakeholder or coordination meeting', 6),
 ('activity_type', 'HOME_VISIT', 'Home Visit', 'Home visit or follow-up', 7)
-ON CONFLICT (config_type, config_code) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- ============================================
 -- INDEXES
@@ -102,6 +111,7 @@ CREATE INDEX IF NOT EXISTS idx_system_configurations_metadata ON system_configur
 -- TRIGGER
 -- ============================================
 
+DROP TRIGGER IF EXISTS update_system_configurations_updated_at ON system_configurations;
 CREATE TRIGGER update_system_configurations_updated_at BEFORE UPDATE ON system_configurations
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
