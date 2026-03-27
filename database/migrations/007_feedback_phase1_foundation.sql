@@ -300,6 +300,10 @@ CREATE TABLE IF NOT EXISTS activity_budget_transfers (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Add new columns to existing table (in case table was created by earlier migration)
+ALTER TABLE activity_budget_transfers ADD COLUMN IF NOT EXISTS from_activity_id UUID REFERENCES activities(id) ON DELETE SET NULL;
+ALTER TABLE activity_budget_transfers ADD COLUMN IF NOT EXISTS to_activity_id UUID REFERENCES activities(id) ON DELETE SET NULL;
+
 CREATE INDEX IF NOT EXISTS idx_budget_transfers_activity ON activity_budget_transfers(activity_id);
 CREATE INDEX IF NOT EXISTS idx_budget_transfers_from_activity ON activity_budget_transfers(from_activity_id);
 CREATE INDEX IF NOT EXISTS idx_budget_transfers_to_activity ON activity_budget_transfers(to_activity_id);
