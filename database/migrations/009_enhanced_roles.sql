@@ -7,6 +7,11 @@
 -- ADD NEW ROLES
 -- ============================================
 
+-- Add permissions column if not present (schema.sql stores permissions separately)
+ALTER TABLE roles ADD COLUMN IF NOT EXISTS permissions JSONB;
+-- Allow display_name to be null for migrations that omit it
+ALTER TABLE roles ALTER COLUMN display_name DROP NOT NULL;
+
 -- Insert new roles (if they don't exist)
 INSERT INTO roles (name, description, permissions) VALUES
 (
