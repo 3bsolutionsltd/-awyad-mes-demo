@@ -325,7 +325,7 @@ CREATE TABLE IF NOT EXISTS non_program_categories (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_non_program_categories_code ON non_program_categories(code);
+CREATE INDEX IF NOT EXISTS idx_non_program_categories_code ON non_program_categories(code);
 
 -- Non-program activities table
 CREATE TABLE IF NOT EXISTS non_program_activities (
@@ -346,9 +346,9 @@ CREATE TABLE IF NOT EXISTS non_program_activities (
     updated_by UUID REFERENCES users(id)
 );
 
-CREATE INDEX idx_non_program_activities_category ON non_program_activities(category_id);
-CREATE INDEX idx_non_program_activities_status ON non_program_activities(status);
-CREATE INDEX idx_non_program_activities_date ON non_program_activities(planned_date);
+CREATE INDEX IF NOT EXISTS idx_non_program_activities_category ON non_program_activities(category_id);
+CREATE INDEX IF NOT EXISTS idx_non_program_activities_status ON non_program_activities(status);
+CREATE INDEX IF NOT EXISTS idx_non_program_activities_date ON non_program_activities(planned_date);
 
 -- Seed non-program categories
 INSERT INTO non_program_categories (code, name, description, display_order) VALUES
@@ -394,9 +394,9 @@ CREATE TABLE IF NOT EXISTS monthly_snapshots (
     UNIQUE(snapshot_month, project_id, indicator_id)
 );
 
-CREATE INDEX idx_monthly_snapshots_month ON monthly_snapshots(snapshot_month);
-CREATE INDEX idx_monthly_snapshots_project ON monthly_snapshots(project_id);
-CREATE INDEX idx_monthly_snapshots_indicator ON monthly_snapshots(indicator_id);
+CREATE INDEX IF NOT EXISTS idx_monthly_snapshots_month ON monthly_snapshots(snapshot_month);
+CREATE INDEX IF NOT EXISTS idx_monthly_snapshots_project ON monthly_snapshots(project_id);
+CREATE INDEX IF NOT EXISTS idx_monthly_snapshots_indicator ON monthly_snapshots(indicator_id);
 
 -- ============================================
 -- 8. ROLE DEFINITIONS
@@ -428,8 +428,8 @@ CREATE TABLE IF NOT EXISTS hierarchy_change_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_hierarchy_change_entity ON hierarchy_change_log(entity_type, entity_id);
-CREATE INDEX idx_hierarchy_change_user ON hierarchy_change_log(changed_by);
+CREATE INDEX IF NOT EXISTS idx_hierarchy_change_entity ON hierarchy_change_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_hierarchy_change_user ON hierarchy_change_log(changed_by);
 
 -- ============================================
 -- Migration Summary
