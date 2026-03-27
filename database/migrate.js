@@ -73,7 +73,7 @@ async function runMigrations() {
 
     const migrationsDir = path.join(__dirname, 'migrations');
     const files = fs.readdirSync(migrationsDir)
-      .filter(f => f.endsWith('.sql'))
+      .filter(f => f.endsWith('.sql') && /^\d/.test(f)) // only numbered migration files
       .sort(); // lexicographic order → 001, 002, …, 018
 
     if (mode === 'status') {
