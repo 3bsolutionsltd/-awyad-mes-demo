@@ -35,13 +35,15 @@ export async function renderEntryForm(contentArea) {
         contentArea.innerHTML = createLoadingSpinner('Loading form...');
 
         // Fetch dropdown data
-        const [projectsRes, indicatorsRes] = await Promise.all([
+        const [projectsRes, indicatorsRes, districtsRes] = await Promise.all([
             apiService.get('/projects'),
-            apiService.get('/indicators')
+            apiService.get('/indicators'),
+            apiService.get('/support-data/districts').catch(() => ({ data: [] }))
         ]);
 
         const projects = projectsRes.data?.projects || projectsRes.data || [];
         const indicators = indicatorsRes.data?.indicators || indicatorsRes.data || [];
+        const districts = Array.isArray(districtsRes.data) ? districtsRes.data : [];
 
         // Create header
         const header = createPageHeader({
@@ -59,7 +61,7 @@ export async function renderEntryForm(contentArea) {
         });
 
         // Create form HTML
-        const formHTML = createActivityForm(projects, indicators);
+        const formHTML = createActivityForm(projects, indicators, districts);
 
         // Render complete page
         contentArea.innerHTML = `
@@ -73,6 +75,27 @@ export async function renderEntryForm(contentArea) {
 
         // Initialize form handlers
         initializeFormHandlers();
+
+        // District → Settlement cascade
+        const districtSel = document.getElementById('districtId');
+        const settlementSel = document.getElementById('settlementId');
+        if (districtSel && settlementSel) {
+            districtSel.addEventListener('change', async function () {
+                settlementSel.disabled = true;
+                settlementSel.innerHTML = '<option value="">Loading...</option>';
+                if (!this.value) {
+                    settlementSel.innerHTML = '<option value="">Select District first...</option>';
+                    return;
+                }
+                const res = await apiService.get(`/support-data/settlements/${this.value}`).catch(() => ({ data: [] }));
+                const settlements = Array.isArray(res.data) ? res.data : [];
+                settlementSel.innerHTML = settlements.length
+                    ? '<option value="">— Select Settlement —</option>' +
+                      settlements.map(s => `<option value="${s.id}">${s.name}</option>`).join('')
+                    : '<option value="">— No settlements —</option>';
+                settlementSel.disabled = !settlements.length;
+            });
+        }
 
     } catch (error) {
         console.error('Entry form error:', error);
@@ -89,7 +112,7 @@ export async function renderEntryForm(contentArea) {
  * @param {Array} indicators - Array of indicators
  * @returns {string} HTML string
  */
-function createActivityForm(projects, indicators) {
+function createActivityForm(projects, indicators, districts = []) {
     // Create project options
     const projectOptions = projects.map(p => 
         `<option value="${p.id || p.project_id}">${p.name || p.project_name}</option>`
@@ -98,6 +121,10 @@ function createActivityForm(projects, indicators) {
     // Create indicator options
     const indicatorOptions = indicators.map(ind =>
         `<option value="${ind.id || ind.indicator_id}" data-thematic-area="${ind.thematic_area_id || ind.thematicAreaId}">${ind.code || ind.indicator_code} - ${ind.name || ind.indicator_name}</option>`
+    ).join('');
+
+    const districtOptions = districts.map(d =>
+        `<option value="${d.id}">${d.name}</option>`
     ).join('');
 
     return `
@@ -141,14 +168,18 @@ function createActivityForm(projects, indicators) {
                     <input type="date" class="form-control" id="activityDate" required>
                 </div>
 
-                <div class="col-md-6 mb-3">
-                    <label for="location" class="form-label">Location *</label>
-                    <select class="form-select" id="location" required>
-                        <option value="">Select Location</option>
-                        <option value="Nakivale">Nakivale</option>
-                        <option value="Nyakabande">Nyakabande</option>
-                        <option value="Kampala">Kampala</option>
-                        <option value="Other">Other</option>
+                <div class="col-md-3 mb-3">
+                    <label for="districtId" class="form-label">District *</label>
+                    <select class="form-select" id="districtId" required>
+                        <option value="">Select District</option>
+                        ${districtOptions}
+                    </select>
+                </div>
+
+                <div class="col-md-3 mb-3">
+                    <label for="settlementId" class="form-label">Settlement / TC</label>
+                    <select class="form-select" id="settlementId" disabled>
+                        <option value="">Select District first...</option>
                     </select>
                 </div>
 
@@ -586,7 +617,8 @@ async function handleFormSubmit(e) {
             indicator_id: document.getElementById('indicatorId').value,
             thematic_area_id: thematicAreaId,
             planned_date: document.getElementById('activityDate').value,
-            location: document.getElementById('location').value,
+            district_id: document.getElementById('districtId').value || null,
+            settlement_id: document.getElementById('settlementId').value || null,
             status: document.getElementById('status').value,
             description: document.getElementById('description').value || '',
             notes: document.getElementById('notes').value || '',

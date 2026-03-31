@@ -12,6 +12,7 @@ import caseStatisticsService from '../services/caseStatisticsService.js';
 import { authenticate, checkPermission, checkRole } from '../middleware/auth.js';
 import AppError from '../utils/AppError.js';
 import Joi from 'joi';
+import databaseService from '../services/databaseService.js';
 
 const router = express.Router();
 
@@ -26,8 +27,10 @@ const createCaseSchema = Joi.object({
   case_category_id: Joi.string().uuid().allow(null),
   date_reported: Joi.date().required(),
   status: Joi.string().valid('Open', 'In Progress', 'Pending', 'Closed').default('Open'),
-  location: Joi.string().max(100).allow(null, ''),
-  age_group: Joi.string().valid('0-4', '5-17', '18-49', '50+').required(),
+  location: Joi.string().max(200).allow(null, ''),
+  district_id: Joi.string().uuid().allow(null),
+  settlement_id: Joi.string().uuid().allow(null),
+  age_group: Joi.string().max(50).required(),
   gender: Joi.string().valid('Male', 'Female', 'Other', 'Prefer not to say').required(),
   nationality: Joi.string().max(100).allow(null, ''),
   disability_status: Joi.string().max(200).allow(null, ''),
@@ -53,8 +56,10 @@ const updateCaseSchema = Joi.object({
   case_type_id: Joi.string().uuid(),
   case_category_id: Joi.string().uuid().allow(null),
   status: Joi.string().valid('Open', 'In Progress', 'Pending', 'Closed'),
-  location: Joi.string().max(100).allow(null, ''),
-  age_group: Joi.string().valid('0-4', '5-17', '18-49', '50+'),
+  location: Joi.string().max(200).allow(null, ''),
+  district_id: Joi.string().uuid().allow(null),
+  settlement_id: Joi.string().uuid().allow(null),
+  age_group: Joi.string().max(50),
   gender: Joi.string().valid('Male', 'Female', 'Other', 'Prefer not to say'),
   nationality: Joi.string().max(100).allow(null, ''),
   disability_status: Joi.string().max(200).allow(null, ''),
@@ -89,6 +94,25 @@ router.post('/', authenticate, checkPermission('cases.create'), async (req, res,
     const { error, value } = createCaseSchema.validate(req.body);
     if (error) {
       throw new AppError(error.details[0].message, 400);
+    }
+
+    // Resolve district/settlement → location string
+    if (value.district_id) {
+      try {
+        const distRow = await databaseService.queryOne(
+          'SELECT config_value FROM system_configurations WHERE id = $1',
+          [value.district_id]
+        );
+        let locationStr = distRow?.config_value || '';
+        if (value.settlement_id) {
+          const settRow = await databaseService.queryOne(
+            'SELECT config_value FROM system_configurations WHERE id = $1',
+            [value.settlement_id]
+          );
+          if (settRow?.config_value) locationStr += ' / ' + settRow.config_value;
+        }
+        value.location = locationStr;
+      } catch { /* location stays as provided */ }
     }
 
     const caseData = await caseService.createCase(value, req.user.id);
@@ -628,6 +652,25 @@ router.put('/:id', authenticate, checkPermission('cases.update'), async (req, re
     const { error, value } = updateCaseSchema.validate(req.body);
     if (error) {
       throw new AppError(error.details[0].message, 400);
+    }
+
+    // Resolve district/settlement → location string
+    if (value.district_id) {
+      try {
+        const distRow = await databaseService.queryOne(
+          'SELECT config_value FROM system_configurations WHERE id = $1',
+          [value.district_id]
+        );
+        let locationStr = distRow?.config_value || '';
+        if (value.settlement_id) {
+          const settRow = await databaseService.queryOne(
+            'SELECT config_value FROM system_configurations WHERE id = $1',
+            [value.settlement_id]
+          );
+          if (settRow?.config_value) locationStr += ' / ' + settRow.config_value;
+        }
+        value.location = locationStr;
+      } catch { /* location stays as provided */ }
     }
 
     const caseData = await caseService.updateCase(req.params.id, value, req.user.id);

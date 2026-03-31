@@ -20,17 +20,19 @@ function toDateVal(v) {
 }
 
 async function loadDropdowns() {
-    const [typesRes, projectsRes, ageGroupsRes, natRes] = await Promise.all([
+    const [typesRes, projectsRes, ageGroupsRes, natRes, districtsRes] = await Promise.all([
         apiService.get('/cases/types/active'),
         apiService.get('/projects'),
         apiService.get('/support-data/age-groups').catch(() => ({ data: [] })),
         apiService.get('/support-data/nationalities').catch(() => ({ data: [] })),
+        apiService.get('/support-data/districts').catch(() => ({ data: [] })),
     ]);
     return {
         caseTypes: typesRes.data || [],
         projects: projectsRes.data?.projects || projectsRes.data || [],
         ageGroups: Array.isArray(ageGroupsRes.data) ? ageGroupsRes.data : [],
         nationalities: Array.isArray(natRes.data) ? natRes.data : [],
+        districts: Array.isArray(districtsRes.data) ? districtsRes.data : [],
     };
 }
 
@@ -67,7 +69,36 @@ function getStatusBadge(status) {
     return `<span class="badge bg-${map[status] || 'secondary'}">${esc(status)}</span>`;
 }
 
-function buildFormHTML(id, caseData, { caseTypes, projects, categories, ageGroups = [], nationalities = [] }) {
+async function attachDistrictCascade(formId, preselectedSettlementId = null) {
+    const districtSel = document.getElementById(`${formId}_district`);
+    const settlementSel = document.getElementById(`${formId}_settlement`);
+    if (!districtSel || !settlementSel) return;
+
+    const loadSettlements = async (districtId, preselectId = null) => {
+        settlementSel.disabled = true;
+        settlementSel.innerHTML = '<option value="">Loading...</option>';
+        if (!districtId) {
+            settlementSel.innerHTML = '<option value="">Select District first...</option>';
+            return;
+        }
+        const res = await apiService.get(`/support-data/settlements/${districtId}`).catch(() => ({ data: [] }));
+        const settlements = Array.isArray(res.data) ? res.data : [];
+        settlementSel.innerHTML = settlements.length
+            ? '<option value="">— Select Settlement —</option>' +
+              settlements.map(s => `<option value="${esc(s.id)}" ${s.id === preselectId ? 'selected' : ''}>${esc(s.name)}</option>`).join('')
+            : '<option value="">— No settlements —</option>';
+        settlementSel.disabled = !settlements.length;
+    };
+
+    districtSel.addEventListener('change', () => loadSettlements(districtSel.value));
+
+    // Pre-load if a district is already selected (edit mode)
+    if (districtSel.value) {
+        await loadSettlements(districtSel.value, preselectedSettlementId);
+    }
+}
+
+function buildFormHTML(id, caseData, { caseTypes, projects, categories, ageGroups = [], nationalities = [], districts = [] }) {
     const isEdit = !!caseData;
     const d = caseData || {};
     return `
@@ -126,19 +157,27 @@ function buildFormHTML(id, caseData, { caseTypes, projects, categories, ageGroup
     </div>
   </div>
 
-  <!-- Row 4: Project + Location -->
+  <!-- Row 4: Project + District + Settlement -->
   <div class="row g-3 mb-3">
-    <div class="col-md-6">
+    <div class="col-md-4">
       <label class="form-label">Project</label>
       <select class="form-select" name="project_id">
         <option value="">— None —</option>
         ${projectOptions(projects, d.project_id)}
       </select>
     </div>
-    <div class="col-md-6">
-      <label class="form-label">Location</label>
-      <input type="text" class="form-control" name="location"
-        maxlength="100" placeholder="e.g., Adjumani, Kampala" value="${esc(d.location || '')}">
+    <div class="col-md-4">
+      <label class="form-label">District</label>
+      <select class="form-select" name="district_id" id="${id}_district">
+        <option value="">— Select District —</option>
+        ${districts.map(dist => `<option value="${esc(dist.id)}" ${d.district_id === dist.id ? 'selected' : ''}>${esc(dist.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Settlement / TC</label>
+      <select class="form-select" name="settlement_id" id="${id}_settlement" ${d.district_id ? '' : 'disabled'}>
+        <option value="">${d.district_id ? 'Loading...' : 'Select District first...'}</option>
+      </select>
     </div>
   </div>
 
@@ -381,9 +420,9 @@ function collectFormData(formId) {
  */
 export async function showCreateCaseModal(onSuccess) {
     try {
-        const { caseTypes, projects, ageGroups, nationalities } = await loadDropdowns();
+        const { caseTypes, projects, ageGroups, nationalities, districts } = await loadDropdowns();
 
-        const formHTML = buildFormHTML('createCaseForm', null, { caseTypes, projects, categories: [], ageGroups, nationalities });
+        const formHTML = buildFormHTML('createCaseForm', null, { caseTypes, projects, categories: [], ageGroups, nationalities, districts });
 
         const footerHTML = `
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -409,6 +448,7 @@ export async function showCreateCaseModal(onSuccess) {
         modal.show();
 
         attachFormBehaviours('createCaseForm');
+        attachDistrictCascade('createCaseForm');
 
         document.getElementById('saveCaseBtn').addEventListener('click', async () => {
             const form = document.getElementById('createCaseForm');
@@ -456,7 +496,7 @@ export async function showCreateCaseModal(onSuccess) {
  */
 export async function showEditCaseModal(caseId, onSuccess) {
     try {
-        const [caseRes, { caseTypes, projects, ageGroups, nationalities }] = await Promise.all([
+        const [caseRes, { caseTypes, projects, ageGroups, nationalities, districts }] = await Promise.all([
             apiService.get(`/cases/${caseId}`),
             loadDropdowns(),
         ]);
@@ -467,7 +507,7 @@ export async function showEditCaseModal(caseId, onSuccess) {
             ? await loadCategories(caseData.case_type_id)
             : [];
 
-        const formHTML = buildFormHTML('editCaseForm', caseData, { caseTypes, projects, categories, ageGroups, nationalities });
+        const formHTML = buildFormHTML('editCaseForm', caseData, { caseTypes, projects, categories, ageGroups, nationalities, districts });
 
         const footerHTML = `
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -499,6 +539,7 @@ export async function showEditCaseModal(caseId, onSuccess) {
         }
 
         attachFormBehaviours('editCaseForm', caseData.case_type_id);
+        attachDistrictCascade('editCaseForm', caseData.settlement_id || null);
 
         document.getElementById('updateCaseBtn').addEventListener('click', async () => {
             const form = document.getElementById('editCaseForm');

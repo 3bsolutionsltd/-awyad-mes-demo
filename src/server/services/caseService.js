@@ -90,13 +90,14 @@ class CaseService {
     const query = `
       INSERT INTO cases (
         case_number, project_id, case_type_id, case_category_id,
-        date_reported, status, location, age_group, gender,
+        date_reported, status, location, district_id, settlement_id,
+        age_group, gender,
         nationality, disability_status, has_disability,
         case_source, referred_from, referred_to, referral_date,
         support_offered, tracking_tags, case_worker,
         follow_up_date, notes, created_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
       RETURNING *
     `;
 
@@ -108,6 +109,8 @@ class CaseService {
       data.date_reported || new Date(),
       data.status || 'Open',
       data.location || null,
+      data.district_id || null,
+      data.settlement_id || null,
       data.age_group || null,
       data.gender,
       data.nationality || null,
@@ -165,9 +168,11 @@ class CaseService {
         follow_up_date = COALESCE($18, follow_up_date),
         closure_date = COALESCE($19, closure_date),
         notes = COALESCE($20, notes),
-        updated_by = $21,
+        district_id = COALESCE($21, district_id),
+        settlement_id = COALESCE($22, settlement_id),
+        updated_by = $23,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $22
+      WHERE id = $24
       RETURNING *
     `;
 
@@ -192,6 +197,8 @@ class CaseService {
       data.follow_up_date,
       data.closure_date,
       data.notes,
+      data.district_id || null,
+      data.settlement_id || null,
       userId,
       id
     ]);
