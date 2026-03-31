@@ -36,10 +36,11 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+        scriptSrcAttr: ["'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
         fontSrc: ["'self'", "https://cdn.jsdelivr.net"],
         imgSrc: ["'self'", "data:"],
-        connectSrc: ["'self'"],
+        connectSrc: ["'self'", "https://cdn.jsdelivr.net"],
       },
     } : false,
     crossOriginEmbedderPolicy: false,
