@@ -9,7 +9,7 @@ import express from 'express';
 import caseService from '../services/caseService.js';
 import caseTypeService from '../services/caseTypeService.js';
 import caseStatisticsService from '../services/caseStatisticsService.js';
-import { authenticate, checkPermission } from '../middleware/auth.js';
+import { authenticate, checkPermission, checkRole } from '../middleware/auth.js';
 import AppError from '../utils/AppError.js';
 import Joi from 'joi';
 
@@ -173,7 +173,7 @@ router.get('/types/:id', authenticate, async (req, res, next) => {
  * POST /api/v1/case-types
  * Create case type
  */
-router.post('/types', authenticate, checkPermission('admin'), async (req, res, next) => {
+router.post('/types', authenticate, checkRole('admin'), async (req, res, next) => {
   try {
     const schema = Joi.object({
       code: Joi.string().max(50).required(),
@@ -201,7 +201,7 @@ router.post('/types', authenticate, checkPermission('admin'), async (req, res, n
  * PUT /api/v1/case-types/:id
  * Update case type
  */
-router.put('/types/:id', authenticate, checkPermission('admin'), async (req, res, next) => {
+router.put('/types/:id', authenticate, checkRole('admin'), async (req, res, next) => {
   try {
     const schema = Joi.object({
       code: Joi.string().max(50),
@@ -230,7 +230,7 @@ router.put('/types/:id', authenticate, checkPermission('admin'), async (req, res
  * DELETE /api/v1/case-types/:id
  * Soft delete case type
  */
-router.delete('/types/:id', authenticate, checkPermission('admin'), async (req, res, next) => {
+router.delete('/types/:id', authenticate, checkRole('admin'), async (req, res, next) => {
   try {
     await caseTypeService.deleteType(req.params.id, req.user.id);
     res.json({
@@ -246,7 +246,7 @@ router.delete('/types/:id', authenticate, checkPermission('admin'), async (req, 
  * POST /api/v1/case-types/reorder
  * Reorder case types
  */
-router.post('/types/reorder', authenticate, checkPermission('admin'), async (req, res, next) => {
+router.post('/types/reorder', authenticate, checkRole('admin'), async (req, res, next) => {
   try {
     const schema = Joi.object({
       order: Joi.array().items(
@@ -312,7 +312,7 @@ router.get('/categories/type/:typeId', authenticate, async (req, res, next) => {
  * POST /api/v1/case-categories
  * Create category
  */
-router.post('/categories', authenticate, checkPermission('admin'), async (req, res, next) => {
+router.post('/categories', authenticate, checkRole('admin'), async (req, res, next) => {
   try {
     const schema = Joi.object({
       case_type_id: Joi.string().uuid().required(),
@@ -341,9 +341,10 @@ router.post('/categories', authenticate, checkPermission('admin'), async (req, r
  * PUT /api/v1/case-categories/:id
  * Update category
  */
-router.put('/categories/:id', authenticate, checkPermission('admin'), async (req, res, next) => {
+router.put('/categories/:id', authenticate, checkRole('admin'), async (req, res, next) => {
   try {
     const schema = Joi.object({
+      case_type_id: Joi.string().uuid(),
       code: Joi.string().max(50),
       name: Joi.string().max(200),
       description: Joi.string().allow(null, ''),
@@ -370,7 +371,7 @@ router.put('/categories/:id', authenticate, checkPermission('admin'), async (req
  * DELETE /api/v1/case-categories/:id
  * Soft delete category
  */
-router.delete('/categories/:id', authenticate, checkPermission('admin'), async (req, res, next) => {
+router.delete('/categories/:id', authenticate, checkRole('admin'), async (req, res, next) => {
   try {
     await caseTypeService.deleteCategory(req.params.id, req.user.id);
     res.json({

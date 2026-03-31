@@ -20,13 +20,17 @@ function toDateVal(v) {
 }
 
 async function loadDropdowns() {
-    const [typesRes, projectsRes] = await Promise.all([
+    const [typesRes, projectsRes, ageGroupsRes, natRes] = await Promise.all([
         apiService.get('/cases/types/active'),
         apiService.get('/projects'),
+        apiService.get('/support-data/age-groups').catch(() => ({ data: [] })),
+        apiService.get('/support-data/nationalities').catch(() => ({ data: [] })),
     ]);
     return {
         caseTypes: typesRes.data || [],
         projects: projectsRes.data?.projects || projectsRes.data || [],
+        ageGroups: Array.isArray(ageGroupsRes.data) ? ageGroupsRes.data : [],
+        nationalities: Array.isArray(natRes.data) ? natRes.data : [],
     };
 }
 
@@ -63,7 +67,7 @@ function getStatusBadge(status) {
     return `<span class="badge bg-${map[status] || 'secondary'}">${esc(status)}</span>`;
 }
 
-function buildFormHTML(id, caseData, { caseTypes, projects, categories }) {
+function buildFormHTML(id, caseData, { caseTypes, projects, categories, ageGroups = [], nationalities = [] }) {
     const isEdit = !!caseData;
     const d = caseData || {};
     return `
@@ -153,15 +157,21 @@ function buildFormHTML(id, caseData, { caseTypes, projects, categories }) {
       <label class="form-label">Age Group <span class="text-danger">*</span></label>
       <select class="form-select" name="age_group" required>
         <option value="">— Select —</option>
-        ${['0-4','5-17','18-49','50+'].map(a =>
-            `<option value="${a}" ${d.age_group === a ? 'selected' : ''}>${a} years</option>`
+        ${(ageGroups.length
+            ? ageGroups.map(a => `<option value="${esc(a.name)}" ${d.age_group === a.name ? 'selected' : ''}>${esc(a.name)}</option>`)
+            : ['0-4','5-17','18-49','50+'].map(a => `<option value="${a}" ${d.age_group === a ? 'selected' : ''}>${a} years</option>`)
         ).join('')}
       </select>
     </div>
     <div class="col-md-4">
       <label class="form-label">Nationality</label>
-      <input type="text" class="form-control" name="nationality"
-        maxlength="100" placeholder="e.g., Sudanese Refugee" value="${esc(d.nationality || '')}">
+      <select class="form-select" name="nationality">
+        <option value="">— Select —</option>
+        ${(nationalities.length
+            ? nationalities.map(n => `<option value="${esc(n.name)}" ${d.nationality === n.name ? 'selected' : ''}>${esc(n.name)}</option>`)
+            : []
+        ).join('')}
+      </select>
     </div>
   </div>
 
@@ -181,18 +191,7 @@ function buildFormHTML(id, caseData, { caseTypes, projects, categories }) {
     </div>
   </div>
 
-  <!-- Row 7: Case Source (NEW) -->
-  <div class="row g-3 mb-3">
-    <div class="col-12">
-      <label class="form-label">Case Source</label>
-      <input type="text" class="form-control" name="case_source"
-        maxlength="200" placeholder="How/where the case originated (e.g., Community referral, Self-referral, Partner NGO)"
-        value="${esc(d.case_source || '')}">
-      <div class="form-text">Where or how this case was first identified or received.</div>
-    </div>
-  </div>
-
-  <!-- Row 8: Referral -->
+  <!-- Row 7: Referral -->
   <div class="row g-3 mb-3">
     <div class="col-md-5">
       <label class="form-label">Referred From</label>
@@ -382,9 +381,9 @@ function collectFormData(formId) {
  */
 export async function showCreateCaseModal(onSuccess) {
     try {
-        const { caseTypes, projects } = await loadDropdowns();
+        const { caseTypes, projects, ageGroups, nationalities } = await loadDropdowns();
 
-        const formHTML = buildFormHTML('createCaseForm', null, { caseTypes, projects, categories: [] });
+        const formHTML = buildFormHTML('createCaseForm', null, { caseTypes, projects, categories: [], ageGroups, nationalities });
 
         const footerHTML = `
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -457,7 +456,7 @@ export async function showCreateCaseModal(onSuccess) {
  */
 export async function showEditCaseModal(caseId, onSuccess) {
     try {
-        const [caseRes, { caseTypes, projects }] = await Promise.all([
+        const [caseRes, { caseTypes, projects, ageGroups, nationalities }] = await Promise.all([
             apiService.get(`/cases/${caseId}`),
             loadDropdowns(),
         ]);
@@ -468,7 +467,7 @@ export async function showEditCaseModal(caseId, onSuccess) {
             ? await loadCategories(caseData.case_type_id)
             : [];
 
-        const formHTML = buildFormHTML('editCaseForm', caseData, { caseTypes, projects, categories });
+        const formHTML = buildFormHTML('editCaseForm', caseData, { caseTypes, projects, categories, ageGroups, nationalities });
 
         const footerHTML = `
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -588,7 +587,6 @@ export async function showViewCaseModal(caseId) {
             <hr class="my-2">
             <h6 class="text-muted">Referral &amp; Source</h6>
             <div class="row">
-                ${row('Case Source', d.case_source)}
                 ${row('Referred From', d.referred_from)}
                 ${row('Referred To', d.referred_to)}
                 ${row('Referral Date', d.referral_date ? new Date(d.referral_date).toLocaleDateString() : null)}

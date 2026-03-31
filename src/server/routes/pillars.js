@@ -38,6 +38,12 @@ router.get('/', authenticate, async (req, res, next) => {
                 p.*,
                 s.name as strategy_name,
                 (SELECT COUNT(*) FROM core_program_components WHERE pillar_id = p.id) as component_count,
+                COALESCE(
+                    (SELECT JSON_AGG(JSON_BUILD_OBJECT('id', c.id, 'name', c.name, 'code', c.code) ORDER BY c.display_order, c.name)
+                     FROM core_program_components c
+                     WHERE c.pillar_id = p.id AND c.is_active = true),
+                    '[]'::json
+                ) as components,
                 u.username as created_by_username
             FROM pillars p
             LEFT JOIN strategies s ON p.strategy_id = s.id
@@ -67,7 +73,7 @@ router.get('/', authenticate, async (req, res, next) => {
 
         query += ` ORDER BY p.display_order ASC, p.name ASC`;
 
-        const pillars = await databaseService.query(query, params);
+        const pillars = await databaseService.queryMany(query, params);
 
         res.json({
             success: true,

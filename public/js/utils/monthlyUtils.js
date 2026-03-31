@@ -338,13 +338,8 @@ export function getActivityStatusColor(status) {
 export function formatDate(date) {
     if (!date) return 'N/A';
     const d = new Date(date);
-    if (isNaN(d.getTime())) return 'Invalid Date';
-    
-    return d.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
+    if (isNaN(d.getTime())) return 'N/A';
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
 /**

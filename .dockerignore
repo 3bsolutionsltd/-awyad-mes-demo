@@ -1,0 +1,34 @@
+node_modules/
+.env
+.env.*
+!.env.example
+logs/
+*.log
+.git/
+.gitignore
+.vscode/
+backups/
+coverage/
+dist/
+build/
+tests/
+docs/
+.agents/
+.github/
+# Python scripts
+*.py
+__pycache__/
+.venv/
+# PowerShell & batch scripts
+*.ps1
+*.bat
+# Dev/check scripts
+*.cjs
+check_*.js
+verify_*.js
+test_*.js
+test-*.js
+# CSV data files (large, not needed at runtime)
+*.csv
+# Backup files
+mockData_backup.js

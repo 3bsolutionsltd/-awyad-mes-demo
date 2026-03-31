@@ -48,7 +48,8 @@ const createIndicatorSchema = Joi.object({
     // Total achieved
     achieved: Joi.number().min(0).default(0),
     
-    unit: Joi.string().allow('', null)
+    unit: Joi.string().allow('', null),
+    code: Joi.string().max(50).allow('', null)
 });
 
 const updateIndicatorSchema = Joi.object({
@@ -318,20 +319,42 @@ router.post('/', authenticate, checkPermission('indicators.create'), async (req,
             }
         }
 
+        // Auto-generate code if not provided
+        let code = value.code && value.code.trim() ? value.code.trim() : null;
+        if (!code) {
+            const prefix = value.indicator_scope === 'awyad' ? 'AWYAD' : 'PI';
+            const year = new Date().getFullYear();
+            const countResult = await databaseService.queryOne(
+                `SELECT COUNT(*) as total FROM indicators WHERE indicator_scope = $1`,
+                [value.indicator_scope]
+            );
+            const seq = String(parseInt(countResult.total) + 1).padStart(3, '0');
+            code = `${prefix}-${year}-${seq}`;
+            // Ensure uniqueness by appending random suffix if collision exists
+            const existing = await databaseService.queryOne(
+                'SELECT id FROM indicators WHERE code = $1', [code]
+            );
+            if (existing) {
+                code = `${prefix}-${year}-${seq}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+            }
+        }
+
         const query = `
             INSERT INTO indicators (
-                indicator_scope, name, description, indicator_level, data_type,
+                code, type, indicator_scope, name, description, indicator_level, data_type,
                 thematic_area_id, project_id, result_area,
                 lop_target, annual_target, baseline, baseline_date,
                 q1_target, q2_target, q3_target, q4_target,
                 q1_achieved, q2_achieved, q3_achieved, q4_achieved,
                 achieved, unit, created_by
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
             RETURNING *
         `;
 
         const indicator = await databaseService.queryOne(query, [
+            code,
+            value.indicator_level,  // type mirrors indicator_level
             value.indicator_scope,
             value.name,
             value.description,

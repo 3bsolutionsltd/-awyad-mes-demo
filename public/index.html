@@ -258,6 +258,11 @@
                     </a>
                 </li>
                 <li class="nav-item" data-role="admin" style="display: none;">
+                    <a class="nav-link text-white" data-nav="donors">
+                        <i class="bi bi-people-fill"></i> Donors
+                    </a>
+                </li>
+                <li class="nav-item" data-role="admin" style="display: none;">
                     <a class="nav-link text-white" data-nav="permissions">
                         <i class="bi bi-shield-lock"></i> Permissions
                     </a>
@@ -331,23 +336,25 @@
             }
 
             // Apply permission-based visibility (if authManager exists)
-            setTimeout(() => {
-                if (window.authManager) {
-                    document.querySelectorAll('[data-permission]').forEach(element => {
-                        const requiredPermission = element.getAttribute('data-permission');
-                        if (!window.authManager.hasPermission(requiredPermission)) {
-                            element.style.display = 'none';
-                        }
-                    });
-
-                    document.querySelectorAll('[data-role]').forEach(element => {
-                        const requiredRole = element.getAttribute('data-role');
-                        if (window.authManager.hasRole(requiredRole)) {
-                            element.style.display = '';
-                        }
-                    });
-                }
-            }, 100);
+            // Exposed as window.applyRoleVisibility() so app.js can call it
+            // again after the async /auth/me response updates roles.
+            window.applyRoleVisibility = function() {
+                if (!window.authManager) return;
+                document.querySelectorAll('[data-permission]').forEach(element => {
+                    const requiredPermission = element.getAttribute('data-permission');
+                    if (!window.authManager.hasPermission(requiredPermission)) {
+                        element.style.display = 'none';
+                    }
+                });
+                document.querySelectorAll('[data-role]').forEach(element => {
+                    const requiredRole = element.getAttribute('data-role');
+                    if (window.authManager.hasRole(requiredRole)) {
+                        element.style.display = '';
+                    }
+                });
+            };
+            // Fallback: try once after 300ms (covers localStorage-cached sessions)
+            setTimeout(window.applyRoleVisibility, 300);
         });
     </script>
 </body>

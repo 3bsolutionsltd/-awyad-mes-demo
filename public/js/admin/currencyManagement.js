@@ -10,6 +10,7 @@
  */
 
 import { formatCurrency, formatExchangeRate, SUPPORTED_CURRENCIES } from '../utils/currencyUtils.js';
+import { formatDate } from '../utils.js';
 import apiService from '../apiService.js';
 
 /**
@@ -213,7 +214,7 @@ async function loadCurrentRates() {
                         <td><span class="badge bg-primary">${rate.from_currency}</span></td>
                         <td><span class="badge bg-info">${rate.to_currency}</span></td>
                         <td><strong>${parseFloat(rate.rate).toFixed(4)}</strong></td>
-                        <td>${new Date(rate.effective_date).toLocaleDateString()}</td>
+                        <td>${formatDate(rate.effective_date)}</td>
                         <td><span class="badge bg-secondary">${rate.source}</span></td>
                         <td>
                             <button class="btn btn-sm btn-outline-primary" 
@@ -402,7 +403,7 @@ window.loadRateHistory = async function() {
         history.forEach(rate => {
             historyHTML += `
                 <tr>
-                    <td>${new Date(rate.effective_date).toLocaleDateString()}</td>
+                    <td>${formatDate(rate.effective_date)}</td>
                     <td><strong>${parseFloat(rate.rate).toFixed(4)}</strong></td>
                     <td><span class="badge bg-secondary">${rate.source}</span></td>
                     <td><small class="text-muted">${new Date(rate.created_at).toLocaleString()}</small></td>
@@ -433,7 +434,7 @@ function renderRateChart(history, fromCurrency, toCurrency) {
     // Reverse for chronological order
     const data = [...history].reverse();
     
-    const dates = data.map(r => new Date(r.effective_date).toLocaleDateString());
+    const dates = data.map(r => formatDate(r.effective_date));
     const rates = data.map(r => parseFloat(r.rate));
 
     const minRate = Math.min(...rates);
@@ -461,7 +462,7 @@ function renderRateChart(history, fromCurrency, toCurrency) {
                         height: 8px; 
                         background: #0d6efd; 
                         border-radius: 50%;"
-                 title="${new Date(rate.effective_date).toLocaleDateString()}: ${parseFloat(rate.rate).toFixed(4)}">
+                 title="${formatDate(rate.effective_date)}: ${parseFloat(rate.rate).toFixed(4)}">
             </div>
         `;
     });

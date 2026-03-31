@@ -5,24 +5,32 @@
 
 import { apiService } from './apiService.js';
 import { createModal, showNotification } from './components.js';
+import { formatDate } from './utils.js';
 
 /**
  * Show create activity modal
+ * @param {Function} onSuccess - callback after successful creation
+ * @param {Object} [options={}] - optional context: { projectId, projectName }
  */
-export async function showCreateActivityModal(onSuccess) {
+export async function showCreateActivityModal(onSuccess, options = {}) {
     try {
         // Fetch dependencies
-        const [projectsRes, indicatorsRes, thematicAreasRes] = await Promise.all([
+        const [projectsRes, indicatorsRes, districtsRes, nationalitiesRes] = await Promise.all([
             apiService.get('/projects'),
             apiService.get('/indicators'),
-            apiService.get('/dashboard/thematic-areas')
+            apiService.get('/support-data/districts').catch(() => ({ data: [] })),
+            apiService.get('/support-data/nationalities').catch(() => ({ data: [] })),
         ]);
 
         const projects = Array.isArray(projectsRes.data?.projects) ? projectsRes.data.projects : (Array.isArray(projectsRes.data) ? projectsRes.data : []);
         const indicators = Array.isArray(indicatorsRes.data?.indicators) ? indicatorsRes.data.indicators : (Array.isArray(indicatorsRes.data) ? indicatorsRes.data : []);
-        const thematicAreas = Array.isArray(thematicAreasRes.data) ? thematicAreasRes.data : [];
+        const districts = Array.isArray(districtsRes.data) ? districtsRes.data : [];
+        const nationalities = Array.isArray(nationalitiesRes.data) ? nationalitiesRes.data : [];
 
-        console.log('Activity form data:', { projectsCount: projects.length, indicatorsCount: indicators.length, thematicAreasCount: thematicAreas.length });
+        const presetProjectId = options?.projectId || null;
+        const presetProjectName = options?.projectName || null;
+
+        console.log('Activity form data:', { projectsCount: projects.length, indicatorsCount: indicators.length, districtsCount: districts.length });
 
         const today = new Date().toISOString().split('T')[0];
 
@@ -33,31 +41,33 @@ export async function showCreateActivityModal(onSuccess) {
                         <label for="activityName" class="form-label">Activity Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="activityName" name="activity_name" required maxlength="500">
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="activityLocation" class="form-label">Location <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="activityLocation" name="location" required maxlength="100">
+                    <div class="col-md-3 mb-3">
+                        <label for="activityDistrict" class="form-label">District <span class="text-danger">*</span></label>
+                        <select class="form-select" id="activityDistrict" name="district_id">
+                            <option value="">Select District...</option>
+                            ${districts.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="activitySettlement" class="form-label">Settlement / TC</label>
+                        <select class="form-select" id="activitySettlement" name="settlement_id" disabled>
+                            <option value="">Select Settlement...</option>
+                        </select>
                     </div>
                 </div>
                 
                 <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label for="activityThematicArea" class="form-label">Thematic Area <span class="text-danger">*</span></label>
-                        <select class="form-select" id="activityThematicArea" name="thematic_area_id" required>
-                            <option value="">Select Thematic Area</option>
-                            ${thematicAreas.map(ta => `<option value="${ta.id}">${ta.name}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-6 mb-3">
                         <label for="activityProject" class="form-label">Project <span class="text-danger">*</span></label>
                         <select class="form-select" id="activityProject" name="project_id" required>
                             <option value="">Select Project</option>
                             ${projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
                         </select>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label for="activityIndicator" class="form-label">Indicator <span class="text-danger">*</span> <small class="text-muted fw-normal">(filtered by Thematic Area)</small></label>
+                    <div class="col-md-6 mb-3">
+                        <label for="activityIndicator" class="form-label">Indicator <span class="text-danger">*</span> <small class="text-muted fw-normal">(filtered by project)</small></label>
                         <select class="form-select" id="activityIndicator" name="indicator_id" required>
-                            <option value="">— Select Thematic Area first —</option>
+                            <option value="">— Select Project first —</option>
                         </select>
                     </div>
                 </div>
@@ -132,7 +142,18 @@ export async function showCreateActivityModal(onSuccess) {
                         <input type="number" class="form-control" id="indirectOther" name="indirect_other" min="0" value="0">
                     </div>
                 </div>
-                
+
+                ${nationalities.length ? `
+                <h6 class="mt-3 mb-2">Nationality Breakdown <small class="text-muted fw-normal">(optional)</small></h6>
+                <div class="row" id="natBreakdownCreate">
+                    ${nationalities.map(n => `
+                    <div class="col-md-4 col-6 mb-2">
+                        <label class="form-label form-label-sm mb-1">${n.name}</label>
+                        <input type="number" class="form-control form-control-sm" data-nat-id="${n.id}" min="0" value="0">
+                    </div>`).join('')}
+                </div>
+                ` : ''}
+
                 <h6 class="mt-3 mb-2">Financial Information</h6>
                 <div class="row">
                     <div class="col-md-4 mb-3">
@@ -214,20 +235,18 @@ export async function showCreateActivityModal(onSuccess) {
         window._csFS = _createFundingSources;
         window._renderCsFS = renderCreateFundingRows;
 
-        // ── Cascade filtering: Thematic Area → Indicator ────────────────────
+        // ── Cascade filtering: Project → Indicator ───────────────────────────
         const _allIndicators = indicators.slice();
 
-        function _repopulateCreateIndicators(taId, projectId, keepSelectedId) {
+        function _repopulateCreateIndicators(projectId, keepSelectedId) {
             const sel = document.getElementById('activityIndicator');
             if (!sel) return;
             const filtered = _allIndicators.filter(ind => {
-                const taMatch = !taId || ind.thematic_area_id === taId;
-                const projMatch = !projectId || ind.project_id === projectId || ind.project_id == null;
-                return taMatch && projMatch;
+                return !projectId || ind.project_id === projectId || ind.project_id == null;
             });
             sel.innerHTML = filtered.length
                 ? '<option value="">Select Indicator</option>'
-                : '<option value="">— No indicators for this Thematic Area —</option>';
+                : '<option value="">— No indicators for this project —</option>';
             filtered.forEach(ind => {
                 const opt = document.createElement('option');
                 opt.value = ind.id;
@@ -237,15 +256,40 @@ export async function showCreateActivityModal(onSuccess) {
             });
         }
 
-        document.getElementById('activityThematicArea').addEventListener('change', function () {
-            const projectId = document.getElementById('activityProject').value;
-            _repopulateCreateIndicators(this.value, projectId, '');
+        document.getElementById('activityProject').addEventListener('change', function () {
+            _repopulateCreateIndicators(this.value, document.getElementById('activityIndicator').value);
         });
 
-        document.getElementById('activityProject').addEventListener('change', function () {
-            const taId = document.getElementById('activityThematicArea').value;
-            _repopulateCreateIndicators(taId, this.value, document.getElementById('activityIndicator').value);
+        // District → Settlement cascade (create modal)
+        document.getElementById('activityDistrict').addEventListener('change', async function () {
+            const settSel = document.getElementById('activitySettlement');
+            settSel.disabled = true;
+            settSel.innerHTML = '<option value="">Loading...</option>';
+            if (!this.value) {
+                settSel.innerHTML = '<option value="">Select Settlement...</option>';
+                return;
+            }
+            try {
+                const res = await apiService.get(`/support-data/settlements/${this.value}`);
+                const settlements = Array.isArray(res.data) ? res.data : [];
+                settSel.innerHTML = settlements.length
+                    ? '<option value="">Select Settlement...</option>' + settlements.map(s => `<option value="${s.id}">${s.name}</option>`).join('')
+                    : '<option value="">— No settlements —</option>';
+                settSel.disabled = !settlements.length;
+            } catch {
+                settSel.innerHTML = '<option value="">Error loading</option>';
+            }
         });
+
+        // Pre-fill project if called from project dashboard
+        if (presetProjectId) {
+            const projSel = document.getElementById('activityProject');
+            if (projSel) {
+                projSel.value = presetProjectId;
+                projSel.disabled = true;
+                _repopulateCreateIndicators(presetProjectId, null);
+            }
+        }
         // ────────────────────────────────────────────────────────────────────
 
         document.getElementById('addFundingSourceBtn').addEventListener('click', () => {
@@ -273,6 +317,11 @@ export async function showCreateActivityModal(onSuccess) {
             if (!data.project_id) {
                 data.project_id = null;
             }
+
+            // Collect nationality breakdown
+            data.nationality_breakdown = [...document.querySelectorAll('#natBreakdownCreate [data-nat-id]')]
+                .filter(i => parseInt(i.value) > 0)
+                .map(i => ({ nationality_id: i.dataset.natId, count: parseInt(i.value) }));
 
             try {
                 const createBtn = document.getElementById('createActivityBtn');
@@ -317,19 +366,21 @@ export async function showCreateActivityModal(onSuccess) {
  */
 export async function showEditActivityModal(activityId, onSuccess) {
     try {
-        const [activityRes, projectsRes, indicatorsRes, thematicAreasRes, fundingRes] = await Promise.all([
+        const [activityRes, projectsRes, indicatorsRes, fundingRes, districtsRes, editNatRes] = await Promise.all([
             apiService.get(`/activities/${activityId}`),
             apiService.get('/projects'),
             apiService.get('/indicators'),
-            apiService.get('/dashboard/thematic-areas'),
             apiService.get(`/activities/${activityId}/funding-sources`).catch(() => ({ data: [] })),
+            apiService.get('/support-data/districts').catch(() => ({ data: [] })),
+            apiService.get('/support-data/nationalities').catch(() => ({ data: [] })),
         ]);
 
         const activity = activityRes.data;
         const projects = Array.isArray(projectsRes.data?.projects) ? projectsRes.data.projects : (Array.isArray(projectsRes.data) ? projectsRes.data : []);
         const indicators = Array.isArray(indicatorsRes.data?.indicators) ? indicatorsRes.data.indicators : (Array.isArray(indicatorsRes.data) ? indicatorsRes.data : []);
-        const thematicAreas = Array.isArray(thematicAreasRes.data) ? thematicAreasRes.data : [];
         const existingFunding = Array.isArray(fundingRes.data) ? fundingRes.data : (fundingRes.data?.data || []);
+        const editDistricts = Array.isArray(districtsRes.data) ? districtsRes.data : [];
+        const editNationalities = Array.isArray(editNatRes.data) ? editNatRes.data : [];
 
         const formHTML = `
             <form id="editActivityForm">
@@ -338,33 +389,35 @@ export async function showEditActivityModal(activityId, onSuccess) {
                         <label for="editActivityName" class="form-label">Activity Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="editActivityName" name="activity_name" required maxlength="500" value="${activity.activity_name || ''}">
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="editActivityLocation" class="form-label">Location <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="editActivityLocation" name="location" required maxlength="100" value="${activity.location || ''}">
+                    <div class="col-md-3 mb-3">
+                        <label for="editActivityDistrict" class="form-label">District <span class="text-danger">*</span></label>
+                        <select class="form-select" id="editActivityDistrict" name="district_id">
+                            <option value="">Select District...</option>
+                            ${editDistricts.map(d => `<option value="${d.id}" ${d.id === activity.district_id ? 'selected' : ''}>${d.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="editActivitySettlement" class="form-label">Settlement / TC</label>
+                        <select class="form-select" id="editActivitySettlement" name="settlement_id" disabled>
+                            <option value="">Select Settlement...</option>
+                        </select>
                     </div>
                 </div>
                 
                 <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label for="editActivityThematicArea" class="form-label">Thematic Area <span class="text-danger">*</span></label>
-                        <select class="form-select" id="editActivityThematicArea" name="thematic_area_id" required>
-                            <option value="">Select Thematic Area</option>
-                            ${thematicAreas.map(ta => `<option value="${ta.id}" ${ta.id === activity.thematic_area_id ? 'selected' : ''}>${ta.name}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-6 mb-3">
                         <label for="editActivityProject" class="form-label">Project <span class="text-danger">*</span></label>
                         <select class="form-select" id="editActivityProject" name="project_id" required>
                             <option value="">Select Project</option>
                             ${projects.map(p => `<option value="${p.id}" ${p.id === activity.project_id ? 'selected' : ''}>${p.name}</option>`).join('')}
                         </select>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label for="editActivityIndicator" class="form-label">Indicator <span class="text-danger">*</span> <small class="text-muted fw-normal">(filtered by Thematic Area)</small></label>
+                    <div class="col-md-6 mb-3">
+                        <label for="editActivityIndicator" class="form-label">Indicator <span class="text-danger">*</span> <small class="text-muted fw-normal">(filtered by project)</small></label>
                         <select class="form-select" id="editActivityIndicator" name="indicator_id" required>
                             <option value="">Select Indicator</option>
                             ${indicators
-                                .filter(ind => !activity.thematic_area_id || ind.thematic_area_id === activity.thematic_area_id)
+                                .filter(ind => !activity.project_id || ind.project_id === activity.project_id || ind.project_id == null)
                                 .map(ind => `<option value="${ind.id}" ${ind.id === activity.indicator_id ? 'selected' : ''}>${ind.name}</option>`)
                                 .join('')}
                         </select>
@@ -427,7 +480,21 @@ export async function showEditActivityModal(activityId, onSuccess) {
                         <input type="number" class="form-control" id="editIndirectOther" name="indirect_other" min="0" value="${activity.indirect_other || 0}">
                     </div>
                 </div>
-                
+
+                ${editNationalities.length ? `
+                <h6 class="mt-3 mb-2">Nationality Breakdown <small class="text-muted fw-normal">(optional)</small></h6>
+                <div class="row" id="natBreakdownEdit">
+                    ${editNationalities.map(n => {
+                        const existing = (activity.nationality_breakdown || []).find(nb => nb.nationality_id === n.id);
+                        return `
+                    <div class="col-md-4 col-6 mb-2">
+                        <label class="form-label form-label-sm mb-1">${n.name}</label>
+                        <input type="number" class="form-control form-control-sm" data-nat-id="${n.id}" min="0" value="${existing ? existing.count : 0}">
+                    </div>`;
+                    }).join('')}
+                </div>
+                ` : ''}
+
                 <h6 class="mt-3 mb-2">Financial Information</h6>
                 <div class="row">
                     <div class="col-md-4 mb-3">
@@ -544,20 +611,18 @@ export async function showEditActivityModal(activityId, onSuccess) {
 
         renderEditExistingFunding(existingFunding);
 
-        // ── Cascade filtering: Thematic Area → Indicator (edit modal) ──────────
+        // ── Cascade filtering: Project → Indicator (edit modal) ─────────────────
         const _allEditIndicators = indicators.slice();
 
-        function _repopulateEditIndicators(taId, projectId, keepSelectedId) {
+        function _repopulateEditIndicators(projectId, keepSelectedId) {
             const sel = document.getElementById('editActivityIndicator');
             if (!sel) return;
             const filtered = _allEditIndicators.filter(ind => {
-                const taMatch = !taId || ind.thematic_area_id === taId;
-                const projMatch = !projectId || ind.project_id === projectId || ind.project_id == null;
-                return taMatch && projMatch;
+                return !projectId || ind.project_id === projectId || ind.project_id == null;
             });
             sel.innerHTML = filtered.length
                 ? '<option value="">Select Indicator</option>'
-                : '<option value="">— No indicators for this Thematic Area —</option>';
+                : '<option value="">— No indicators for this project —</option>';
             filtered.forEach(ind => {
                 const opt = document.createElement('option');
                 opt.value = ind.id;
@@ -567,15 +632,35 @@ export async function showEditActivityModal(activityId, onSuccess) {
             });
         }
 
-        document.getElementById('editActivityThematicArea').addEventListener('change', function () {
-            const projectId = document.getElementById('editActivityProject').value;
-            _repopulateEditIndicators(this.value, projectId, document.getElementById('editActivityIndicator').value);
+        document.getElementById('editActivityProject').addEventListener('change', function () {
+            _repopulateEditIndicators(this.value, document.getElementById('editActivityIndicator').value);
         });
 
-        document.getElementById('editActivityProject').addEventListener('change', function () {
-            const taId = document.getElementById('editActivityThematicArea').value;
-            _repopulateEditIndicators(taId, this.value, document.getElementById('editActivityIndicator').value);
+        // District → Settlement cascade (edit modal)
+        document.getElementById('editActivityDistrict').addEventListener('change', async function () {
+            const settSel = document.getElementById('editActivitySettlement');
+            settSel.disabled = true;
+            settSel.innerHTML = '<option value="">Loading...</option>';
+            if (!this.value) {
+                settSel.innerHTML = '<option value="">Select Settlement...</option>';
+                return;
+            }
+            try {
+                const res = await apiService.get(`/support-data/settlements/${this.value}`);
+                const settlements = Array.isArray(res.data) ? res.data : [];
+                settSel.innerHTML = settlements.length
+                    ? '<option value="">Select Settlement...</option>' + settlements.map(s => `<option value="${s.id}" ${s.id === activity.settlement_id ? 'selected' : ''}>${s.name}</option>`).join('')
+                    : '<option value="">— No settlements —</option>';
+                settSel.disabled = !settlements.length;
+            } catch {
+                settSel.innerHTML = '<option value="">Error loading</option>';
+            }
         });
+
+        // Pre-load settlements if activity already has a district
+        if (activity.district_id) {
+            document.getElementById('editActivityDistrict').dispatchEvent(new Event('change'));
+        }
         // ────────────────────────────────────────────────────────────────────────
 
         document.getElementById('editAddFundingSourceBtn').addEventListener('click', () => {
@@ -614,6 +699,11 @@ export async function showEditActivityModal(activityId, onSuccess) {
             if (!data.completion_date) {
                 data.completion_date = null;
             }
+
+            // Collect nationality breakdown
+            data.nationality_breakdown = [...document.querySelectorAll('#natBreakdownEdit [data-nat-id]')]
+                .filter(i => parseInt(i.value) > 0)
+                .map(i => ({ nationality_id: i.dataset.natId, count: parseInt(i.value) }));
 
             try {
                 const updateBtn = document.getElementById('updateActivityBtn');
@@ -715,12 +805,12 @@ export async function showViewActivityModal(activityId) {
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <strong>Planned Date:</strong><br>
-                    ${activity.planned_date ? new Date(activity.planned_date).toLocaleDateString() : 'N/A'}
+                    ${formatDate(activity.planned_date)}
                 </div>
                 ${activity.completion_date ? `
                     <div class="col-md-6 mb-3">
                         <strong>Completion Date:</strong><br>
-                        ${new Date(activity.completion_date).toLocaleDateString()}
+                        ${formatDate(activity.completion_date)}
                     </div>
                 ` : ''}
             </div>
@@ -794,6 +884,17 @@ export async function showViewActivityModal(activityId) {
                     $${(activity.actual_cost || 0).toFixed(2)}
                 </div>
             </div>
+
+            ${activity.nationality_breakdown?.length ? `
+            <hr>
+            <h6 class="mt-3 mb-2">Nationality Breakdown</h6>
+            <div class="row">
+                ${activity.nationality_breakdown.map(nb => `
+                <div class="col-md-4 col-6 mb-2">
+                    <strong>${nb.nationality_name || nb.nationality_code || 'Unknown'}:</strong> ${nb.count}
+                </div>`).join('')}
+            </div>
+            ` : ''}
             
             ${activity.notes ? `
                 <hr>
@@ -810,7 +911,7 @@ export async function showViewActivityModal(activityId) {
             <div class="row mt-3">
                 <div class="col-12">
                     <small class="text-muted">
-                        Created by ${activity.created_by_username || 'Unknown'} on ${activity.created_at ? new Date(activity.created_at).toLocaleDateString() : 'N/A'}
+                        Created by ${activity.created_by_username || 'Unknown'} on ${formatDate(activity.created_at)}
                     </small>
                 </div>
             </div>

@@ -1,4 +1,5 @@
 import { authManager } from '../auth.js';
+import { formatDate } from './utils.js';
 
 const API_BASE = '/api/v1';
 
@@ -105,8 +106,8 @@ function renderDashboardContent(project, indicators, activities, cases) {
 }
 
 function renderProjectHeader(project, indicators, activities, cases) {
-    const startDate = project.start_date ? new Date(project.start_date).toLocaleDateString() : 'N/A';
-    const endDate = project.end_date ? new Date(project.end_date).toLocaleDateString() : 'N/A';
+    const startDate = formatDate(project.start_date);
+    const endDate = formatDate(project.end_date);
     const statusClass = project.status === 'Active' ? 'success' : project.status === 'Planned' ? 'warning' : 'secondary';
     
     const totalBudget = project.budget || 0;
@@ -726,7 +727,7 @@ function renderRecentActivitiesList(activities) {
     return `
         <ul class="list-group">
             ${activities.map(act => {
-                const actDate = act.activity_date ? new Date(act.activity_date).toLocaleDateString() : 'N/A';
+                const actDate = formatDate(act.activity_date);
                 const statusClass = act.status === 'Completed' ? 'success' : 
                                   act.status === 'In Progress' ? 'info' : 'warning';
                 return `

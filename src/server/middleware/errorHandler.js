@@ -42,6 +42,16 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
 
+  // Forbidden errors
+  if (err.statusCode === 403) {
+    return res.status(403).json({
+      success: false,
+      data: null,
+      message: err.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+
   // Bad request errors
   if (err.statusCode === HTTP_STATUS.BAD_REQUEST) {
     const { response, statusCode } = ApiResponse.badRequest(err.message);

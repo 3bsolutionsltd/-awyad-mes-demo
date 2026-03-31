@@ -236,7 +236,7 @@ class AuthService {
         `SELECT rt.*, u.email, u.is_active
          FROM refresh_tokens rt
          JOIN users u ON rt.user_id = u.id
-         WHERE rt.token = $1 AND rt.revoked = false AND rt.expires_at > NOW()`,
+         WHERE rt.token = $1 AND rt.revoked_at IS NULL AND rt.expires_at > NOW()`,
         [refreshToken]
       );
 
@@ -380,7 +380,7 @@ class AuthService {
   async cleanupExpiredTokens() {
     try {
       const result = await databaseService.query(
-        'DELETE FROM refresh_tokens WHERE expires_at < NOW() OR revoked = true'
+        'DELETE FROM refresh_tokens WHERE expires_at < NOW() OR revoked_at IS NOT NULL'
       );
       logger.info('Expired tokens cleaned up:', { count: result.rowCount });
       return result.rowCount;

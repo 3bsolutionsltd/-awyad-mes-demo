@@ -600,7 +600,13 @@ window.reverseTransfer = async function(transferId) {
 
         if (response.success) {
             alert('Transfer reversed successfully');
-            location.reload();
+            const modal = bootstrap.Modal.getInstance(document.getElementById('budgetTransferModal'));
+            if (modal) modal.hide();
+            if (typeof window.refreshFinancialDashboard === 'function') {
+                window.refreshFinancialDashboard();
+            } else {
+                location.reload();
+            }
         }
     } catch (error) {
         console.error('Error reversing transfer:', error);

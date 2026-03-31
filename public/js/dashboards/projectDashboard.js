@@ -11,6 +11,7 @@ import { dashboardService } from '../services/dashboardService.js';
 
 import { showEditProjectModal } from '../projectForms.js';
 import { showCreateProjectIndicatorModal, showEditIndicatorModal, showViewIndicatorModal } from '../indicatorForms.js';
+import { showCreateActivityModal } from '../activityForms.js';
 
 /**
  * Render Project Dashboard
@@ -80,7 +81,7 @@ export async function renderProjectDashboardNew(projectId) {
             ${renderProjectHeader(project)}
             ${renderFinancialPerformance(financials, project)}
             ${renderIndicatorPerformance(indicators, project)}
-            ${renderActivitiesSection(activities, projectId)}
+            ${renderActivitiesSection(activities, projectId, project.name)}
             ${renderCasesSection(cases, projectId)}
             ${renderTeamSection(team)}
             ${renderMonthlyPerformance(performance)}
@@ -355,7 +356,7 @@ function renderIndicatorPerformance(indicators, project) {
  * Section D: Activities Section
  * @private
  */
-function renderActivitiesSection(activities, projectId) {
+function renderActivitiesSection(activities, projectId, projectName = '') {
     return `
         <div class="row mb-4">
             <div class="col-12">
@@ -380,7 +381,8 @@ function renderActivitiesSection(activities, projectId) {
                                 </select>
                             </div>
                             <div class="col-md-6 text-end">
-                                <button class="btn btn-sm btn-primary" onclick="addActivity('${projectId}')">
+                                <button class="btn btn-sm btn-primary" onclick="addActivity('${projectId}', '${projectName.replace(/'/g, "\\'")}')"
+                                    data-project-id="${projectId}" data-project-name="${projectName.replace(/"/g, '&quot;')}">
                                     <i class="bi bi-plus-circle"></i> Add Activity
                                 </button>
                             </div>
@@ -743,22 +745,26 @@ function attachEventListeners(projectId) {
 window.editProject = async (id) => {
     console.log('Edit project:', id);
     await showEditProjectModal(id, () => {
-        console.log('Project edited successfully');
-        // Reload the dashboard
-        window.location.reload();
+        renderProjectDashboardNew(id).then(html => {
+            const container = document.getElementById('main-content') || document.querySelector('[data-section="project-dashboard"]');
+            if (container) container.innerHTML = html;
+        });
     });
 };
 
 window.filterActivities = (projectId) => console.log('Filter activities:', projectId);
 
-window.addActivity = (projectId) => {
-    console.log('Add activity for project:', projectId);
-    // Reuse the global createActivity function but pre-fill project
-    if (window.createActivity) {
-        window.createActivity(projectId);
-    } else {
-        console.error('createActivity function not found');
-    }
+window.addActivity = (projectId, projectName) => {
+    showCreateActivityModal(async () => {
+        // Refresh the project dashboard after activity is created
+        const container = document.querySelector('[data-project-id-dashboard]') ||
+                          document.getElementById('main-content') ||
+                          document.querySelector('.project-dashboard-new')?.parentElement;
+        if (container) {
+            const html = await renderProjectDashboardNew(projectId);
+            container.innerHTML = html;
+        }
+    }, { projectId, projectName: projectName || '' });
 };
 
 window.viewActivity = (id) => {

@@ -13,13 +13,7 @@ import { stateManager } from './stateManager.js';
 function formatDate(dateString) {
   if (!dateString) return 'N/A';
   const date = new Date(dateString);
-  return date.toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  return date.toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
 export async function renderSessionManagement() {

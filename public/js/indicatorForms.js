@@ -57,16 +57,16 @@ export async function showCreateIndicatorModal(onSuccess) {
                         <label for="indicatorLevel" class="form-label">Indicator Level <span class="text-danger">*</span></label>
                         <select class="form-select" id="indicatorLevel" name="indicator_level" required>
                             <option value="">Select Level</option>
-                            <option value="output">Output</option>
-                            <option value="outcome">Outcome</option>
-                            <option value="impact">Impact</option>
+                            <option value="Output">Output</option>
+                            <option value="Outcome">Outcome</option>
+                            <option value="Impact">Impact</option>
                         </select>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label for="indicatorDataType" class="form-label">Data Type</label>
                         <select class="form-select" id="indicatorDataType" name="data_type">
-                            <option value="number" selected>Number</option>
-                            <option value="percentage">Percentage</option>
+                            <option value="Number" selected>Number</option>
+                            <option value="Percentage">Percentage</option>
                         </select>
                     </div>
                 </div>
@@ -103,8 +103,8 @@ export async function showCreateIndicatorModal(onSuccess) {
                         <input type="number" class="form-control" id="indicatorBaseline" name="baseline" min="0" step="0.01" value="0">
                     </div>
                     <div class="col-md-4 mb-3">
-                        <label for="indicatorLopTarget" class="form-label">LOP Target <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" id="indicatorLopTarget" name="lop_target" required min="0" step="0.01" value="0">
+                        <label for="indicatorLopTarget" class="form-label">LOP Target</label>
+                        <input type="number" class="form-control" id="indicatorLopTarget" name="lop_target" min="0" step="0.01" value="0">
                     </div>
                     <div class="col-md-4 mb-3">
                         <label for="indicatorAnnualTarget" class="form-label">Annual Target</label>
@@ -603,16 +603,16 @@ export async function showCreateProjectIndicatorModal(projectId, projectName, on
                     <label for="piLevel" class="form-label">Indicator Level <span class="text-danger">*</span></label>
                     <select class="form-select" id="piLevel" name="indicator_level" required>
                         <option value="">Select Level</option>
-                        <option value="output">Output</option>
-                        <option value="outcome">Outcome</option>
-                        <option value="impact">Impact</option>
+                        <option value="Output">Output</option>
+                        <option value="Outcome">Outcome</option>
+                        <option value="Impact">Impact</option>
                     </select>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label for="piDataType" class="form-label">Data Type</label>
                     <select class="form-select" id="piDataType" name="data_type">
-                        <option value="number" selected>Number</option>
-                        <option value="percentage">Percentage</option>
+                        <option value="Number" selected>Number</option>
+                        <option value="Percentage">Percentage</option>
                     </select>
                 </div>
             </div>
@@ -628,8 +628,8 @@ export async function showCreateProjectIndicatorModal(projectId, projectName, on
                     <input type="number" class="form-control" id="piBaseline" name="baseline" min="0" step="0.01" value="0">
                 </div>
                 <div class="col-md-4 mb-3">
-                    <label for="piLopTarget" class="form-label">LOP Target <span class="text-danger">*</span></label>
-                    <input type="number" class="form-control" id="piLopTarget" name="lop_target" required min="0" step="0.01" value="0">
+                    <label for="piLopTarget" class="form-label">LOP Target</label>
+                    <input type="number" class="form-control" id="piLopTarget" name="lop_target" min="0" step="0.01" value="0">
                 </div>
                 <div class="col-md-4 mb-3">
                     <label for="piAnnualTarget" class="form-label">Annual Target</label>

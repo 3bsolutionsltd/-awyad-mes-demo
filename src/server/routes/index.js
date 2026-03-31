@@ -20,6 +20,8 @@ import evidenceRouter from './evidence.js';
 import exportsRouter from './exports.js';
 import integrationsRouter from './integrations.js';
 import rbmRouter from './rbm.js';
+import donorsRouter from './donors.js';
+import supportDataRouter from './supportData.js';
 import databaseService from '../services/databaseService.js';
 
 const router = express.Router();
@@ -58,6 +60,8 @@ router.use('/monthly-tracking', monthlyTrackingRouter);
 router.use('/non-program-activities', nonProgramActivitiesRouter);
 router.use('/activities', activitiesRouter);
 router.use('/projects', projectsRouter);
+router.use('/donors', donorsRouter);
+router.use('/support-data', supportDataRouter);
 router.use('/indicators', indicatorsRouter);
 router.use('/cases', casesRouter);
 router.use('/thematic-areas', thematicAreasRouter);

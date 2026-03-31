@@ -89,7 +89,7 @@ export async function exportDashboard(projects, indicators, activities, cases) {
     XLSX.utils.book_append_sheet(wb, indicatorsWS, 'Indicators');
     
     // Download
-    XLSX.writeFile(wb, `AWYAD_Dashboard_${formatDate(new Date())}.xlsx`);
+    XLSX.writeFile(wb, `AWYAD_Dashboard_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
 /**
@@ -129,7 +129,7 @@ export async function exportProjects(projects) {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Projects');
     
-    XLSX.writeFile(wb, `AWYAD_Projects_${formatDate(new Date())}.xlsx`);
+    XLSX.writeFile(wb, `AWYAD_Projects_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
 /**
@@ -172,7 +172,7 @@ export async function exportIndicators(indicators) {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Indicators');
     
-    XLSX.writeFile(wb, `AWYAD_Indicators_${formatDate(new Date())}.xlsx`);
+    XLSX.writeFile(wb, `AWYAD_Indicators_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
 /**
@@ -291,7 +291,7 @@ export async function exportActivities(activities) {
     const nationalityWS = XLSX.utils.aoa_to_sheet(nationalityData);
     XLSX.utils.book_append_sheet(wb, nationalityWS, 'Nationality');
     
-    XLSX.writeFile(wb, `AWYAD_Activities_${formatDate(new Date())}.xlsx`);
+    XLSX.writeFile(wb, `AWYAD_Activities_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
 /**
@@ -333,7 +333,7 @@ export async function exportCases(cases) {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Cases');
     
-    XLSX.writeFile(wb, `AWYAD_Cases_${formatDate(new Date())}.xlsx`);
+    XLSX.writeFile(wb, `AWYAD_Cases_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
 /**
@@ -407,7 +407,7 @@ export async function exportMonthlyTracking(activities, year) {
     const quarterlyWS = XLSX.utils.aoa_to_sheet(quarterlyData);
     XLSX.utils.book_append_sheet(wb, quarterlyWS, 'Quarterly Summary');
     
-    XLSX.writeFile(wb, `AWYAD_Monthly_Tracking_${year}_${formatDate(new Date())}.xlsx`);
+    XLSX.writeFile(wb, `AWYAD_Monthly_Tracking_${year}_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
 /**

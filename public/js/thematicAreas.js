@@ -5,6 +5,7 @@
 
 import { apiService } from './apiService.js';
 import { showCreateThematicAreaModal, showEditThematicAreaModal, showViewThematicAreaModal, showDeleteThematicAreaModal } from './thematicAreaForms.js';
+import { formatDate } from './utils.js';
 
 export async function renderThematicAreas(container) {
     try {
@@ -99,7 +100,7 @@ export async function renderThematicAreas(container) {
                                                         : '<span class="badge bg-danger">Inactive</span>'}
                                                 </td>
                                                 <td>
-                                                    <small>${ta.created_at ? new Date(ta.created_at).toLocaleDateString() : 'N/A'}</small>
+                                                    <small>${formatDate(ta.created_at)}</small>
                                                 </td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm" role="group">

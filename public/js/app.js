@@ -72,6 +72,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (userDisplay && user) {
                 userDisplay.textContent = window.authManager.getUserDisplayName() || user.username || user.email || 'User';
             }
+
+            // Re-apply role-based nav visibility now that currentUser has
+            // fresh roles from the API (fixes deployed-site timing issue).
+            if (typeof window.applyRoleVisibility === 'function') {
+                window.applyRoleVisibility();
+            }
         }
 
         // Setup navigation

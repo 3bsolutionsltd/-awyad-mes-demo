@@ -9,23 +9,27 @@ const router = express.Router();
 // Validation schemas
 const createProjectSchema = Joi.object({
     name: Joi.string().required().max(255),
-    donor: Joi.string().required().max(100),
+    donor_ids: Joi.array().items(Joi.string().uuid()).min(1).required(),
     description: Joi.string().allow('', null),
-    thematic_area_id: Joi.string().uuid().required(),
+    thematic_area_id: Joi.string().uuid().optional().allow(null, ''),
+    component_ids: Joi.array().items(Joi.string().uuid()).min(1).required(),
     start_date: Joi.date().required(),
     end_date: Joi.date().greater(Joi.ref('start_date')).required(),
     budget: Joi.number().min(0).default(0),
+    budget_currency: Joi.string().valid('UGX', 'USD', 'EUR', 'GBP').default('USD'),
     status: Joi.string().valid('Planning', 'Active', 'Completed', 'On Hold', 'Cancelled').default('Planning')
 });
 
 const updateProjectSchema = Joi.object({
     name: Joi.string().max(255),
-    donor: Joi.string().max(100),
+    donor_ids: Joi.array().items(Joi.string().uuid()).min(1),
     description: Joi.string().allow('', null),
-    thematic_area_id: Joi.string().uuid(),
+    thematic_area_id: Joi.string().uuid().optional().allow(null, ''),
+    component_ids: Joi.array().items(Joi.string().uuid()).min(1),
     start_date: Joi.date(),
     end_date: Joi.date(),
     budget: Joi.number().min(0),
+    budget_currency: Joi.string().valid('UGX', 'USD', 'EUR', 'GBP'),
     status: Joi.string().valid('Planning', 'Active', 'Completed', 'On Hold', 'Cancelled')
 }).min(1);
 
@@ -77,7 +81,21 @@ router.get('/', authenticate, checkPermission('projects.read'), async (req, res,
             SELECT 
                 p.*,
                 ta.name as thematic_area_name,
-                u.username as created_by_username
+                u.username as created_by_username,
+                COALESCE(
+                    (SELECT JSON_AGG(JSON_BUILD_OBJECT('id', d.id, 'name', d.name) ORDER BY d.name)
+                     FROM project_donors pd
+                     JOIN donors d ON pd.donor_id = d.id
+                     WHERE pd.project_id = p.id),
+                    '[]'::json
+                ) as donors,
+                COALESCE(
+                    (SELECT JSON_AGG(JSON_BUILD_OBJECT('id', c.id, 'name', c.name) ORDER BY c.name)
+                     FROM project_components pc
+                     JOIN core_program_components c ON pc.component_id = c.id
+                     WHERE pc.project_id = p.id),
+                    '[]'::json
+                ) as components
             FROM projects p
             LEFT JOIN thematic_areas ta ON p.thematic_area_id = ta.id
             LEFT JOIN users u ON p.created_by = u.id
@@ -121,7 +139,21 @@ router.get('/:id', authenticate, checkPermission('projects.read'), async (req, r
                 u1.username as created_by_username,
                 u2.username as updated_by_username,
                 (SELECT COUNT(*) FROM activities WHERE project_id = p.id) as activity_count,
-                (SELECT COUNT(*) FROM cases WHERE project_id = p.id) as case_count
+                (SELECT COUNT(*) FROM cases WHERE project_id = p.id) as case_count,
+                COALESCE(
+                    (SELECT JSON_AGG(JSON_BUILD_OBJECT('id', d.id, 'name', d.name) ORDER BY d.name)
+                     FROM project_donors pd
+                     JOIN donors d ON pd.donor_id = d.id
+                     WHERE pd.project_id = p.id),
+                    '[]'::json
+                ) as donors,
+                COALESCE(
+                    (SELECT JSON_AGG(JSON_BUILD_OBJECT('id', c.id, 'name', c.name) ORDER BY c.name)
+                     FROM project_components pc
+                     JOIN core_program_components c ON pc.component_id = c.id
+                     WHERE pc.project_id = p.id),
+                    '[]'::json
+                ) as components
             FROM projects p
             LEFT JOIN thematic_areas ta ON p.thematic_area_id = ta.id
             LEFT JOIN users u1 ON p.created_by = u1.id
@@ -157,45 +189,77 @@ router.post('/', authenticate, checkPermission('projects.create'), async (req, r
 
         const {
             name,
-            donor,
+            donor_ids,
             description,
             thematic_area_id,
+            component_ids,
             start_date,
             end_date,
             budget,
+            budget_currency,
             status
         } = value;
 
-        // Verify thematic area exists
-        const thematicArea = await databaseService.queryOne(
-            'SELECT id FROM thematic_areas WHERE id = $1',
-            [thematic_area_id]
-        );
-
-        if (!thematicArea) {
-            throw new AppError('Thematic area not found', 404);
+        // Verify all donors exist and collect names
+        const donorRecords = [];
+        for (const did of donor_ids) {
+            const d = await databaseService.queryOne(
+                'SELECT id, name FROM donors WHERE id = $1 AND is_active = true',
+                [did]
+            );
+            if (!d) throw new AppError(`Donor not found or inactive: ${did}`, 404);
+            donorRecords.push(d);
         }
 
-        const query = `
+        // Verify all provided component IDs exist
+        for (const cid of component_ids) {
+            const comp = await databaseService.queryOne(
+                'SELECT id FROM core_program_components WHERE id = $1',
+                [cid]
+            );
+            if (!comp) {
+                throw new AppError(`Core program component not found: ${cid}`, 404);
+            }
+        }
+
+        const insertQuery = `
             INSERT INTO projects (
                 name, donor, description, thematic_area_id, start_date, end_date,
-                budget, status, created_by, updated_by
+                budget, budget_currency, status, created_by, updated_by
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
             RETURNING *
         `;
 
-        const project = await databaseService.queryOne(query, [
+        const project = await databaseService.queryOne(insertQuery, [
             name,
-            donor,
+            donorRecords.map(d => d.name).join(', '),
             description,
-            thematic_area_id,
+            thematic_area_id || null,
             start_date,
             end_date,
             budget || 0,
+            budget_currency || 'USD',
             status || 'Planning',
             req.user.id
         ]);
+
+        // Link to donors (junction table)
+        for (const did of donor_ids) {
+            await databaseService.query(
+                'INSERT INTO project_donors (project_id, donor_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                [project.id, did]
+            );
+        }
+
+        // Link to core program components
+        for (const cid of component_ids) {
+            await databaseService.query(
+                'INSERT INTO project_components (project_id, component_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                [project.id, cid]
+            );
+        }
+        project.components = component_ids.map(id => ({ id }));
 
         res.status(201).json({
             success: true,
@@ -230,43 +294,84 @@ router.put('/:id', authenticate, checkPermission('projects.update'), async (req,
             throw new AppError('Project not found', 404);
         }
 
-        // If thematic_area_id is being updated, verify it exists
-        if (value.thematic_area_id) {
-            const thematicArea = await databaseService.queryOne(
-                'SELECT id FROM thematic_areas WHERE id = $1',
-                [value.thematic_area_id]
-            );
+        // Extract component_ids and donor_ids before building the SQL update
+        const { component_ids: newComponentIds, donor_ids: newDonorIds, ...projectFields } = value;
 
-            if (!thematicArea) {
-                throw new AppError('Thematic area not found', 404);
+        // If donor_ids is being changed, validate and replace junction rows
+        if (newDonorIds && newDonorIds.length > 0) {
+            const donorRecords = [];
+            for (const did of newDonorIds) {
+                const d = await databaseService.queryOne(
+                    'SELECT id, name FROM donors WHERE id = $1 AND is_active = true',
+                    [did]
+                );
+                if (!d) throw new AppError(`Donor not found or inactive: ${did}`, 404);
+                donorRecords.push(d);
+            }
+            // Replace junction rows atomically
+            await databaseService.query('DELETE FROM project_donors WHERE project_id = $1', [id]);
+            for (const did of newDonorIds) {
+                await databaseService.query(
+                    'INSERT INTO project_donors (project_id, donor_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                    [id, did]
+                );
+            }
+            // Sync legacy donor text column
+            projectFields.donor = donorRecords.map(d => d.name).join(', ');
+        }
+
+        // Replace component associations if provided
+        if (newComponentIds && newComponentIds.length > 0) {
+            // Verify all component IDs exist
+            for (const cid of newComponentIds) {
+                const comp = await databaseService.queryOne(
+                    'SELECT id FROM core_program_components WHERE id = $1',
+                    [cid]
+                );
+                if (!comp) {
+                    throw new AppError(`Core program component not found: ${cid}`, 404);
+                }
+            }
+            // Replace all associations atomically
+            await databaseService.query(
+                'DELETE FROM project_components WHERE project_id = $1',
+                [id]
+            );
+            for (const cid of newComponentIds) {
+                await databaseService.query(
+                    'INSERT INTO project_components (project_id, component_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                    [id, cid]
+                );
             }
         }
 
-        // Build dynamic update query
-        const updates = [];
-        const params = [];
-        let paramIndex = 1;
+        // Build dynamic update query for project fields (skip if no scalar fields remain)
+        let project;
+        if (Object.keys(projectFields).length > 0) {
+            const updates = [];
+            const params = [];
+            let paramIndex = 1;
 
-        Object.entries(value).forEach(([key, val]) => {
-            updates.push(`${key} = $${paramIndex++}`);
-            params.push(val);
-        });
+            Object.entries(projectFields).forEach(([key, val]) => {
+                updates.push(`${key} = $${paramIndex++}`);
+                params.push(val);
+            });
 
-        updates.push(`updated_by = $${paramIndex++}`);
-        params.push(req.user.id);
+            updates.push(`updated_by = $${paramIndex++}`);
+            params.push(req.user.id);
+            updates.push(`updated_at = CURRENT_TIMESTAMP`);
+            params.push(id);
 
-        updates.push(`updated_at = CURRENT_TIMESTAMP`);
-
-        params.push(id);
-
-        const query = `
-            UPDATE projects
-            SET ${updates.join(', ')}
-            WHERE id = $${paramIndex}
-            RETURNING *
-        `;
-
-        const project = await databaseService.queryOne(query, params);
+            const updateQuery = `
+                UPDATE projects
+                SET ${updates.join(', ')}
+                WHERE id = $${paramIndex}
+                RETURNING *
+            `;
+            project = await databaseService.queryOne(updateQuery, params);
+        } else {
+            project = await databaseService.queryOne('SELECT * FROM projects WHERE id = $1', [id]);
+        }
 
         res.json({
             success: true,

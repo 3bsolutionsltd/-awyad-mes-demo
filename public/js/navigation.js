@@ -24,6 +24,7 @@ import { renderPermissionMatrix } from './permissionMatrix.js';
 import { renderSessionManagement } from './sessionManagement.js';
 import { renderThematicAreas } from './thematicAreas.js';
 import { renderSupportData } from './supportData.js';
+import { renderDonorManagement } from './donorManagement.js';
 import { renderHelp } from './help.js';
 import { renderProfile } from './renderProfile.js';
 import { renderStrategicDashboard } from './renderStrategicDashboard.js';
@@ -85,6 +86,7 @@ const routes = {
     'sessions': renderSessionManagement,
     'thematic-areas': renderThematicAreas,
     'support-data': renderSupportData,
+    'donors': renderDonorManagement,
     'help': renderHelp,
     'demo-guide': renderHelp,
     'profile': renderProfile

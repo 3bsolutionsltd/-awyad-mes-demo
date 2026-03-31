@@ -19,7 +19,11 @@ const createActivitySchema = Joi.object({
     planned_date: Joi.date().required(),
     completion_date: Joi.date().allow(null),
     status: Joi.string().valid('Planned', 'In Progress', 'Completed', 'Cancelled').default('Planned'),
-    location: Joi.string().required().max(100),
+    location: Joi.string().allow('', null).max(200),
+
+    // Location hierarchy (overrides free-text location when provided)
+    district_id: Joi.string().uuid().allow(null),
+    settlement_id: Joi.string().uuid().allow(null),
     
     // Currency fields
     currency: Joi.string().valid('UGX', 'USD', 'EUR', 'GBP').default('UGX'),
@@ -76,6 +80,16 @@ const createActivitySchema = Joi.object({
     refugees: Joi.number().integer().min(0).default(0),
     idps: Joi.number().integer().min(0).default(0),
     returnees: Joi.number().integer().min(0).default(0),
+
+    // Dynamic nationality breakdown (junction table)
+    nationality_breakdown: Joi.array().items(Joi.object({
+        nationality_id: Joi.string().uuid().required(),
+        count: Joi.number().integer().min(0).required()
+    })).default([]),
+
+    // Location hierarchy
+    district_id: Joi.string().uuid().allow(null),
+    settlement_id: Joi.string().uuid().allow(null),
     
     // Legacy fields (for backward compatibility)
     direct_male: Joi.number().integer().min(0).default(0),
@@ -94,6 +108,8 @@ const createActivitySchema = Joi.object({
 
     // Activity classification
     activity_type: Joi.string().valid('program', 'non_program').default('program'),
+
+    target_value: Joi.number().integer().min(0).default(0),
 });
 
 const updateActivitySchema = Joi.object({
@@ -147,6 +163,17 @@ const updateActivitySchema = Joi.object({
     nationality_congolese: Joi.number().integer().min(0),
     nationality_south_sudanese: Joi.number().integer().min(0),
     nationality_others: Joi.number().integer().min(0),
+
+    // Dynamic nationality breakdown (junction table)
+    nationality_breakdown: Joi.array().items(Joi.object({
+        nationality_id: Joi.string().uuid().required(),
+        count: Joi.number().integer().min(0).required()
+    })),
+
+    // Location hierarchy
+    district_id: Joi.string().uuid().allow(null),
+    settlement_id: Joi.string().uuid().allow(null),
+
     direct_male: Joi.number().integer().min(0),
     direct_female: Joi.number().integer().min(0),
     direct_other: Joi.number().integer().min(0),
@@ -158,7 +185,9 @@ const updateActivitySchema = Joi.object({
     // New fields — Mission req 2026
     beneficiary_id: Joi.string().max(100).allow('', null),
     latitude: Joi.number().min(-90).max(90).allow(null),
-    longitude: Joi.number().min(-180).max(180).allow(null)
+    longitude: Joi.number().min(-180).max(180).allow(null),
+
+    target_value: Joi.number().integer().min(0)
 }).min(1);
 
 const budgetTransferSchema = Joi.object({
@@ -260,12 +289,12 @@ router.get('/', authenticate, checkPermission('activities.read'), async (req, re
             LIMIT $${paramIndex++} OFFSET $${paramIndex++}
         `;
 
-        const activities = await databaseService.query(query, params);
+        const activitiesResult = await databaseService.query(query, params);
 
         res.json({
             success: true,
             data: {
-                activities,
+                activities: activitiesResult.rows,
                 pagination: {
                     page: parseInt(page),
                     limit: parseInt(limit),
@@ -310,8 +339,27 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
             throw new AppError('Project not found', 404);
         }
 
+        // Resolve location from district/settlement if provided
+        let resolvedLocation = value.location || '';
+        if (value.district_id) {
+            const districtRow = await databaseService.queryOne(
+                'SELECT config_value FROM system_configurations WHERE id = $1 AND config_type = $2',
+                [value.district_id, 'district']
+            );
+            const districtName = districtRow?.config_value || value.district_id;
+            resolvedLocation = districtName;
+            if (value.settlement_id) {
+                const settlementRow = await databaseService.queryOne(
+                    'SELECT config_value FROM system_configurations WHERE id = $1 AND config_type = $2',
+                    [value.settlement_id, 'settlement']
+                );
+                if (settlementRow) resolvedLocation = `${districtName} / ${settlementRow.config_value}`;
+            }
+        }
+
+        const nationalityBreakdown = value.nationality_breakdown || [];
+
         const query = `
-            INSERT INTO activities (
                 thematic_area_id, indicator_id, project_id, activity_name, description,
                 planned_date, completion_date, status, location,
                 currency, exchange_rate, budget, actual_cost, is_costed,
@@ -328,7 +376,7 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
                 nationals, refugees, idps, returnees,
                 direct_male, direct_female, direct_other,
                 indirect_male, indirect_female, indirect_other,
-                notes, activity_type, created_by, updated_by
+                notes, activity_type, created_by, updated_by, target_value
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
@@ -337,7 +385,7 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
                 $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
                 $41, $42, $43, $44, $45, $46, $47, $48, $49, $50,
                 $51, $52, $53, $54, $55, $56, $57, $58, $59, $60,
-                $61, $62, $63
+                $61, $62, $63, $64
             )
             RETURNING *
         `;
@@ -351,7 +399,7 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
             value.planned_date,
             value.completion_date,
             value.status || 'Planned',
-            value.location,
+            resolvedLocation,
             value.currency || 'UGX',
             value.exchange_rate || 1,
             value.budget || 0,
@@ -406,7 +454,20 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
             value.activity_type || 'program',
             req.user.id,
             req.user.id,
+            value.target_value || 0,
         ]);
+
+        // Upsert nationality breakdown rows
+        if (nationalityBreakdown.length > 0) {
+            for (const nb of nationalityBreakdown) {
+                await databaseService.query(
+                    `INSERT INTO activity_nationality_breakdown (activity_id, nationality_id, count)
+                     VALUES ($1, $2, $3)
+                     ON CONFLICT (activity_id, nationality_id) DO UPDATE SET count = EXCLUDED.count`,
+                    [activity.id, nb.nationality_id, nb.count]
+                );
+            }
+        }
 
         res.status(201).json({
             success: true,
@@ -483,12 +544,12 @@ router.get('/budget-transfers/list', authenticate, checkPermission('activities.r
             LIMIT $${paramIndex++} OFFSET $${paramIndex++}
         `;
 
-        const transfers = await databaseService.query(query, params);
+        const transfersResult = await databaseService.query(query, params);
 
         res.json({
             success: true,
             data: {
-                transfers,
+                transfers: transfersResult.rows,
                 pagination: {
                     page: parseInt(page),
                     limit: parseInt(limit),
@@ -1084,7 +1145,23 @@ router.get('/:id', authenticate, checkPermission('activities.read'), async (req,
             ORDER BY bt.created_at DESC
         `;
 
-        activity.budget_transfers = await databaseService.query(transfersQuery, [id]);
+        const btResult = await databaseService.query(transfersQuery, [id]);
+        activity.budget_transfers = btResult.rows;
+
+        // Fetch nationality breakdown if the table exists
+        try {
+            const nbResult = await databaseService.query(
+                `SELECT anb.nationality_id, anb.count, sc.config_value AS nationality_name, sc.config_code AS nationality_code
+                 FROM activity_nationality_breakdown anb
+                 JOIN system_configurations sc ON anb.nationality_id = sc.id
+                 WHERE anb.activity_id = $1
+                 ORDER BY sc.display_order`,
+                [id]
+            );
+            activity.nationality_breakdown = nbResult.rows;
+        } catch (_) {
+            activity.nationality_breakdown = [];
+        }
 
         res.json({
             success: true,
@@ -1150,7 +1227,35 @@ router.put('/:id', authenticate, checkPermission('activities.update'), async (re
         const params = [];
         let paramIndex = 1;
 
-        Object.entries(value).forEach(([key, val]) => {
+        // Extract special fields before building column updates
+        const nationalityBreakdown = value.nationality_breakdown;
+        const districtId = value.district_id;
+        const settlementId = value.settlement_id;
+
+        const updatePayload = { ...value };
+        delete updatePayload.nationality_breakdown;
+        delete updatePayload.district_id;
+        delete updatePayload.settlement_id;
+
+        // Resolve location from district/settlement if provided
+        if (districtId) {
+            const districtRow = await databaseService.queryOne(
+                'SELECT config_value FROM system_configurations WHERE id = $1 AND config_type = $2',
+                [districtId, 'district']
+            );
+            const districtName = districtRow?.config_value || districtId;
+            let resolvedLoc = districtName;
+            if (settlementId) {
+                const settlementRow = await databaseService.queryOne(
+                    'SELECT config_value FROM system_configurations WHERE id = $1 AND config_type = $2',
+                    [settlementId, 'settlement']
+                );
+                if (settlementRow) resolvedLoc = `${districtName} / ${settlementRow.config_value}`;
+            }
+            updatePayload.location = resolvedLoc;
+        }
+
+        Object.entries(updatePayload).forEach(([key, val]) => {
             updates.push(`${key} = $${paramIndex++}`);
             params.push(val);
         });
@@ -1166,6 +1271,18 @@ router.put('/:id', authenticate, checkPermission('activities.update'), async (re
         `;
 
         const activity = await databaseService.queryOne(query, params);
+
+        // Upsert nationality breakdown if provided
+        if (Array.isArray(nationalityBreakdown) && nationalityBreakdown.length > 0) {
+            for (const nb of nationalityBreakdown) {
+                await databaseService.query(
+                    `INSERT INTO activity_nationality_breakdown (activity_id, nationality_id, count)
+                     VALUES ($1, $2, $3)
+                     ON CONFLICT (activity_id, nationality_id) DO UPDATE SET count = EXCLUDED.count`,
+                    [id, nb.nationality_id, nb.count]
+                );
+            }
+        }
 
         res.json({
             success: true,
@@ -1283,7 +1400,7 @@ const fundingSourceSchema = Joi.object({
 router.get('/:id/funding-sources', authenticate, checkPermission('activities.read'), async (req, res, next) => {
     try {
         const { id } = req.params;
-        const rows = await databaseService.query(
+        const fsResult = await databaseService.query(
             `SELECT afs.*, u.full_name AS created_by_name
              FROM activity_funding_sources afs
              LEFT JOIN users u ON u.id = afs.created_by
@@ -1291,7 +1408,7 @@ router.get('/:id/funding-sources', authenticate, checkPermission('activities.rea
              ORDER BY afs.created_at ASC`,
             [id]
         );
-        res.json({ success: true, data: rows });
+        res.json({ success: true, data: fsResult.rows });
     } catch (error) {
         next(error);
     }
@@ -1334,7 +1451,7 @@ router.delete('/:id/funding-sources/:sourceId', authenticate, checkPermission('a
             `DELETE FROM activity_funding_sources WHERE id = $1 AND activity_id = $2 RETURNING id`,
             [sourceId, id]
         );
-        if (!result.length) throw new AppError('Funding source not found', 404);
+        if (!result.rows.length) throw new AppError('Funding source not found', 404);
         res.json({ success: true, message: 'Funding source removed' });
     } catch (error) {
         next(error);

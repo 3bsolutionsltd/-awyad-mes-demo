@@ -6,6 +6,7 @@
 import { apiService } from './apiService.js';
 import { createModal } from './components.js';
 import { showNotification } from './components.js';
+import { formatDate } from './utils.js';
 
 /**
  * Show create thematic area modal
@@ -247,7 +248,7 @@ export async function showViewThematicAreaModal(thematicAreaId) {
             <div class="row mt-3">
                 <div class="col-12">
                     <small class="text-muted">
-                        Created on ${thematicArea.created_at ? new Date(thematicArea.created_at).toLocaleDateString() : 'N/A'}
+                        Created on ${formatDate(thematicArea.created_at)}
                     </small>
                 </div>
             </div>

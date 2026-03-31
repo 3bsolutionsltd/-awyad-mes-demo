@@ -22,6 +22,7 @@ import {
     createStatusBadge
 } from './components.js';
 import { formatCurrency } from './utils.js';
+import { formatCurrency as formatBudgetCurrency } from './utils/currencyUtils.js';
 import { exportProjectsWithNotification } from './exportUtils.js';
 import { createProjectBudgetChart, createBurnRateGauge } from './charts.js';
 import { showCreateProjectModal, showEditProjectModal, showViewProjectModal } from './projectForms.js';
@@ -221,12 +222,12 @@ function createProjectsTable(projects, thematicAreas) {
                     <strong>${project.name || 'Unnamed Project'}</strong>
                     ${project.code ? '<br><small class="text-muted">' + project.code + '</small>' : ''}
                 </td>
-                <td>${project.donor || 'N/A'}</td>
+                <td>${(project.donors && project.donors.length > 0) ? project.donors.map(d => `<span class="badge bg-info text-dark me-1">${d.name}</span>`).join('') : (project.donor || 'N/A')}</td>
                 <td>
                     <span class="badge bg-secondary">${thematicAreaName}</span>
                 </td>
                 <td>${statusBadge}</td>
-                <td class="text-end">${formatCurrency(project.budget || 0)}</td>
+                <td class="text-end">${formatBudgetCurrency(project.budget || 0, project.budget_currency || 'USD')}</td>
                 <td class="text-end">${formatCurrency(project.expenditure || 0)}</td>
                 <td>
                     ${burnRateIndicator}

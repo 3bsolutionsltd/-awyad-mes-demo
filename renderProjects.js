@@ -10,7 +10,7 @@ export function renderProjects(data) {
                             <thead>
                                 <tr>
                                     <th>Project Name</th>
-                                    <th>Thematic Area</th>
+                                    <th>Core Program Components</th>
                                     <th>Donor</th>
                                     <th>Status</th>
                                     <th style="width: 20%;">Budget Burn Rate</th>
@@ -22,7 +22,6 @@ export function renderProjects(data) {
                                     const statusBadgeClass = project.status === 'Active' ? 'bg-success' : 'bg-secondary';
                                     const burnRateClamped = Math.min(project.burnRate, 100);
                                     const burnRateClass = project.burnRate >= 90 ? 'danger' : project.burnRate >= 75 ? 'warning' : 'success';
-                                    const thematicArea = data.thematicAreas.find(ta => ta.id === project.thematicAreaId);
                                     
                                     return `
                                         <tr>
@@ -30,8 +29,8 @@ export function renderProjects(data) {
                                                 <strong>${project.name}</strong><br>
                                                 <small class="text-muted">${project.id}</small>
                                             </td>
-                                            <td>${thematicArea ? thematicArea.code + ': ' + thematicArea.name : 'N/A'}</td>
-                                            <td>${project.donor}</td>
+                                            <td>${(project.components && project.components.length > 0) ? project.components.map(c => `<span class="badge bg-primary me-1">${c.name}</span>`).join(' ') : 'N/A'}</td>
+                                            <td>${(project.donors && project.donors.length > 0) ? project.donors.map(d => `<span class="badge bg-info text-dark me-1">${d.name}</span>`).join('') : (project.donor || 'N/A')}</td>
                                             <td>
                                                 <span class="badge ${statusBadgeClass}">${project.status}</span>
                                             </td>

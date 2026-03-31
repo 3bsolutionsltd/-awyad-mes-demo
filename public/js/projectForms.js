@@ -6,18 +6,31 @@
 import { apiService } from './apiService.js';
 import { createModal } from './components.js';
 import { showNotification } from './components.js';
+import { formatCurrency } from './utils/currencyUtils.js';
 import { stateManager } from './stateManager.js';
+import { formatDate } from './utils.js';
 
 /**
  * Show create project modal
  */
 export async function showCreateProjectModal(onSuccess) {
     try {
-        // Get thematic areas for dropdown
-        const thematicAreasRes = await apiService.get('/dashboard/thematic-areas');
-        const thematicAreas = Array.isArray(thematicAreasRes.data) ? thematicAreasRes.data : [];
+        // Get pillars and donors in parallel
+        const [pillarsRes, donorsRes] = await Promise.all([
+            apiService.get('/pillars'),
+            apiService.get('/donors'),
+        ]);
+        const pillars = Array.isArray(pillarsRes.data) ? pillarsRes.data : [];
+        const donors = Array.isArray(donorsRes.data) ? donorsRes.data : [];
         
-        console.log('Create project form data:', { thematicAreasCount: thematicAreas.length });
+        // Build <optgroup> HTML grouped by pillar
+        const componentOptionsHTML = pillars
+            .filter(p => p.components && p.components.length > 0)
+            .map(p => `
+                <optgroup label="${p.name}">
+                    ${p.components.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                </optgroup>
+            `).join('');
         
         const formHTML = `
             <form id="createProjectForm">
@@ -27,8 +40,11 @@ export async function showCreateProjectModal(onSuccess) {
                 </div>
                 
                 <div class="mb-3">
-                    <label for="projectDonor" class="form-label">Donor <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="projectDonor" name="donor" required maxlength="100" placeholder="e.g., USAID, WHO, UNFPA">
+                    <label for="projectDonors" class="form-label">Donor(s) <span class="text-danger">*</span></label>
+                    <select class="form-select" id="projectDonors" name="donor_ids" multiple required size="4">
+                        ${donors.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}
+                    </select>
+                    <div class="form-text">Hold <kbd>Ctrl</kbd> / <kbd>&#8984; Cmd</kbd> to select multiple.</div>
                 </div>
                 
                 <div class="mb-3">
@@ -37,13 +53,11 @@ export async function showCreateProjectModal(onSuccess) {
                 </div>
                 
                 <div class="mb-3">
-                    <label for="projectThematicArea" class="form-label">Thematic Area <span class="text-danger">*</span></label>
-                    <select class="form-select" id="projectThematicArea" name="thematic_area_id" required>
-                        <option value="">Select Thematic Area</option>
-                        ${thematicAreas.map(ta => `
-                            <option value="${ta.id}">${ta.name}</option>
-                        `).join('')}
+                    <label for="projectComponents" class="form-label">Core Program Components <span class="text-danger">*</span></label>
+                    <select class="form-select" id="projectComponents" multiple required size="6">
+                        ${componentOptionsHTML}
                     </select>
+                    <div class="form-text">Hold <kbd>Ctrl</kbd> / <kbd>&#8984; Cmd</kbd> to select multiple.</div>
                 </div>
                 
                 <div class="row">
@@ -59,8 +73,16 @@ export async function showCreateProjectModal(onSuccess) {
                 
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label for="projectBudget" class="form-label">Budget (USD)</label>
-                        <input type="number" class="form-control" id="projectBudget" name="budget" min="0" step="0.01" value="0">
+                        <label class="form-label">Budget</label>
+                        <div class="input-group">
+                            <select class="form-select" id="projectBudgetCurrency" name="budget_currency" style="max-width:90px">
+                                <option value="USD">USD</option>
+                                <option value="UGX">UGX</option>
+                                <option value="EUR">EUR</option>
+                                <option value="GBP">GBP</option>
+                            </select>
+                            <input type="number" class="form-control" id="projectBudget" name="budget" min="0" step="0.01" value="0">
+                        </div>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label for="projectStatus" class="form-label">Status <span class="text-danger">*</span></label>
@@ -114,14 +136,33 @@ export async function showCreateProjectModal(onSuccess) {
             const formData = new FormData(form);
             const data = Object.fromEntries(formData.entries());
 
+            // Collect multi-select donor IDs
+            const donorSelect = document.getElementById('projectDonors');
+            const selectedDonors = [...donorSelect.selectedOptions].map(o => o.value);
+            if (selectedDonors.length === 0) {
+                showNotification('Please select at least one Donor', 'danger');
+                return;
+            }
+            data.donor_ids = selectedDonors;
+            delete data.donor_id;
+
+            // Collect multi-select component IDs
+            const componentSelect = document.getElementById('projectComponents');
+            const selectedComponents = [...componentSelect.selectedOptions].map(o => o.value);
+            if (selectedComponents.length === 0) {
+                showNotification('Please select at least one Core Program Component', 'danger');
+                return;
+            }
+            data.component_ids = selectedComponents;
+
             // Validate dates
             if (new Date(data.end_date) <= new Date(data.start_date)) {
                 showNotification('End date must be after start date', 'danger');
                 return;
             }
 
+            const saveBtn = document.getElementById('saveProjectBtn');
             try {
-                const saveBtn = document.getElementById('saveProjectBtn');
                 saveBtn.disabled = true;
                 saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creating...';
 
@@ -137,7 +178,6 @@ export async function showCreateProjectModal(onSuccess) {
                 }
             } catch (error) {
                 showNotification(`Failed to create project: ${error.message}`, 'danger');
-                const saveBtn = document.getElementById('saveProjectBtn');
                 saveBtn.disabled = false;
                 saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> Create Project';
             }
@@ -158,16 +198,26 @@ export async function showCreateProjectModal(onSuccess) {
  */
 export async function showEditProjectModal(projectId, onSuccess) {
     try {
-        // Get project details and thematic areas
-        const [projectResponse, thematicAreasRes] = await Promise.all([
+        // Get project details, pillars, and donors in parallel
+        const [projectResponse, pillarsRes, donorsRes] = await Promise.all([
             apiService.get(`/projects/${projectId}`),
-            apiService.get('/dashboard/thematic-areas')
+            apiService.get('/pillars'),
+            apiService.get('/donors'),
         ]);
 
         const project = projectResponse.data;
-        const thematicAreas = Array.isArray(thematicAreasRes.data) ? thematicAreasRes.data : [];
+        const pillars = Array.isArray(pillarsRes.data) ? pillarsRes.data : [];
+        const donors = Array.isArray(donorsRes.data) ? donorsRes.data : [];
+        const existingComponentIds = (project.components || []).map(c => c.id);
         
-        console.log('Edit project form data:', { projectId, thematicAreasCount: thematicAreas.length });
+        // Build <optgroup> HTML grouped by pillar, pre-selecting existing components
+        const componentOptionsHTML = pillars
+            .filter(p => p.components && p.components.length > 0)
+            .map(p => `
+                <optgroup label="${p.name}">
+                    ${p.components.map(c => `<option value="${c.id}" ${existingComponentIds.includes(c.id) ? 'selected' : ''}>${c.name}</option>`).join('')}
+                </optgroup>
+            `).join('');
 
         const formHTML = `
             <form id="editProjectForm">
@@ -177,8 +227,11 @@ export async function showEditProjectModal(projectId, onSuccess) {
                 </div>
                 
                 <div class="mb-3">
-                    <label for="editProjectDonor" class="form-label">Donor <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="editProjectDonor" name="donor" required maxlength="100" value="${project.donor || ''}" placeholder="e.g., USAID, WHO, UNFPA">
+                    <label for="editProjectDonors" class="form-label">Donor(s) <span class="text-danger">*</span></label>
+                    <select class="form-select" id="editProjectDonors" name="donor_ids" multiple required size="4">
+                        ${(() => { const sel = new Set((project.donors || []).map(d => d.id)); return donors.map(d => `<option value="${d.id}" ${sel.has(d.id) ? 'selected' : ''}>${d.name}</option>`).join(''); })()}
+                    </select>
+                    <div class="form-text">Hold <kbd>Ctrl</kbd> / <kbd>&#8984; Cmd</kbd> to select multiple.</div>
                 </div>
                 
                 <div class="mb-3">
@@ -187,13 +240,11 @@ export async function showEditProjectModal(projectId, onSuccess) {
                 </div>
                 
                 <div class="mb-3">
-                    <label for="editProjectThematicArea" class="form-label">Thematic Area <span class="text-danger">*</span></label>
-                    <select class="form-select" id="editProjectThematicArea" name="thematic_area_id" required>
-                        <option value="">Select Thematic Area</option>
-                        ${thematicAreas.map(ta => `
-                            <option value="${ta.id}" ${ta.id === project.thematic_area_id ? 'selected' : ''}>${ta.name}</option>
-                        `).join('')}
+                    <label for="editProjectComponents" class="form-label">Core Program Components <span class="text-danger">*</span></label>
+                    <select class="form-select" id="editProjectComponents" multiple required size="6">
+                        ${componentOptionsHTML}
                     </select>
+                    <div class="form-text">Hold <kbd>Ctrl</kbd> / <kbd>&#8984; Cmd</kbd> to select multiple.</div>
                 </div>
                 
                 <div class="row">
@@ -209,8 +260,16 @@ export async function showEditProjectModal(projectId, onSuccess) {
                 
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label for="editProjectBudget" class="form-label">Budget (USD)</label>
-                        <input type="number" class="form-control" id="editProjectBudget" name="budget" min="0" step="0.01" value="${project.budget || 0}">
+                        <label class="form-label">Budget</label>
+                        <div class="input-group">
+                            <select class="form-select" id="editProjectBudgetCurrency" name="budget_currency" style="max-width:90px">
+                                <option value="USD" ${(project.budget_currency || 'USD') === 'USD' ? 'selected' : ''}>USD</option>
+                                <option value="UGX" ${project.budget_currency === 'UGX' ? 'selected' : ''}>UGX</option>
+                                <option value="EUR" ${project.budget_currency === 'EUR' ? 'selected' : ''}>EUR</option>
+                                <option value="GBP" ${project.budget_currency === 'GBP' ? 'selected' : ''}>GBP</option>
+                            </select>
+                            <input type="number" class="form-control" id="editProjectBudget" name="budget" min="0" step="0.01" value="${project.budget || 0}">
+                        </div>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label for="editProjectStatus" class="form-label">Status <span class="text-danger">*</span></label>
@@ -263,6 +322,25 @@ export async function showEditProjectModal(projectId, onSuccess) {
 
             const formData = new FormData(form);
             const data = Object.fromEntries(formData.entries());
+
+            // Collect multi-select donor IDs
+            const donorSelect = document.getElementById('editProjectDonors');
+            const selectedDonors = [...donorSelect.selectedOptions].map(o => o.value);
+            if (selectedDonors.length === 0) {
+                showNotification('Please select at least one Donor', 'danger');
+                return;
+            }
+            data.donor_ids = selectedDonors;
+            delete data.donor_id;
+
+            // Collect multi-select component IDs
+            const componentSelect = document.getElementById('editProjectComponents');
+            const selectedComponents = [...componentSelect.selectedOptions].map(o => o.value);
+            if (selectedComponents.length === 0) {
+                showNotification('Please select at least one Core Program Component', 'danger');
+                return;
+            }
+            data.component_ids = selectedComponents;
 
             // Validate dates
             if (new Date(data.end_date) <= new Date(data.start_date)) {
@@ -321,8 +399,10 @@ export async function showViewProjectModal(projectId) {
             
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <strong>Thematic Area:</strong><br>
-                    <span class="badge bg-info">${project.thematic_area_name || 'N/A'}</span>
+                    <strong>Core Program Components:</strong><br>
+                    ${(project.components && project.components.length > 0)
+                        ? project.components.map(c => `<span class="badge bg-primary me-1">${c.name}</span>`).join(' ')
+                        : '<span class="text-muted">N/A</span>'}
                 </div>
                 <div class="col-md-6 mb-3">
                     <strong>Status:</strong><br>
@@ -333,19 +413,28 @@ export async function showViewProjectModal(projectId) {
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <strong>Start Date:</strong><br>
-                    ${project.start_date ? new Date(project.start_date).toLocaleDateString() : 'N/A'}
+                    ${formatDate(project.start_date)}
                 </div>
                 <div class="col-md-6 mb-3">
                     <strong>End Date:</strong><br>
-                    ${project.end_date ? new Date(project.end_date).toLocaleDateString() : 'N/A'}
+                    ${formatDate(project.end_date)}
                 </div>
             </div>
             
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <strong>Budget:</strong><br>
-                    $${(project.budget || 0).toLocaleString()}
+                    <strong>Donor(s):</strong><br>
+                    ${(project.donors && project.donors.length > 0)
+                        ? project.donors.map(d => `<span class="badge bg-info text-dark me-1">${d.name}</span>`).join('')
+                        : (project.donor || '<span class="text-muted">N/A</span>')}
                 </div>
+                <div class="col-md-6 mb-3">
+                    <strong>Budget:</strong><br>
+                    ${formatCurrency(project.budget || 0, project.budget_currency || 'USD')}
+                </div>
+            </div>
+
+            <div class="row">
                 <div class="col-md-6 mb-3">
                     <strong>Location:</strong><br>
                     ${project.location || 'Not specified'}
@@ -366,7 +455,7 @@ export async function showViewProjectModal(projectId) {
             <div class="row mt-3">
                 <div class="col-12">
                     <small class="text-muted">
-                        Created by ${project.created_by_username || 'Unknown'} on ${project.created_at ? new Date(project.created_at).toLocaleDateString() : 'N/A'}
+                        Created by ${project.created_by_username || 'Unknown'} on ${formatDate(project.created_at)}
                     </small>
                 </div>
             </div>
