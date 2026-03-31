@@ -54,8 +54,10 @@ const allowedOrigins = process.env.CORS_ORIGIN
 const corsOptions = {
   origin: isProd
     ? (origin, cb) => {
-        if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
-        cb(new Error(`CORS: origin '${origin}' not allowed`));
+        // Allow requests with no origin (server-to-server, curl, etc.)
+        if (!origin) return cb(null, true);
+        if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) return cb(null, true);
+        cb(null, false);
       }
     : '*',
   credentials: true,

@@ -361,7 +361,7 @@ router.delete('/:id', authenticate, checkPermission('users.delete'), async (req,
 
     // Revoke all refresh tokens
     await databaseService.query(
-      'UPDATE refresh_tokens SET revoked = true WHERE user_id = $1',
+      'UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1',
       [id]
     );
 
