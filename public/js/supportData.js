@@ -342,7 +342,7 @@ function _componentRow(comp) {
     </div>`;
 }
 
-
+function _buildCaseDataTab(types, catByType, selType) {
     const totalCats   = Object.values(catByType).reduce((s, c) => s + c.length, 0);
     const activeTypes = types.filter(t => t.is_active).length;
     return `
