@@ -165,7 +165,23 @@ export function navigateTo(route) {
  * @private
  * @returns {void}
  */
-function handleRouteChange() {
+async function handleRouteChange() {
+    // --- Clean up any lingering Bootstrap modal state from previous page ---
+    // Modals opened by UserManagement / AuditLogs / Permissions must be disposed
+    // before we replace innerHTML, otherwise their backdrops block all clicks.
+    document.querySelectorAll('.modal.show, .modal').forEach(el => {
+        const instance = bootstrap.Modal.getInstance(el);
+        if (instance) {
+            instance.hide();
+            instance.dispose();
+        }
+        el.remove();
+    });
+    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+
     // Get route from URL hash
     let hash = window.location.hash.substring(1); // Remove '#'
     
@@ -200,9 +216,9 @@ function handleRouteChange() {
     const renderFunction = routes[route];
 
     if (renderFunction) {
-        // Render the route
+        // Render the route (functions may be async — always await)
         try {
-            renderFunction(mainContent);
+            await renderFunction(mainContent);
         } catch (error) {
             console.error(`Error rendering ${route}:`, error);
             mainContent.innerHTML = `
