@@ -58,7 +58,7 @@ router.get('/', authenticate, async (req, res, next) => {
 
         query += ` ORDER BY s.display_order ASC, s.name ASC`;
 
-        const strategies = await databaseService.query(query, params);
+        const strategies = await databaseService.queryMany(query, params);
 
         res.json({
             success: true,
