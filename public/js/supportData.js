@@ -34,13 +34,17 @@ export async function renderSupportData(container) {
 // ─── Internal re-render ──────────────────────────────────────────────────────
 
 async function _refresh(container) {
-    const [typesRes, allCatsRes, districtsRes, settlementsRes, natRes, ageGroupsRes] = await Promise.all([
+    const [typesRes, allCatsRes, districtsRes, settlementsRes, natRes, ageGroupsRes,
+           strategiesRes, pillarsRes, componentsRes] = await Promise.all([
         apiService.get('/cases/types/all'),
         apiService.get('/cases/categories/all'),
         apiService.get('/support-data/config-items?type=district'),
         apiService.get('/support-data/config-items?type=settlement'),
         apiService.get('/support-data/config-items?type=nationality'),
         apiService.get('/support-data/config-items?type=age_group'),
+        apiService.get('/strategies?include_inactive=true'),
+        apiService.get('/pillars?include_inactive=true'),
+        apiService.get('/components?include_inactive=true'),
     ]);
 
     const types       = typesRes.data || [];
@@ -55,6 +59,9 @@ async function _refresh(container) {
     const allSetts     = settlementsRes.data  || [];
     const nationalities= natRes.data          || [];
     const ageGroups    = ageGroupsRes.data    || [];
+    const strategies   = strategiesRes.data  || [];
+    const pillars      = pillarsRes.data     || [];
+    const components   = componentsRes.data  || [];
 
     const settByDistrict = {};
     allSetts.forEach(s => {
@@ -62,9 +69,10 @@ async function _refresh(container) {
         settByDistrict[s.parent_id].push(s);
     });
 
-    container.innerHTML = _buildPage(types, catByType, districts, settByDistrict, nationalities, ageGroups);
+    container.innerHTML = _buildPage(types, catByType, districts, settByDistrict, nationalities, ageGroups,
+        strategies, pillars, components);
     _attachHandlers(container, types, catByType, districts, settByDistrict, nationalities, ageGroups,
-        () => _refresh(container));
+        strategies, pillars, components, () => _refresh(container));
 
     // Restore the active Bootstrap tab
     const tabBtn = container.querySelector(`[data-bs-target="#tab-${_activeTab}"]`);
@@ -76,7 +84,7 @@ async function _refresh(container) {
 
 // ─── Page structure ──────────────────────────────────────────────────────────
 
-function _buildPage(types, catByType, districts, settByDistrict, nationalities, ageGroups) {
+function _buildPage(types, catByType, districts, settByDistrict, nationalities, ageGroups, strategies = [], pillars = [], components = []) {
     const selType    = _selectedTypeId     ? types.find(t => t.id === _selectedTypeId)         : null;
     const selDistrict= _selectedDistrictId ? districts.find(d => d.id === _selectedDistrictId) : null;
 
@@ -114,6 +122,12 @@ function _buildPage(types, catByType, districts, settByDistrict, nationalities, 
                     <span class="badge bg-secondary ms-1">${ageGroups.length}</span>
                 </button>
             </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-strategy-framework" type="button">
+                    <i class="bi bi-diagram-3"></i> Strategy Framework
+                    <span class="badge bg-secondary ms-1">${strategies.length}</span>
+                </button>
+            </li>
         </ul>
 
         <div class="tab-content">
@@ -129,13 +143,206 @@ function _buildPage(types, catByType, districts, settByDistrict, nationalities, 
             <div class="tab-pane fade" id="tab-age-groups">
                 ${_buildConfigListTab('age_group', 'Age Groups', ageGroups, 'bi-person-badge')}
             </div>
+            <div class="tab-pane fade" id="tab-strategy-framework">
+                ${_buildStrategyFrameworkTab(strategies, pillars, components)}
+            </div>
         </div>
     </div>`;
 }
 
 // ─── Tab content builders ────────────────────────────────────────────────────
 
-function _buildCaseDataTab(types, catByType, selType) {
+function _buildStrategyFrameworkTab(strategies, pillars, components) {
+    const activeSt = strategies.filter(s => s.is_active).length;
+    const activePl = pillars.filter(p => p.is_active).length;
+    const activeCo = components.filter(c => c.is_active).length;
+
+    // Group pillars by strategy_id, components by pillar_id
+    const pillarsByStrategy = {};
+    pillars.forEach(p => {
+        if (!pillarsByStrategy[p.strategy_id]) pillarsByStrategy[p.strategy_id] = [];
+        pillarsByStrategy[p.strategy_id].push(p);
+    });
+    const componentsByPillar = {};
+    components.forEach(c => {
+        if (!componentsByPillar[c.pillar_id]) componentsByPillar[c.pillar_id] = [];
+        componentsByPillar[c.pillar_id].push(c);
+    });
+
+    const strategyRows = strategies.length === 0
+        ? `<div class="text-center text-muted py-5">
+               <i class="bi bi-diagram-3 fs-1 d-block mb-2"></i>
+               No strategies defined yet — click <strong>Add Strategy</strong>.
+           </div>`
+        : strategies.map(s => _strategyAccordionItem(s, pillarsByStrategy[s.id] || [], componentsByPillar)).join('');
+
+    return `
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 bg-primary bg-opacity-10">
+                <div class="card-body text-center">
+                    <div class="fs-2 fw-bold text-primary">${strategies.length}</div>
+                    <div class="text-muted small">${activeSt} Active Strategies</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 bg-success bg-opacity-10">
+                <div class="card-body text-center">
+                    <div class="fs-2 fw-bold text-success">${pillars.length}</div>
+                    <div class="text-muted small">${activePl} Active Pillars</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 bg-info bg-opacity-10">
+                <div class="card-body text-center">
+                    <div class="fs-2 fw-bold text-info">${components.length}</div>
+                    <div class="text-muted small">${activeCo} Active Components</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <strong><i class="bi bi-diagram-3"></i> Strategies</strong>
+            <button class="btn btn-sm btn-primary" id="btnAddStrategy">
+                <i class="bi bi-plus-lg"></i> Add Strategy
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="accordion accordion-flush" id="strategiesAccordion">
+                ${strategyRows}
+            </div>
+        </div>
+    </div>`;
+}
+
+function _strategyAccordionItem(strategy, stratPillars, componentsByPillar) {
+    const collapseId = `collapse-strategy-${strategy.id.replace(/-/g, '')}`;
+    const headerId   = `header-strategy-${strategy.id.replace(/-/g, '')}`;
+    const pillarRows = stratPillars.length === 0
+        ? `<div class="text-muted small py-2 ps-2">No pillars — click <strong>Add Pillar</strong>.</div>`
+        : stratPillars.map(p => _pillarAccordionItem(p, componentsByPillar[p.id] || [])).join('');
+
+    return `
+    <div class="accordion-item">
+        <h2 class="accordion-header" id="${headerId}">
+            <button class="accordion-button collapsed py-3" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#${collapseId}"
+                    aria-expanded="false" aria-controls="${collapseId}">
+                <span class="me-2">
+                    ${!strategy.is_active ? '<span class="badge bg-secondary me-1">Inactive</span>' : ''}
+                    <code class="text-secondary me-2">${_esc(strategy.code || '')}</code>
+                    <strong>${_esc(strategy.name)}</strong>
+                </span>
+                <span class="badge bg-primary ms-auto me-3">${stratPillars.length} pillar${stratPillars.length !== 1 ? 's' : ''}</span>
+            </button>
+        </h2>
+        <div id="${collapseId}" class="accordion-collapse collapse" aria-labelledby="${headerId}"
+             data-bs-parent="#strategiesAccordion">
+            <div class="accordion-body pt-2 pb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    ${strategy.description
+                        ? `<small class="text-muted">${_esc(strategy.description)}</small>`
+                        : '<span></span>'}
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-outline-secondary" data-edit-strategy="${strategy.id}">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" data-delete-strategy="${strategy.id}"
+                                data-strategy-name="${_esc(strategy.name)}">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" data-add-pillar="${strategy.id}"
+                                data-strategy-name="${_esc(strategy.name)}">
+                            <i class="bi bi-plus-lg"></i> Add Pillar
+                        </button>
+                    </div>
+                </div>
+                <div class="accordion accordion-flush ms-2" id="pillarsAccordion-${strategy.id.replace(/-/g, '')}">
+                    ${pillarRows}
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
+function _pillarAccordionItem(pillar, pillarComponents) {
+    const collapseId = `collapse-pillar-${pillar.id.replace(/-/g, '')}`;
+    const headerId   = `header-pillar-${pillar.id.replace(/-/g, '')}`;
+    const compRows = pillarComponents.length === 0
+        ? `<div class="text-muted small py-2 ps-2">No components — click <strong>Add Component</strong>.</div>`
+        : pillarComponents.map(c => _componentRow(c)).join('');
+
+    return `
+    <div class="accordion-item border-start border-2 border-success ms-2 mb-1">
+        <h2 class="accordion-header" id="${headerId}">
+            <button class="accordion-button collapsed py-2 bg-light" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#${collapseId}"
+                    aria-expanded="false" aria-controls="${collapseId}">
+                <span class="me-2">
+                    ${!pillar.is_active ? '<span class="badge bg-secondary me-1">Inactive</span>' : ''}
+                    <code class="text-secondary me-2">${_esc(pillar.code || '')}</code>
+                    <strong>${_esc(pillar.name)}</strong>
+                </span>
+                <span class="badge bg-success ms-auto me-3">${pillarComponents.length} component${pillarComponents.length !== 1 ? 's' : ''}</span>
+            </button>
+        </h2>
+        <div id="${collapseId}" class="accordion-collapse collapse" aria-labelledby="${headerId}">
+            <div class="accordion-body py-2">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    ${pillar.description
+                        ? `<small class="text-muted">${_esc(pillar.description)}</small>`
+                        : '<span></span>'}
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-outline-secondary" data-edit-pillar="${pillar.id}">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" data-delete-pillar="${pillar.id}"
+                                data-pillar-name="${_esc(pillar.name)}">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-info" data-add-component="${pillar.id}"
+                                data-pillar-name="${_esc(pillar.name)}">
+                            <i class="bi bi-plus-lg"></i> Add Component
+                        </button>
+                    </div>
+                </div>
+                <div class="list-group list-group-flush">
+                    ${compRows}
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
+function _componentRow(comp) {
+    return `
+    <div class="list-group-item py-2 px-2 border-start border-2 border-info ms-2 mb-1">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                ${!comp.is_active ? '<span class="badge bg-secondary me-1">Inactive</span>' : ''}
+                <code class="text-secondary me-2">${_esc(comp.code || '')}</code>
+                <strong>${_esc(comp.name)}</strong>
+                ${comp.description
+                    ? `<br><small class="text-muted">${_esc(comp.description)}</small>`
+                    : ''}
+            </div>
+            <div class="d-flex gap-1 flex-shrink-0 ms-2">
+                <button class="btn btn-sm btn-outline-secondary" data-edit-component="${comp.id}">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" data-delete-component="${comp.id}"
+                        data-component-name="${_esc(comp.name)}">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    </div>`;
+}
+
+
     const totalCats   = Object.values(catByType).reduce((s, c) => s + c.length, 0);
     const activeTypes = types.filter(t => t.is_active).length;
     return `
@@ -443,7 +650,7 @@ function _settlementsPanel(district, settlements) {
 
 // ─── Event handlers ──────────────────────────────────────────────────────────
 
-function _attachHandlers(container, types, catByType, districts, settByDistrict, nationalities, ageGroups, reload) {
+function _attachHandlers(container, types, catByType, districts, settByDistrict, nationalities, ageGroups, strategies, pillars, components, reload) {
     // Track active tab
     container.querySelectorAll('[data-bs-toggle="tab"]').forEach(btn => {
         btn.addEventListener('shown.bs.tab', e => {
@@ -540,6 +747,84 @@ function _attachHandlers(container, types, catByType, districts, settByDistrict,
             });
         });
     }
+
+    // ── Strategy Framework tab ──
+    document.getElementById('btnAddStrategy')?.addEventListener('click',
+        () => _showStrategyModal(null, reload));
+
+    container.querySelectorAll('[data-edit-strategy]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const s = strategies.find(x => x.id === btn.dataset.editStrategy);
+            if (s) _showStrategyModal(s, reload);
+        });
+    });
+
+    container.querySelectorAll('[data-delete-strategy]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (!confirm(`Delete strategy "${btn.dataset.strategyName}"? This cannot be undone.`)) return;
+            try {
+                await apiService.delete(`/strategies/${btn.dataset.deleteStrategy}`);
+                showNotification('Strategy deleted.', 'success');
+                await reload();
+            } catch (err) { showNotification(`Failed: ${err.message}`, 'danger'); }
+        });
+    });
+
+    container.querySelectorAll('[data-add-pillar]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const s = strategies.find(x => x.id === btn.dataset.addPillar);
+            _showPillarModal(null, s, reload);
+        });
+    });
+
+    container.querySelectorAll('[data-edit-pillar]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const p = pillars.find(x => x.id === btn.dataset.editPillar);
+            if (p) {
+                const s = strategies.find(x => x.id === p.strategy_id);
+                _showPillarModal(p, s, reload);
+            }
+        });
+    });
+
+    container.querySelectorAll('[data-delete-pillar]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (!confirm(`Delete pillar "${btn.dataset.pillarName}"?`)) return;
+            try {
+                await apiService.delete(`/pillars/${btn.dataset.deletePillar}`);
+                showNotification('Pillar deleted.', 'success');
+                await reload();
+            } catch (err) { showNotification(`Failed: ${err.message}`, 'danger'); }
+        });
+    });
+
+    container.querySelectorAll('[data-add-component]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const p = pillars.find(x => x.id === btn.dataset.addComponent);
+            _showComponentModal(null, p, reload);
+        });
+    });
+
+    container.querySelectorAll('[data-edit-component]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const c = components.find(x => x.id === btn.dataset.editComponent);
+            if (c) {
+                const p = pillars.find(x => x.id === c.pillar_id);
+                _showComponentModal(c, p, reload);
+            }
+        });
+    });
+
+    container.querySelectorAll('[data-delete-component]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (!confirm(`Delete component "${btn.dataset.componentName}"?`)) return;
+            try {
+                await apiService.delete(`/components/${btn.dataset.deleteComponent}`);
+                showNotification('Component deleted.', 'success');
+                await reload();
+            } catch (err) { showNotification(`Failed: ${err.message}`, 'danger'); }
+        });
+    });
 }
 
 function _attachCatHandlers(container, type, cats, reload) {
@@ -903,6 +1188,278 @@ function _showConfigItemModal(item, configType, onSave) {
             showNotification(`Failed: ${err.message}`, 'danger');
             btn.disabled = false;
             btn.innerHTML = `<i class="bi bi-check-lg"></i> ${isEdit ? 'Save Changes' : `Create ${label}`}`;
+        }
+    });
+    document.getElementById(id).addEventListener('hidden.bs.modal', function () { this.remove(); });
+}
+
+// ─── Strategy / Pillar / Component Modals ────────────────────────────────────
+
+function _showStrategyModal(strategy, onSave) {
+    const isEdit = !!strategy;
+    const id = 'strategyFormModal';
+    document.getElementById(id)?.remove();
+
+    document.body.insertAdjacentHTML('beforeend', createModal({
+        id,
+        title: `<i class="bi bi-diagram-3"></i> ${isEdit ? 'Edit Strategy' : 'New Strategy'}`,
+        body: `
+            <form id="strategyForm" novalidate>
+                <div class="mb-3">
+                    <label class="form-label">Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" name="name" required maxlength="255"
+                           value="${isEdit ? _esc(strategy.name) : ''}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Code</label>
+                    <input type="text" class="form-control" name="code" maxlength="50"
+                           value="${isEdit ? _esc(strategy.code || '') : ''}"
+                           placeholder="e.g. STR-1">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" name="description" rows="3" maxlength="1000">${isEdit ? _esc(strategy.description || '') : ''}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Display Order</label>
+                    <input type="number" class="form-control" name="display_order" min="0"
+                           value="${isEdit ? (strategy.display_order ?? 0) : 0}">
+                </div>
+                ${isEdit ? `<div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="stratActive"
+                               ${strategy.is_active ? 'checked' : ''}>
+                        <label class="form-check-label" for="stratActive">Active</label>
+                    </div>
+                </div>` : ''}
+            </form>`,
+        footer: `
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" id="saveStrategyBtn">
+                <i class="bi bi-check-lg"></i> ${isEdit ? 'Save Changes' : 'Create Strategy'}
+            </button>`,
+        size: 'md'
+    }));
+
+    const modal = new bootstrap.Modal(document.getElementById(id));
+    modal.show();
+
+    document.getElementById('saveStrategyBtn').addEventListener('click', async () => {
+        const form = document.getElementById('strategyForm');
+        if (!form.checkValidity()) { form.reportValidity(); return; }
+        const fd = new FormData(form);
+        const data = Object.fromEntries(fd.entries());
+        data.display_order = parseInt(data.display_order) || 0;
+        if (!data.code) delete data.code;
+        if (!data.description) delete data.description;
+        if (isEdit) data.is_active = document.getElementById('stratActive')?.checked ?? true;
+        const btn = document.getElementById('saveStrategyBtn');
+        btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        try {
+            if (isEdit) {
+                await apiService.put(`/strategies/${strategy.id}`, data);
+                showNotification('Strategy updated.', 'success');
+            } else {
+                await apiService.post('/strategies', data);
+                showNotification('Strategy created.', 'success');
+            }
+            modal.hide(); await onSave();
+        } catch (err) {
+            showNotification(`Failed: ${err.message}`, 'danger');
+            btn.disabled = false;
+            btn.innerHTML = `<i class="bi bi-check-lg"></i> ${isEdit ? 'Save Changes' : 'Create Strategy'}`;
+        }
+    });
+    document.getElementById(id).addEventListener('hidden.bs.modal', function () { this.remove(); });
+}
+
+function _showPillarModal(pillar, strategy, onSave) {
+    const isEdit = !!pillar;
+    const id = 'pillarFormModal';
+    document.getElementById(id)?.remove();
+
+    document.body.insertAdjacentHTML('beforeend', createModal({
+        id,
+        title: `<i class="bi bi-columns"></i> ${isEdit ? 'Edit Pillar' : 'New Pillar'}`,
+        body: `
+            <form id="pillarForm" novalidate>
+                ${strategy ? `<div class="alert alert-light border py-2 mb-3 small">
+                    <i class="bi bi-diagram-3"></i> Strategy: <strong>${_esc(strategy.name)}</strong>
+                </div>` : ''}
+                <div class="mb-3">
+                    <label class="form-label">Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" name="name" required maxlength="255"
+                           value="${isEdit ? _esc(pillar.name) : ''}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Code</label>
+                    <input type="text" class="form-control" name="code" maxlength="50"
+                           value="${isEdit ? _esc(pillar.code || '') : ''}"
+                           placeholder="e.g. PIL-1">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" name="description" rows="3" maxlength="1000">${isEdit ? _esc(pillar.description || '') : ''}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Display Order</label>
+                    <input type="number" class="form-control" name="display_order" min="0"
+                           value="${isEdit ? (pillar.display_order ?? 0) : 0}">
+                </div>
+                ${isEdit ? `<div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="pillarActive"
+                               ${pillar.is_active ? 'checked' : ''}>
+                        <label class="form-check-label" for="pillarActive">Active</label>
+                    </div>
+                </div>` : ''}
+            </form>`,
+        footer: `
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" id="savePillarBtn">
+                <i class="bi bi-check-lg"></i> ${isEdit ? 'Save Changes' : 'Create Pillar'}
+            </button>`,
+        size: 'md'
+    }));
+
+    const modal = new bootstrap.Modal(document.getElementById(id));
+    modal.show();
+
+    document.getElementById('savePillarBtn').addEventListener('click', async () => {
+        const form = document.getElementById('pillarForm');
+        if (!form.checkValidity()) { form.reportValidity(); return; }
+        const fd = new FormData(form);
+        const data = Object.fromEntries(fd.entries());
+        data.display_order = parseInt(data.display_order) || 0;
+        if (!data.code) delete data.code;
+        if (!data.description) delete data.description;
+        if (!isEdit && strategy) data.strategy_id = strategy.id;
+        if (isEdit) data.is_active = document.getElementById('pillarActive')?.checked ?? true;
+        const btn = document.getElementById('savePillarBtn');
+        btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        try {
+            if (isEdit) {
+                await apiService.put(`/pillars/${pillar.id}`, data);
+                showNotification('Pillar updated.', 'success');
+            } else {
+                await apiService.post('/pillars', data);
+                showNotification('Pillar created.', 'success');
+            }
+            modal.hide(); await onSave();
+        } catch (err) {
+            showNotification(`Failed: ${err.message}`, 'danger');
+            btn.disabled = false;
+            btn.innerHTML = `<i class="bi bi-check-lg"></i> ${isEdit ? 'Save Changes' : 'Create Pillar'}`;
+        }
+    });
+    document.getElementById(id).addEventListener('hidden.bs.modal', function () { this.remove(); });
+}
+
+function _showComponentModal(component, pillar, onSave) {
+    const isEdit = !!component;
+    const id = 'componentFormModal';
+    document.getElementById(id)?.remove();
+
+    // Parse JSON arrays for display
+    const interventions = isEdit && component.interventions
+        ? (Array.isArray(component.interventions)
+            ? component.interventions : JSON.parse(component.interventions || '[]')).join('\n')
+        : '';
+    const approaches = isEdit && component.approaches
+        ? (Array.isArray(component.approaches)
+            ? component.approaches : JSON.parse(component.approaches || '[]')).join('\n')
+        : '';
+
+    document.body.insertAdjacentHTML('beforeend', createModal({
+        id,
+        title: `<i class="bi bi-puzzle"></i> ${isEdit ? 'Edit Component' : 'New Component'}`,
+        body: `
+            <form id="componentForm" novalidate>
+                ${pillar ? `<div class="alert alert-light border py-2 mb-3 small">
+                    <i class="bi bi-columns"></i> Pillar: <strong>${_esc(pillar.name)}</strong>
+                </div>` : ''}
+                <div class="mb-3">
+                    <label class="form-label">Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" name="name" required maxlength="255"
+                           value="${isEdit ? _esc(component.name) : ''}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Code</label>
+                    <input type="text" class="form-control" name="code" maxlength="50"
+                           value="${isEdit ? _esc(component.code || '') : ''}"
+                           placeholder="e.g. COMP-1">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" name="description" rows="3" maxlength="1000">${isEdit ? _esc(component.description || '') : ''}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Interventions
+                        <small class="text-muted fw-normal">(one per line)</small>
+                    </label>
+                    <textarea class="form-control font-monospace" name="interventions" rows="4"
+                              placeholder="e.g. Case management&#10;Psychosocial support">${_esc(interventions)}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Implementation Approaches
+                        <small class="text-muted fw-normal">(one per line)</small>
+                    </label>
+                    <textarea class="form-control font-monospace" name="approaches" rows="4"
+                              placeholder="e.g. Community outreach&#10;Group sessions">${_esc(approaches)}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Display Order</label>
+                    <input type="number" class="form-control" name="display_order" min="0"
+                           value="${isEdit ? (component.display_order ?? 0) : 0}">
+                </div>
+                ${isEdit ? `<div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="compActive"
+                               ${component.is_active ? 'checked' : ''}>
+                        <label class="form-check-label" for="compActive">Active</label>
+                    </div>
+                </div>` : ''}
+            </form>`,
+        footer: `
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" id="saveComponentBtn">
+                <i class="bi bi-check-lg"></i> ${isEdit ? 'Save Changes' : 'Create Component'}
+            </button>`,
+        size: 'lg'
+    }));
+
+    const modal = new bootstrap.Modal(document.getElementById(id));
+    modal.show();
+
+    document.getElementById('saveComponentBtn').addEventListener('click', async () => {
+        const form = document.getElementById('componentForm');
+        if (!form.checkValidity()) { form.reportValidity(); return; }
+        const fd = new FormData(form);
+        const data = {
+            name: fd.get('name'),
+            code: fd.get('code') || null,
+            description: fd.get('description') || null,
+            display_order: parseInt(fd.get('display_order')) || 0,
+            interventions: fd.get('interventions').split('\n').map(l => l.trim()).filter(Boolean),
+            approaches:    fd.get('approaches').split('\n').map(l => l.trim()).filter(Boolean),
+        };
+        if (!isEdit && pillar) data.pillar_id = pillar.id;
+        if (isEdit) data.is_active = document.getElementById('compActive')?.checked ?? true;
+        const btn = document.getElementById('saveComponentBtn');
+        btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        try {
+            if (isEdit) {
+                await apiService.put(`/components/${component.id}`, data);
+                showNotification('Component updated.', 'success');
+            } else {
+                await apiService.post('/components', data);
+                showNotification('Component created.', 'success');
+            }
+            modal.hide(); await onSave();
+        } catch (err) {
+            showNotification(`Failed: ${err.message}`, 'danger');
+            btn.disabled = false;
+            btn.innerHTML = `<i class="bi bi-check-lg"></i> ${isEdit ? 'Save Changes' : 'Create Component'}`;
         }
     });
     document.getElementById(id).addEventListener('hidden.bs.modal', function () { this.remove(); });
