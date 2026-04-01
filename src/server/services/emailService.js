@@ -11,7 +11,7 @@
  *   SMTP_USER   SMTP username / email address
  *   SMTP_PASS   SMTP password or app-specific password
  *   SMTP_FROM   Sender address, defaults to noreply@awyad-mes.org
- *   APP_URL     Public base URL, defaults to https://awyad-mes-demo.onrender.com
+ *   APP_URL     Public base URL, defaults to https://awyad.3bs.ltd
  */
 
 import nodemailer from 'nodemailer';
@@ -38,7 +38,7 @@ class EmailService {
     }
 
     this.from = process.env.SMTP_FROM || 'AWYAD MES <noreply@awyad-mes.org>';
-    this.appUrl = (process.env.APP_URL || 'https://awyad-mes-demo.onrender.com').replace(/\/$/, '');
+    this.appUrl = (process.env.APP_URL || 'https://awyad.3bs.ltd').replace(/\/$/, '');
   }
 
   /**
