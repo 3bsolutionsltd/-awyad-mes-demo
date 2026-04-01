@@ -39,8 +39,15 @@ class AuthManager {
       this.setAccessToken(result.data.accessToken);
       this.setUser(result.data.user);
 
+      // Flag if user must change password before accessing the app
+      if (result.data.user.require_password_change) {
+        sessionStorage.setItem('force_password_change', '1');
+      } else {
+        sessionStorage.removeItem('force_password_change');
+      }
+
       // Refresh token is in HTTP-only cookie, handled by browser
-      
+
       return result.data;
     } catch (error) {
       console.error('Login error:', error);

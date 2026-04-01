@@ -12,8 +12,37 @@ import { authenticate, checkPermission, checkAdmin } from '../middleware/auth.js
 import { validate } from '../middleware/validation.js';
 import AppError from '../utils/AppError.js';
 import logger from '../utils/logger.js';
+import emailService from '../services/emailService.js';
 
 const router = express.Router();
+
+// ============================================
+// Helpers
+// ============================================
+
+/**
+ * Generate a cryptographically random temporary password (16 chars).
+ * Guaranteed to satisfy the server's complexity rule:
+ *   uppercase + lowercase + digit + special char
+ */
+function _generateTempPassword() {
+  const upper  = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower  = 'abcdefghjkmnpqrstuvwxyz';
+  const digits = '23456789';
+  const special = '!@#$%&*';
+  const all = upper + lower + digits + special;
+
+  const pick = (charset) => charset[Math.floor(Math.random() * charset.length)];
+  const chars = [pick(upper), pick(lower), pick(digits), pick(special)];
+  // Fill remaining 12 chars from the full set
+  for (let i = 0; i < 12; i++) chars.push(pick(all));
+  // Shuffle using Fisher-Yates
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join('');
+}
 
 // ============================================
 // Validation Schemas
@@ -22,10 +51,12 @@ const router = express.Router();
 const createUserSchema = Joi.object({
   email: Joi.string().email().required(),
   username: Joi.string().alphanum().min(3).max(30).required(),
-  password: Joi.string().min(8).required(),
+  // Password is optional – if omitted, a secure temporary password is generated
+  password: Joi.string().min(8).optional(),
   firstName: Joi.string().min(2).max(50).required(),
   lastName: Joi.string().min(2).max(50).required(),
   roleIds: Joi.array().items(Joi.string().uuid()).optional(),
+  sendWelcomeEmail: Joi.boolean().optional(),
 });
 
 const updateUserSchema = Joi.object({
@@ -222,16 +253,29 @@ router.post(
   validate(createUserSchema),
   async (req, res, next) => {
     try {
-      const { email, username, password, firstName, lastName, roleIds } = req.body;
+      const { email, username, firstName, lastName, roleIds } = req.body;
+
+      // Generate a temp password if none supplied
+      const isAdminGenerated = !req.body.password;
+      const plainPassword = req.body.password || _generateTempPassword();
 
       // Register user
       const user = await authService.register({
         email,
         username,
-        password,
+        password: plainPassword,
         firstName,
         lastName,
       });
+
+      // Mark admin-created accounts as requiring a password change on first login
+      if (isAdminGenerated) {
+        await databaseService.query(
+          'UPDATE users SET require_password_change = TRUE WHERE id = $1',
+          [user.id]
+        );
+        user.require_password_change = true;
+      }
 
       // Assign roles if provided
       if (roleIds && roleIds.length > 0) {
@@ -245,6 +289,15 @@ router.post(
         });
       }
 
+      // Send welcome email (always for admin-created users, or when flag is set)
+      const notify = req.body.sendWelcomeEmail !== false; // default true
+      if (notify) {
+        await emailService.sendWelcomeEmail(
+          { email: user.email, first_name: user.first_name, username: user.username },
+          isAdminGenerated ? plainPassword : '(password set by user)'
+        );
+      }
+
       // Get updated user with roles
       const roles = await authService.getUserRoles(user.id);
       user.roles = roles;
@@ -253,7 +306,7 @@ router.post(
 
       res.status(201).json({
         success: true,
-        message: 'User created successfully',
+        message: `User created successfully${notify ? ' — welcome email sent' : ''}`,
         data: { user },
       });
     } catch (error) {
@@ -543,10 +596,12 @@ router.post(
         [hashedPassword, requirePasswordChange, id]
       );
 
-      // TODO: Send email notification if notifyUser is true
+      // Send email notification
       if (notifyUser) {
-        logger.info(`Password reset notification should be sent to: ${user.email}`);
-        // Implement email service integration here
+        await emailService.sendAdminPasswordResetEmail(
+          { email: user.email, first_name: user.first_name },
+          newPassword
+        );
       }
 
       // Log the admin action

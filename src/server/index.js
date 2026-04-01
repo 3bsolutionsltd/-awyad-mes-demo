@@ -15,6 +15,7 @@ import routes from './routes/index.js';
 import dataService from './services/dataService.js';
 import databaseService from './services/databaseService.js';
 import authService from './services/authService.js';
+import { runPendingMigrations } from '../../database/migrate.js';
 
 // Load environment variables
 dotenv.config();
@@ -148,7 +149,19 @@ const startServer = async () => {
     if (useDatabase) {
       await databaseService.initialize();
       logger.info('✅ Database connection established');
-      
+
+      // Run any pending SQL migrations automatically
+      try {
+        const { applied } = await runPendingMigrations();
+        if (applied > 0) {
+          logger.info(`✅ Applied ${applied} pending database migration(s)`);
+        } else {
+          logger.info('✅ Database schema is up to date');
+        }
+      } catch (migErr) {
+        logger.error('⚠️  Migration error (server will continue):', migErr.message);
+      }
+
       // Start token cleanup job (every hour)
       setInterval(() => {
         authService.cleanupExpiredTokens();

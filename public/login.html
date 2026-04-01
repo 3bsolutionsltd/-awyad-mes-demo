@@ -70,7 +70,7 @@
                     <div id="alertContainer"></div>
 
                     <!-- Tabs -->
-                    <ul class="nav nav-tabs mb-4" role="tablist">
+                    <ul class="nav nav-tabs mb-4" role="tablist" id="authTabs">
                         <li class="nav-item flex-fill" role="presentation">
                             <button class="nav-link active w-100" id="login-tab" data-bs-toggle="tab" data-bs-target="#login" type="button">
                                 Login
@@ -78,6 +78,25 @@
                         </li>
                         <li class="nav-item flex-fill" role="presentation">
                             <button class="nav-link w-100" id="register-tab" data-bs-toggle="tab" data-bs-target="#register" type="button">
+                                Register
+                            </button>
+                        </li>
+                        <li class="nav-item flex-fill" role="presentation" id="forgot-tab-item" style="display:none">
+                            <button class="nav-link w-100" id="forgot-tab" data-bs-toggle="tab" data-bs-target="#forgot" type="button">
+                                Forgot Password
+                            </button>
+                        </li>
+                        <li class="nav-item flex-fill" role="presentation" id="reset-tab-item" style="display:none">
+                            <button class="nav-link w-100" id="reset-tab" data-bs-toggle="tab" data-bs-target="#reset" type="button">
+                                Set Password
+                            </button>
+                        </li>
+                        <li class="nav-item flex-fill" role="presentation" id="change-tab-item" style="display:none">
+                            <button class="nav-link w-100" id="change-tab" data-bs-toggle="tab" data-bs-target="#change" type="button">
+                                Change Password
+                            </button>
+                        </li>
+                    </ul>
                                 Register
                             </button>
                         </li>
@@ -104,6 +123,9 @@
                                     <span class="spinner-border spinner-border-sm d-none" id="loginSpinner"></span>
                                     <span id="loginButtonText">Login</span>
                                 </button>
+                                <div class="text-center mt-3">
+                                    <a href="#" id="forgotPasswordLink" class="text-muted small">Forgot your password?</a>
+                                </div>
                             </form>
                         </div>
 
@@ -144,6 +166,73 @@
                             </form>
                         </div>
                     </div>
+
+                        <!-- Forgot Password Form -->
+                        <div class="tab-pane fade" id="forgot" role="tabpanel">
+                            <p class="text-muted small mb-3">Enter your email address and we'll send you a link to reset your password.</p>
+                            <form id="forgotForm">
+                                <div class="mb-3">
+                                    <label for="forgotEmail" class="form-label">Email Address</label>
+                                    <input type="email" class="form-control" id="forgotEmail" required placeholder="your@email.com">
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <span class="spinner-border spinner-border-sm d-none" id="forgotSpinner"></span>
+                                    <span id="forgotButtonText">Send Reset Link</span>
+                                </button>
+                                <div class="text-center mt-3">
+                                    <a href="#" id="backToLoginLink" class="text-muted small">Back to login</a>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Reset Password Form (token-based, from email link) -->
+                        <div class="tab-pane fade" id="reset" role="tabpanel">
+                            <p class="text-muted small mb-3">Enter your new password below.</p>
+                            <form id="resetForm">
+                                <input type="hidden" id="resetToken">
+                                <div class="mb-3">
+                                    <label for="resetPassword" class="form-label">New Password</label>
+                                    <input type="password" class="form-control" id="resetPassword" required
+                                           placeholder="Min 8 chars, mixed case, number &amp; special char">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="resetConfirmPassword" class="form-label">Confirm Password</label>
+                                    <input type="password" class="form-control" id="resetConfirmPassword" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <span class="spinner-border spinner-border-sm d-none" id="resetSpinner"></span>
+                                    <span id="resetButtonText">Set New Password</span>
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Force Change Password (first login) -->
+                        <div class="tab-pane fade" id="change" role="tabpanel">
+                            <div class="alert alert-warning" role="alert">
+                                <strong>Action required:</strong> You must set a new password before continuing.
+                            </div>
+                            <form id="changeForm">
+                                <div class="mb-3">
+                                    <label for="changeOldPassword" class="form-label">Current (temporary) Password</label>
+                                    <input type="password" class="form-control" id="changeOldPassword" required
+                                           placeholder="Your temporary password from the welcome email">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="changePassword" class="form-label">New Password</label>
+                                    <input type="password" class="form-control" id="changePassword" required
+                                           placeholder="Min 8 chars, mixed case, number &amp; special char">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="changeConfirmPassword" class="form-label">Confirm Password</label>
+                                    <input type="password" class="form-control" id="changeConfirmPassword" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <span class="spinner-border spinner-border-sm d-none" id="changeSpinner"></span>
+                                    <span id="changeButtonText">Set Password &amp; Continue</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -156,10 +245,12 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module">
         import { authManager } from './auth.js';
-        
+
+        const API = '/api/v1';
+
         // Make authManager available for inline scripts
         window.authManager = authManager;
-        
+
         // Show alert message
         function showAlert(message, type = 'danger') {
             const alertContainer = document.getElementById('alertContainer');
@@ -171,17 +262,59 @@
             `;
             alertContainer.innerHTML = '';
             alertContainer.appendChild(alert);
-
-            // Auto dismiss after 5 seconds
-            setTimeout(() => {
-                alert.remove();
-            }, 5000);
+            setTimeout(() => { alert.remove(); }, 6000);
         }
 
-        // Login form handler
+        function validatePasswordStrength(password) {
+            if (password.length < 8) return 'Password must be at least 8 characters.';
+            if (!/[A-Z]/.test(password)) return 'Password must include at least one uppercase letter.';
+            if (!/[a-z]/.test(password)) return 'Password must include at least one lowercase letter.';
+            if (!/[0-9]/.test(password)) return 'Password must include at least one number.';
+            return null;
+        }
+
+        // Redirect to dashboard if already logged in
+        if (authManager.isAuthenticated()) {
+            window.location.href = 'index.html';
+        }
+
+        // --- Handle ?reset=TOKEN in URL → show reset-password tab ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const resetToken = urlParams.get('reset');
+        if (resetToken) {
+            document.getElementById('resetToken').value = resetToken;
+            document.getElementById('reset-tab-item').style.display = '';
+            document.getElementById('reset-tab').click();
+            // Hide other tabs
+            document.getElementById('login-tab').closest('li').style.display = 'none';
+            document.getElementById('register-tab').closest('li').style.display = 'none';
+        }
+
+        // --- Handle force_password_change flag (set after login) ---
+        if (sessionStorage.getItem('force_password_change')) {
+            document.getElementById('change-tab-item').style.display = '';
+            document.getElementById('change-tab').click();
+            // Hide other tabs while forcing
+            document.getElementById('login-tab').closest('li').style.display = 'none';
+            document.getElementById('register-tab').closest('li').style.display = 'none';
+        }
+
+        // --- Forgot Password link ---
+        document.getElementById('forgotPasswordLink').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('forgot-tab-item').style.display = '';
+            document.getElementById('forgot-tab').click();
+        });
+
+        document.getElementById('backToLoginLink').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('login-tab').click();
+        });
+
+        // --- Login form handler ---
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
             const spinner = document.getElementById('loginSpinner');
@@ -191,14 +324,18 @@
                 spinner.classList.remove('d-none');
                 buttonText.textContent = 'Logging in...';
 
-                await authManager.login(email, password);
+                const data = await authManager.login(email, password);
 
-                showAlert('Login successful! Redirecting...', 'success');
-                
-                // Redirect to dashboard
-                setTimeout(() => {
-                    window.location.href = 'index.html';
-                }, 1000);
+                if (data.user.require_password_change) {
+                    showAlert('You must change your password before continuing.', 'warning');
+                    document.getElementById('change-tab-item').style.display = '';
+                    document.getElementById('login-tab').closest('li').style.display = 'none';
+                    document.getElementById('register-tab').closest('li').style.display = 'none';
+                    document.getElementById('change-tab').click();
+                } else {
+                    showAlert('Login successful! Redirecting...', 'success');
+                    setTimeout(() => { window.location.href = 'index.html'; }, 1000);
+                }
 
             } catch (error) {
                 showAlert(error.message || 'Login failed. Please check your credentials.', 'danger');
@@ -208,7 +345,7 @@
             }
         });
 
-        // Register form handler
+        // --- Register form handler ---
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -221,7 +358,6 @@
             const spinner = document.getElementById('registerSpinner');
             const buttonText = document.getElementById('registerButtonText');
 
-            // Validate passwords match
             if (password !== confirmPassword) {
                 showAlert('Passwords do not match!', 'danger');
                 return;
@@ -231,17 +367,9 @@
                 spinner.classList.remove('d-none');
                 buttonText.textContent = 'Registering...';
 
-                await authManager.register({
-                    firstName,
-                    lastName,
-                    username,
-                    email,
-                    password
-                });
+                await authManager.register({ firstName, lastName, username, email, password });
 
                 showAlert('Registration successful! Please login.', 'success');
-                
-                // Switch to login tab
                 setTimeout(() => {
                     document.getElementById('login-tab').click();
                     document.getElementById('registerForm').reset();
@@ -255,10 +383,116 @@
             }
         });
 
-        // Redirect to dashboard if already logged in
-        if (authManager.isAuthenticated()) {
-            window.location.href = 'index.html';
-        }
+        // --- Forgot Password form handler ---
+        document.getElementById('forgotForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email = document.getElementById('forgotEmail').value;
+            const spinner = document.getElementById('forgotSpinner');
+            const buttonText = document.getElementById('forgotButtonText');
+
+            try {
+                spinner.classList.remove('d-none');
+                buttonText.textContent = 'Sending...';
+
+                const response = await fetch(`${API}/auth/forgot-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email }),
+                });
+                const result = await response.json();
+                showAlert(result.message || 'Reset link sent if account exists.', 'success');
+                document.getElementById('forgotForm').reset();
+            } catch (error) {
+                showAlert('Unable to send reset email. Please try again later.', 'danger');
+            } finally {
+                spinner.classList.add('d-none');
+                buttonText.textContent = 'Send Reset Link';
+            }
+        });
+
+        // --- Reset Password form handler (from email token link) ---
+        document.getElementById('resetForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const token = document.getElementById('resetToken').value;
+            const newPassword = document.getElementById('resetPassword').value;
+            const confirmPassword = document.getElementById('resetConfirmPassword').value;
+            const spinner = document.getElementById('resetSpinner');
+            const buttonText = document.getElementById('resetButtonText');
+
+            if (newPassword !== confirmPassword) {
+                showAlert('Passwords do not match!', 'danger');
+                return;
+            }
+            const err = validatePasswordStrength(newPassword);
+            if (err) { showAlert(err, 'danger'); return; }
+
+            try {
+                spinner.classList.remove('d-none');
+                buttonText.textContent = 'Saving...';
+
+                const response = await fetch(`${API}/auth/reset-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, newPassword }),
+                });
+                const result = await response.json();
+
+                if (!response.ok) throw new Error(result.message || 'Reset failed');
+
+                showAlert('Password updated! You can now log in.', 'success');
+                // Restore normal tabs and go to login
+                document.getElementById('reset-tab-item').style.display = 'none';
+                document.getElementById('login-tab').closest('li').style.display = '';
+                document.getElementById('register-tab').closest('li').style.display = '';
+                // Strip ?reset= from URL
+                history.replaceState(null, '', window.location.pathname);
+                setTimeout(() => { document.getElementById('login-tab').click(); }, 2000);
+
+            } catch (error) {
+                showAlert(error.message || 'Password reset failed.', 'danger');
+            } finally {
+                spinner.classList.add('d-none');
+                buttonText.textContent = 'Set New Password';
+            }
+        });
+
+        // --- Force Change Password form handler ---
+        document.getElementById('changeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const oldPassword = document.getElementById('changeOldPassword').value;
+            const newPassword = document.getElementById('changePassword').value;
+            const confirmPassword = document.getElementById('changeConfirmPassword').value;
+            const spinner = document.getElementById('changeSpinner');
+            const buttonText = document.getElementById('changeButtonText');
+
+            if (newPassword !== confirmPassword) {
+                showAlert('Passwords do not match!', 'danger');
+                return;
+            }
+            const err = validatePasswordStrength(newPassword);
+            if (err) { showAlert(err, 'danger'); return; }
+
+            try {
+                spinner.classList.remove('d-none');
+                buttonText.textContent = 'Saving...';
+
+                // Call the authenticated change-password endpoint
+                await authManager.changePassword(oldPassword, newPassword);
+
+                sessionStorage.removeItem('force_password_change');
+                showAlert('Password set! Redirecting to dashboard...', 'success');
+                setTimeout(() => { window.location.href = 'index.html'; }, 1500);
+
+            } catch (error) {
+                showAlert(error.message || 'Failed to set password. Please try again.', 'danger');
+            } finally {
+                spinner.classList.add('d-none');
+                buttonText.textContent = 'Set Password & Continue';
+            }
+        });
     </script>
 </body>
 </html>

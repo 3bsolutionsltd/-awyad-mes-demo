@@ -152,9 +152,9 @@ class AuthService {
     try {
       // Find user
       const user = await databaseService.queryOne(
-        `SELECT id, email, username, password_hash, first_name, last_name, 
-                is_active, is_verified, last_login_at
-         FROM users 
+        `SELECT id, email, username, password_hash, first_name, last_name,
+                is_active, is_verified, last_login_at, require_password_change
+         FROM users
          WHERE (email = $1 OR username = $1)`,
         [emailOrUsername]
       );
@@ -353,9 +353,9 @@ class AuthService {
       // Hash new password
       const newHash = await this.hashPassword(newPassword);
 
-      // Update password
+      // Update password and clear forced-change flag
       await databaseService.query(
-        'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+        'UPDATE users SET password_hash = $1, require_password_change = FALSE, updated_at = NOW() WHERE id = $2',
         [newHash, userId]
       );
 
@@ -371,6 +371,89 @@ class AuthService {
       logger.error('Password change failed:', error);
       throw new AppError('Password change failed', 500);
     }
+  }
+
+  /**
+   * Create a secure one-time password reset token for self-service reset.
+   * @param {string} email - User email address
+   * @returns {Promise<{token: string, user: Object}>}
+   */
+  async createPasswordResetToken(email) {
+    const user = await databaseService.queryOne(
+      'SELECT id, email, first_name, is_active FROM users WHERE email = $1',
+      [email]
+    );
+    // Return silently for unknown emails (security: don't reveal user existence)
+    if (!user || !user.is_active) return null;
+
+    // Invalidate any existing unused tokens
+    await databaseService.query(
+      'DELETE FROM password_reset_tokens WHERE user_id = $1 AND used_at IS NULL',
+      [user.id]
+    );
+
+    const buffer = await randomBytesAsync(40);
+    const token = buffer.toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await databaseService.query(
+      'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+      [user.id, token, expiresAt]
+    );
+
+    return { token, user };
+  }
+
+  /**
+   * Reset a password using a valid reset token.
+   * @param {string} token - Reset token from email link
+   * @param {string} newPassword - New plain-text password
+   * @returns {Promise<Object>} Updated user
+   */
+  async resetPasswordWithToken(token, newPassword) {
+    const record = await databaseService.queryOne(
+      `SELECT prt.id, prt.user_id, u.email, u.first_name, u.is_active
+       FROM password_reset_tokens prt
+       JOIN users u ON prt.user_id = u.id
+       WHERE prt.token = $1
+         AND prt.used_at IS NULL
+         AND prt.expires_at > NOW()`,
+      [token]
+    );
+
+    if (!record) {
+      throw new AppError('Invalid or expired password reset link', 400);
+    }
+
+    if (!record.is_active) {
+      throw new AppError('Account is deactivated', 403);
+    }
+
+    const newHash = await this.hashPassword(newPassword);
+
+    await databaseService.query(
+      `UPDATE users
+         SET password_hash = $1,
+             require_password_change = FALSE,
+             updated_at = NOW()
+       WHERE id = $2`,
+      [newHash, record.user_id]
+    );
+
+    // Mark token as used
+    await databaseService.query(
+      'UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1',
+      [record.id]
+    );
+
+    // Revoke all refresh tokens for security
+    await databaseService.query(
+      'UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1',
+      [record.user_id]
+    );
+
+    logger.info('Password reset via token:', { userId: record.user_id });
+    return { email: record.email, first_name: record.first_name };
   }
 
   /**

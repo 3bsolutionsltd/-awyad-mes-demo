@@ -7,6 +7,8 @@
 import express from 'express';
 import Joi from 'joi';
 import authService from '../services/authService.js';
+import databaseService from '../services/databaseService.js';
+import emailService from '../services/emailService.js';
 import { authenticate, logAuthAttempt, rateLimit } from '../middleware/auth.js';
 import { validate } from '../middleware/validation.js';
 import AppError from '../utils/AppError.js';
@@ -231,14 +233,38 @@ router.post(
     try {
       const { email } = req.body;
 
-      // TODO: Implement password reset email logic
-      // For now, return success message
-      logger.info('Password reset requested for:', email);
+      const user = await databaseService.queryOne(
+        'SELECT id, email, first_name FROM users WHERE email = $1 AND is_active = TRUE',
+        [email]
+      );
 
+      // Always return success to prevent email enumeration
       res.json({
         success: true,
         message: 'If an account with that email exists, a password reset link has been sent.',
       });
+
+      // Send token asynchronously (after response)
+      if (user) {
+        // Invalidate existing unused tokens for this user
+        await databaseService.query(
+          'DELETE FROM password_reset_tokens WHERE user_id = $1 AND used_at IS NULL',
+          [user.id]
+        );
+
+        // Generate 64-byte hex token
+        const { randomBytes } = await import('crypto');
+        const token = randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+        await databaseService.query(
+          'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+          [user.id, token, expiresAt]
+        );
+
+        await emailService.sendPasswordResetEmail(user, token);
+        logger.info('Password reset email queued for:', email);
+      }
     } catch (error) {
       next(error);
     }
@@ -258,8 +284,49 @@ router.post(
     try {
       const { token, newPassword } = req.body;
 
-      // TODO: Implement password reset token verification and password update
-      logger.info('Password reset attempted with token');
+      // Validate token
+      const record = await databaseService.queryOne(
+        `SELECT prt.id, prt.user_id, u.email, u.first_name
+         FROM password_reset_tokens prt
+         JOIN users u ON u.id = prt.user_id
+         WHERE prt.token = $1
+           AND prt.used_at IS NULL
+           AND prt.expires_at > NOW()
+           AND u.is_active = TRUE`,
+        [token]
+      );
+
+      if (!record) {
+        throw new AppError('Invalid or expired password reset link', 400);
+      }
+
+      // Hash and save new password
+      const passwordHash = await authService.hashPassword(newPassword);
+
+      await databaseService.transaction(async (client) => {
+        // Update password and clear the force-change flag
+        await client.query(
+          `UPDATE users
+           SET password_hash = $1,
+               require_password_change = FALSE,
+               updated_at = NOW()
+           WHERE id = $2`,
+          [passwordHash, record.user_id]
+        );
+        // Mark token as used
+        await client.query(
+          'UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1',
+          [record.id]
+        );
+        // Revoke all refresh tokens for security
+        await client.query(
+          'UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1',
+          [record.user_id]
+        );
+      });
+
+      await emailService.sendPasswordChangedEmail(record);
+      logger.info('Password reset successful:', { userId: record.user_id });
 
       res.json({
         success: true,

@@ -124,7 +124,55 @@ async function runMigrations() {
   }
 }
 
-runMigrations().catch(err => {
-  console.error('Migration runner error:', err.message);
-  process.exit(1);
-});
+/**
+ * Apply all pending migrations programmatically (can be imported by server).
+ * Uses its own DB connection so it is safe to call before the app pool is warm.
+ * @returns {Promise<{applied: number}>}
+ */
+export async function runPendingMigrations() {
+  const client = new Client(config);
+  try {
+    await client.connect();
+    await ensureBaseSchema(client);
+    await ensureMigrationsTable(client);
+    const applied = await getAppliedMigrations(client);
+
+    const migrationsDir = path.join(__dirname, 'migrations');
+    const files = fs.readdirSync(migrationsDir)
+      .filter(f => f.endsWith('.sql') && /^\d/.test(f))
+      .sort();
+
+    const pending = files.filter(f => !applied.has(f));
+    if (pending.length === 0) return { applied: 0 };
+
+    for (const file of pending) {
+      const filePath = path.join(migrationsDir, file);
+      const sql = fs.readFileSync(filePath, 'utf8');
+      try {
+        await client.query('BEGIN');
+        await client.query(sql);
+        await client.query(
+          'INSERT INTO schema_migrations (filename) VALUES ($1)',
+          [file]
+        );
+        await client.query('COMMIT');
+        console.log(`  ✅ Migration applied: ${file}`);
+      } catch (err) {
+        await client.query('ROLLBACK');
+        console.error(`  ❌ Migration failed: ${file} — ${err.message}`);
+        throw err;
+      }
+    }
+    return { applied: pending.length };
+  } finally {
+    await client.end();
+  }
+}
+
+// CLI entry point
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  runMigrations().catch(err => {
+    console.error('Migration runner error:', err.message);
+    process.exit(1);
+  });
+}
