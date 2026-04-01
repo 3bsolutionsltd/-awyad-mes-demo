@@ -3,6 +3,19 @@
 -- Date: 2026-01-28
 -- Author: Development Team
 
+-- Ensure the unique constraint exists (may be missing on older production databases)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'system_configurations'::regclass
+      AND contype = 'u'
+      AND conname = 'system_configurations_config_type_config_code_key'
+  ) THEN
+    ALTER TABLE system_configurations ADD CONSTRAINT system_configurations_config_type_config_code_key UNIQUE (config_type, config_code);
+  END IF;
+END $$;
+
 -- ============================================
 -- SEED DISTRICTS
 -- ============================================
