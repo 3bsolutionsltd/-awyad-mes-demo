@@ -468,7 +468,7 @@ function showAddUserModal() {
                                             <div class="form-check">
                                                 <input class="form-check-input" type="checkbox" value="${role.id}" id="role-${role.id}">
                                                 <label class="form-check-label" for="role-${role.id}">
-                                                    <strong>${role.display_name}</strong>
+                                                    <strong>${role.display_name || role.name}</strong>
                                                     <br><small class="text-muted">${role.description || ''}</small>
                                                 </label>
                                             </div>
@@ -712,7 +712,7 @@ async function showManageRolesModal(userId) {
                                                     <input class="form-check-input" type="checkbox" value="${role.id}" 
                                                            id="role-check-${role.id}" ${userRoleIds.includes(role.id) ? 'checked' : ''}>
                                                     <label class="form-check-label" for="role-check-${role.id}">
-                                                        <h6 class="mb-1">${role.display_name}</h6>
+                                                        <h6 class="mb-1">${role.display_name || role.name}</h6>
                                                         <small class="text-muted">${role.description || ''}</small>
                                                         <div class="mt-2">
                                                             <small class="text-info">
