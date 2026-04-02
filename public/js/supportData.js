@@ -34,6 +34,7 @@ export async function renderSupportData(container) {
 // ─── Internal re-render ──────────────────────────────────────────────────────
 
 async function _refresh(container) {
+    const _t = Date.now();
     const [typesRes, allCatsRes, districtsRes, settlementsRes, natRes, ageGroupsRes,
            strategiesRes, pillarsRes, componentsRes] = await Promise.all([
         apiService.get('/cases/types/all'),
@@ -42,9 +43,9 @@ async function _refresh(container) {
         apiService.get('/support-data/config-items?type=settlement'),
         apiService.get('/support-data/config-items?type=nationality'),
         apiService.get('/support-data/config-items?type=age_group'),
-        apiService.get('/strategies?include_inactive=true'),
-        apiService.get('/pillars?include_inactive=true'),
-        apiService.get('/components?include_inactive=true'),
+        apiService.get(`/strategies?include_inactive=true&_t=${_t}`),
+        apiService.get(`/pillars?include_inactive=true&_t=${_t}`),
+        apiService.get(`/components?include_inactive=true&_t=${_t}`),
     ]);
 
     const types       = typesRes.data || [];
@@ -1365,9 +1366,9 @@ function _showComponentModal(component, pillar, onSave) {
         ? (Array.isArray(component.interventions)
             ? component.interventions : JSON.parse(component.interventions || '[]')).join('\n')
         : '';
-    const approaches = isEdit && component.approaches
-        ? (Array.isArray(component.approaches)
-            ? component.approaches : JSON.parse(component.approaches || '[]')).join('\n')
+    const approaches = isEdit && component.implementation_approaches
+        ? (Array.isArray(component.implementation_approaches)
+            ? component.implementation_approaches : JSON.parse(component.implementation_approaches || '[]')).join('\n')
         : '';
 
     document.body.insertAdjacentHTML('beforeend', createModal({

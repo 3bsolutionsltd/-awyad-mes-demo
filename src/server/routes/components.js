@@ -169,7 +169,7 @@ router.post('/', authenticate, checkPermission('components.create'), async (req,
 
         const component = await databaseService.queryOne(
             `INSERT INTO core_program_components 
-            (pillar_id, name, description, code, interventions, approaches, display_order, is_active, created_by)
+            (pillar_id, name, description, code, interventions, implementation_approaches, display_order, is_active, created_by)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING *`,
             [
@@ -184,6 +184,9 @@ router.post('/', authenticate, checkPermission('components.create'), async (req,
                 req.user.id
             ]
         );
+
+        // Normalize field name for frontend
+        if (component) component.approaches = component.implementation_approaches;
 
         res.status(201).json({
             success: true,
@@ -235,8 +238,11 @@ router.put('/:id', authenticate, checkPermission('components.update'), async (re
         let paramIndex = 1;
 
         Object.keys(value).forEach(key => {
-            if (key === 'interventions' || key === 'approaches') {
-                updates.push(`${key} = $${paramIndex++}`);
+            if (key === 'interventions') {
+                updates.push(`interventions = $${paramIndex++}`);
+                params.push(JSON.stringify(value[key]));
+            } else if (key === 'approaches') {
+                updates.push(`implementation_approaches = $${paramIndex++}`);
                 params.push(JSON.stringify(value[key]));
             } else {
                 updates.push(`${key} = $${paramIndex++}`);
@@ -255,6 +261,9 @@ router.put('/:id', authenticate, checkPermission('components.update'), async (re
         `;
 
         const component = await databaseService.queryOne(query, params);
+
+        // Normalize field name for frontend
+        if (component) component.approaches = component.implementation_approaches;
 
         res.json({
             success: true,
