@@ -314,6 +314,12 @@ router.get('/', authenticate, checkPermission('activities.read'), async (req, re
  */
 router.post('/', authenticate, checkPermission('activities.create'), async (req, res, next) => {
     try {
+        // Defensive coercion: ensure project_id is a string when possible
+        if (req.body && req.body.project_id != null && typeof req.body.project_id !== 'string') {
+            req.body.project_id = String(req.body.project_id);
+        }
+
+        // Validate payload after potential coercion
         const { error, value } = createActivitySchema.validate(req.body);
         if (error) {
             throw new AppError(error.details[0].message, 400);
@@ -329,14 +335,19 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
             throw new AppError('Indicator not found', 404);
         }
 
-        // Verify project exists
+        // Verify project exists (do after indicator check to preserve test expectations)
         const project = await databaseService.queryOne(
-            'SELECT id FROM projects WHERE id = $1',
+            'SELECT id, start_date, end_date FROM projects WHERE id = $1',
             [value.project_id]
         );
 
         if (!project) {
             throw new AppError('Project not found', 404);
+        }
+
+        // Default planned_date to project.start_date when not provided
+        if (!value.planned_date && project.start_date) {
+            value.planned_date = project.start_date;
         }
 
         // Resolve location from district/settlement if provided
@@ -389,6 +400,19 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
             )
             RETURNING *
         `;
+
+        // validate planned_date against project dates (if project fetched)
+        if (project && value.planned_date) {
+            const pd = new Date(value.planned_date);
+            const pStart = project.start_date ? new Date(project.start_date) : null;
+            const pEnd = project.end_date ? new Date(project.end_date) : null;
+            if (pStart && pd < pStart) {
+                throw new AppError('Planned date must be on or after project start date', 400);
+            }
+            if (pEnd && pd > pEnd) {
+                throw new AppError('Planned date must be on or before project end date', 400);
+            }
+        }
 
         const activity = await databaseService.queryOne(query, [
             value.thematic_area_id,

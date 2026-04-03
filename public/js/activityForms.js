@@ -238,6 +238,29 @@ export async function showCreateActivityModal(onSuccess, options = {}) {
         // ── Cascade filtering: Project → Indicator ───────────────────────────
         const _allIndicators = indicators.slice();
 
+        // Track current project's project start/end for date validation
+        let _currentProjectStart = null;
+        let _currentProjectEnd = null;
+
+        async function _setCurrentProjectDates(projectId) {
+            _currentProjectStart = null;
+            _currentProjectEnd = null;
+            if (!projectId) return;
+            try {
+                const projRes = await apiService.get(`/projects/${projectId}`);
+                const proj = projRes.data || projRes;
+                if (proj && proj.start_date) _currentProjectStart = proj.start_date.split('T')[0];
+                if (proj && proj.end_date) _currentProjectEnd = proj.end_date.split('T')[0];
+                // If planned date empty, default to project start
+                const pdInput = document.getElementById('activityPlannedDate');
+                if (pdInput && (!pdInput.value || pdInput.value === '')) {
+                    if (_currentProjectStart) pdInput.value = _currentProjectStart;
+                }
+            } catch (err) {
+                console.warn('Unable to fetch project for date defaults', err);
+            }
+        }
+
         function _repopulateCreateIndicators(projectId, keepSelectedId) {
             const sel = document.getElementById('activityIndicator');
             if (!sel) return;
@@ -258,6 +281,7 @@ export async function showCreateActivityModal(onSuccess, options = {}) {
 
         document.getElementById('activityProject').addEventListener('change', function () {
             _repopulateCreateIndicators(this.value, document.getElementById('activityIndicator').value);
+            _setCurrentProjectDates(this.value);
         });
 
         // District → Settlement cascade (create modal)
@@ -288,6 +312,8 @@ export async function showCreateActivityModal(onSuccess, options = {}) {
                 projSel.value = presetProjectId;
                 projSel.disabled = true;
                 _repopulateCreateIndicators(presetProjectId, null);
+                // fetch project dates and set planned date default
+                _setCurrentProjectDates(presetProjectId);
             }
         }
         // ────────────────────────────────────────────────────────────────────
@@ -327,6 +353,28 @@ export async function showCreateActivityModal(onSuccess, options = {}) {
                 const createBtn = document.getElementById('createActivityBtn');
                 createBtn.disabled = true;
                 createBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creating...';
+
+                // Validate planned_date against project start/end on the client
+                if (_currentProjectStart && data.planned_date) {
+                    const pd = new Date(data.planned_date);
+                    const ps = new Date(_currentProjectStart);
+                    if (pd < ps) {
+                        showNotification('Planned date must be on or after project start date', 'danger');
+                        createBtn.disabled = false;
+                        createBtn.innerHTML = '<i class="bi bi-check-lg"></i> Create Activity';
+                        return;
+                    }
+                }
+                if (_currentProjectEnd && data.planned_date) {
+                    const pd = new Date(data.planned_date);
+                    const pe = new Date(_currentProjectEnd);
+                    if (pd > pe) {
+                        showNotification('Planned date must be on or before project end date', 'danger');
+                        createBtn.disabled = false;
+                        createBtn.innerHTML = '<i class="bi bi-check-lg"></i> Create Activity';
+                        return;
+                    }
+                }
 
                 const response = await apiService.post('/activities', data);
 

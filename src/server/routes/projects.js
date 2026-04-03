@@ -9,10 +9,11 @@ const router = express.Router();
 // Validation schemas
 const createProjectSchema = Joi.object({
     name: Joi.string().required().max(255),
-    donor_ids: Joi.array().items(Joi.string().uuid()).min(1).required(),
+    donor_ids: Joi.array().items(Joi.string().uuid()).min(1).optional(),
+    donor: Joi.string().max(255).optional(),
     description: Joi.string().allow('', null),
     thematic_area_id: Joi.string().uuid().optional().allow(null, ''),
-    component_ids: Joi.array().items(Joi.string().uuid()).min(1).required(),
+    component_ids: Joi.array().items(Joi.string().uuid()).min(1).optional(),
     start_date: Joi.date().required(),
     end_date: Joi.date().greater(Joi.ref('start_date')).required(),
     budget: Joi.number().min(0).default(0),
@@ -200,25 +201,31 @@ router.post('/', authenticate, checkPermission('projects.create'), async (req, r
             status
         } = value;
 
-        // Verify all donors exist and collect names
+        // Verify donors: accept either donor_ids (array of uuids) or legacy donor (string)
         const donorRecords = [];
-        for (const did of donor_ids) {
-            const d = await databaseService.queryOne(
-                'SELECT id, name FROM donors WHERE id = $1 AND is_active = true',
-                [did]
-            );
-            if (!d) throw new AppError(`Donor not found or inactive: ${did}`, 404);
-            donorRecords.push(d);
+        if (donor_ids && donor_ids.length > 0) {
+            for (const did of donor_ids) {
+                const d = await databaseService.queryOne(
+                    'SELECT id, name FROM donors WHERE id = $1 AND is_active = true',
+                    [did]
+                );
+                if (!d) throw new AppError(`Donor not found or inactive: ${did}`, 404);
+                donorRecords.push(d);
+            }
+        } else if (value.donor) {
+            donorRecords.push({ name: value.donor });
         }
 
-        // Verify all provided component IDs exist
-        for (const cid of component_ids) {
-            const comp = await databaseService.queryOne(
-                'SELECT id FROM core_program_components WHERE id = $1',
-                [cid]
-            );
-            if (!comp) {
-                throw new AppError(`Core program component not found: ${cid}`, 404);
+        // Verify all provided component IDs exist (optional)
+        if (component_ids && component_ids.length > 0) {
+            for (const cid of component_ids) {
+                const comp = await databaseService.queryOne(
+                    'SELECT id FROM core_program_components WHERE id = $1',
+                    [cid]
+                );
+                if (!comp) {
+                    throw new AppError(`Core program component not found: ${cid}`, 404);
+                }
             }
         }
 
@@ -231,9 +238,11 @@ router.post('/', authenticate, checkPermission('projects.create'), async (req, r
             RETURNING *
         `;
 
+        const donorText = donorRecords.length > 0 ? donorRecords.map(d => d.name).join(', ') : null;
+
         const project = await databaseService.queryOne(insertQuery, [
             name,
-            donorRecords.map(d => d.name).join(', '),
+            donorText,
             description,
             thematic_area_id || null,
             start_date,
@@ -244,22 +253,28 @@ router.post('/', authenticate, checkPermission('projects.create'), async (req, r
             req.user.id
         ]);
 
-        // Link to donors (junction table)
-        for (const did of donor_ids) {
-            await databaseService.query(
-                'INSERT INTO project_donors (project_id, donor_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-                [project.id, did]
-            );
+        // Link to donors (junction table) if donor_ids provided
+        if (donor_ids && donor_ids.length > 0) {
+            for (const did of donor_ids) {
+                await databaseService.query(
+                    'INSERT INTO project_donors (project_id, donor_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                    [project.id, did]
+                );
+            }
         }
 
-        // Link to core program components
-        for (const cid of component_ids) {
-            await databaseService.query(
-                'INSERT INTO project_components (project_id, component_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-                [project.id, cid]
-            );
+        // Link to core program components if provided
+        if (component_ids && component_ids.length > 0) {
+            for (const cid of component_ids) {
+                await databaseService.query(
+                    'INSERT INTO project_components (project_id, component_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                    [project.id, cid]
+                );
+            }
+            project.components = component_ids.map(id => ({ id }));
+        } else {
+            project.components = [];
         }
-        project.components = component_ids.map(id => ({ id }));
 
         res.status(201).json({
             success: true,
