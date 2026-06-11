@@ -1157,24 +1157,27 @@ router.get('/:id', authenticate, checkPermission('activities.read'), async (req,
         };
 
         // Get budget transfers for this activity
-        const transfersQuery = `
-            SELECT 
-                bt.*,
-                a_from.activity_name as from_activity_name,
-                a_to.activity_name as to_activity_name,
-                u_req.username as requested_by_username,
-                u_app.username as approved_by_username
-            FROM activity_budget_transfers bt
-            LEFT JOIN activities a_from ON bt.from_activity_id = a_from.id
-            LEFT JOIN activities a_to ON bt.to_activity_id = a_to.id
-            LEFT JOIN users u_req ON bt.requested_by = u_req.id
-            LEFT JOIN users u_app ON bt.approved_by = u_app.id
-            WHERE bt.from_activity_id = $1 OR bt.to_activity_id = $1
-            ORDER BY bt.created_at DESC
-        `;
-
-        const btResult = await databaseService.query(transfersQuery, [id]);
-        activity.budget_transfers = btResult.rows;
+        try {
+            const transfersQuery = `
+                SELECT 
+                    bt.*,
+                    a_from.activity_name as from_activity_name,
+                    a_to.activity_name as to_activity_name,
+                    u_req.username as requested_by_username,
+                    u_app.username as approved_by_username
+                FROM activity_budget_transfers bt
+                LEFT JOIN activities a_from ON bt.from_activity_id = a_from.id
+                LEFT JOIN activities a_to ON bt.to_activity_id = a_to.id
+                LEFT JOIN users u_req ON bt.requested_by = u_req.id
+                LEFT JOIN users u_app ON bt.approved_by = u_app.id
+                WHERE bt.from_activity_id = $1 OR bt.to_activity_id = $1
+                ORDER BY bt.created_at DESC
+            `;
+            const btResult = await databaseService.query(transfersQuery, [id]);
+            activity.budget_transfers = btResult.rows;
+        } catch (_) {
+            activity.budget_transfers = [];
+        }
 
         // Fetch nationality breakdown if the table exists
         try {
@@ -1429,7 +1432,7 @@ router.get('/:id/funding-sources', authenticate, checkPermission('activities.rea
     try {
         const { id } = req.params;
         const fsResult = await databaseService.query(
-            `SELECT afs.*, u.full_name AS created_by_name
+            `SELECT afs.*, (u.first_name || ' ' || u.last_name) AS created_by_name
              FROM activity_funding_sources afs
              LEFT JOIN users u ON u.id = afs.created_by
              WHERE afs.activity_id = $1

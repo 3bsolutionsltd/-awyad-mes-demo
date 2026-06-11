@@ -405,7 +405,7 @@ function renderActivitiesSection(activities, projectId, projectName = '') {
                                     <tbody>
                                         ${activities.slice(0, 10).map(act => `
                                             <tr>
-                                                <td>${escapeHtml(act.name || act.description)}</td>
+                                                <td>${escapeHtml(act.activity_name || act.name || act.description)}</td>
                                                 <td>${renderActivityStatus(act.status)}</td>
                                                 <td><small>${formatDate(act.planned_date)}</small></td>
                                                 <td><small>${escapeHtml(act.location || 'N/A')}</small></td>
