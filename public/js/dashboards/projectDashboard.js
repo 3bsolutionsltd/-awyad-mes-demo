@@ -12,6 +12,7 @@ import { dashboardService } from '../services/dashboardService.js';
 import { showEditProjectModal } from '../projectForms.js';
 import { showCreateProjectIndicatorModal, showEditIndicatorModal, showViewIndicatorModal } from '../indicatorForms.js';
 import { showCreateActivityModal } from '../activityForms.js';
+import { showProjectReport } from '../projectReport.js';
 
 /**
  * Render Project Dashboard
@@ -148,6 +149,9 @@ function renderProjectHeader(project) {
                                 </div>
                             </div>
                             <div class="col-md-4 text-end">
+                                <button class="btn btn-outline-secondary me-2" onclick="generateProjectReport('${project.id}')">
+                                    <i class="bi bi-file-earmark-bar-graph"></i> Generate Report
+                                </button>
                                 <button class="btn btn-primary" onclick="editProject('${project.id}')">
                                     <i class="bi bi-pencil"></i> Edit Project
                                 </button>
@@ -816,4 +820,8 @@ window.viewCase = (id) => {
 window.viewAllCases = (projectId) => {
     console.log('View all cases:', projectId);
     window.location.hash = '#/cases';
+};
+
+window.generateProjectReport = (projectId) => {
+    showProjectReport(projectId);
 };
