@@ -62,6 +62,7 @@ const updateIndicatorSchema = Joi.object({
     result_area: Joi.string().max(200).allow('', null),
     lop_target: Joi.number().min(0),
     annual_target: Joi.number().min(0),
+    target: Joi.number().min(0),
     baseline: Joi.number().min(0),
     baseline_date: Joi.date().allow(null),
     q1_target: Joi.number().min(0),
@@ -73,7 +74,10 @@ const updateIndicatorSchema = Joi.object({
     q3_achieved: Joi.number().min(0),
     q4_achieved: Joi.number().min(0),
     achieved: Joi.number().min(0),
-    unit: Joi.string().allow('', null)
+    unit: Joi.string().allow('', null),
+    code: Joi.string().max(50).allow('', null),
+    reporting_frequency: Joi.string().valid('Monthly', 'Quarterly', 'Semi-Annual', 'Annual').allow(null),
+    status: Joi.string().valid('Active', 'Inactive', 'Completed').allow(null)
 }).min(1);
 
 /**
