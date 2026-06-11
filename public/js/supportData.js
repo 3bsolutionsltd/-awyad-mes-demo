@@ -1090,9 +1090,11 @@ function _showLocationModal(item, parentDistrict, onSave) {
         const form = document.getElementById('locationForm');
         if (!form.checkValidity()) { form.reportValidity(); return; }
         const fd = new FormData(form);
+        const nameVal = fd.get('name') || '';
+        const codeVal = fd.get('code') || '';
         const data = {
-            config_value:  fd.get('name'),
-            config_code:   fd.get('code') || null,
+            config_value:  nameVal,
+            config_code:   codeVal || nameVal.trim().toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '').slice(0, 50),
             display_order: parseInt(fd.get('display_order')) || 0,
         };
         const btn = document.getElementById('saveLocationBtn');
@@ -1167,9 +1169,11 @@ function _showConfigItemModal(item, configType, onSave) {
         const form = document.getElementById('configItemForm');
         if (!form.checkValidity()) { form.reportValidity(); return; }
         const fd = new FormData(form);
+        const nameVal = fd.get('name') || '';
+        const codeVal = fd.get('code') || '';
         const data = {
-            config_value:  fd.get('name'),
-            config_code:   fd.get('code') || null,
+            config_value:  nameVal,
+            config_code:   codeVal || nameVal.trim().toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '').slice(0, 50),
             description:   fd.get('description') || null,
             display_order: parseInt(fd.get('display_order')) || 0,
         };
