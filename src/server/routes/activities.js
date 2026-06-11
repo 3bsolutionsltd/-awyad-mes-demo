@@ -122,7 +122,7 @@ const updateActivitySchema = Joi.object({
     planned_date: Joi.date(),
     completion_date: Joi.date().allow(null),
     status: Joi.string().valid('Planned', 'In Progress', 'Completed', 'Cancelled'),
-    location: Joi.string().max(100),
+    location: Joi.string().max(200).allow('', null),
     currency: Joi.string().valid('UGX', 'USD', 'EUR', 'GBP'),
     exchange_rate: Joi.number().min(0),
     budget: Joi.number().min(0),
@@ -172,8 +172,8 @@ const updateActivitySchema = Joi.object({
     })),
 
     // Location hierarchy
-    district_id: Joi.string().uuid().allow(null),
-    settlement_id: Joi.string().uuid().allow(null),
+    district_id: Joi.string().uuid().allow('', null),
+    settlement_id: Joi.string().uuid().allow('', null),
 
     direct_male: Joi.number().integer().min(0),
     direct_female: Joi.number().integer().min(0),

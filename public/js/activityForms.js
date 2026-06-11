@@ -750,6 +750,11 @@ export async function showEditActivityModal(activityId, onSuccess) {
                 data.completion_date = null;
             }
 
+            // Convert empty UUID/optional fields to null so Joi accepts them
+            ['district_id', 'settlement_id', 'thematic_area_id'].forEach(field => {
+                if (data[field] === '' || data[field] === undefined) data[field] = null;
+            });
+
             // Collect nationality breakdown
             data.nationality_breakdown = [...document.querySelectorAll('#natBreakdownEdit [data-nat-id]')]
                 .filter(i => parseInt(i.value) > 0)
