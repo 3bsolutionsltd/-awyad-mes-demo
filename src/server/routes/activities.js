@@ -110,6 +110,7 @@ const createActivitySchema = Joi.object({
     activity_type: Joi.string().valid('program', 'non_program').default('program'),
 
     target_value: Joi.number().integer().min(0).default(0),
+    achieved_value: Joi.number().integer().min(0).default(0),
 });
 
 const updateActivitySchema = Joi.object({
@@ -187,7 +188,8 @@ const updateActivitySchema = Joi.object({
     latitude: Joi.number().min(-90).max(90).allow(null),
     longitude: Joi.number().min(-180).max(180).allow(null),
 
-    target_value: Joi.number().integer().min(0)
+    target_value: Joi.number().integer().min(0),
+    achieved_value: Joi.number().integer().min(0)
 }).min(1);
 
 const budgetTransferSchema = Joi.object({
@@ -371,6 +373,7 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
         const nationalityBreakdown = value.nationality_breakdown || [];
 
         const query = `
+            INSERT INTO activities (
                 thematic_area_id, indicator_id, project_id, activity_name, description,
                 planned_date, completion_date, status, location,
                 currency, exchange_rate, budget, actual_cost, is_costed,
@@ -387,7 +390,7 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
                 nationals, refugees, idps, returnees,
                 direct_male, direct_female, direct_other,
                 indirect_male, indirect_female, indirect_other,
-                notes, activity_type, created_by, updated_by, target_value
+                notes, activity_type, created_by, updated_by, target_value, achieved_value
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
@@ -396,7 +399,7 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
                 $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
                 $41, $42, $43, $44, $45, $46, $47, $48, $49, $50,
                 $51, $52, $53, $54, $55, $56, $57, $58, $59, $60,
-                $61, $62, $63, $64
+                $61, $62, $63, $64, $65
             )
             RETURNING *
         `;
@@ -479,6 +482,7 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
             req.user.id,
             req.user.id,
             value.target_value || 0,
+            value.achieved_value || 0,
         ]);
 
         // Upsert nationality breakdown rows
