@@ -339,9 +339,10 @@ export async function showCreateActivityModal(onSuccess, options = {}) {
                 data[field] = parseFloat(data[field]) || 0;
             });
 
-            // Handle empty project_id
+            // FormData skips disabled fields — re-read from the select element directly
             if (!data.project_id) {
-                data.project_id = null;
+                const projSel = document.getElementById('activityProject');
+                data.project_id = (projSel && projSel.value) ? projSel.value : null;
             }
 
             // Collect nationality breakdown
@@ -738,9 +739,10 @@ export async function showEditActivityModal(activityId, onSuccess) {
                 }
             });
 
-            // Handle empty project_id
+            // FormData skips disabled fields — re-read from the select element directly
             if (!data.project_id) {
-                data.project_id = null;
+                const projSel = document.getElementById('editActivityProject');
+                data.project_id = (projSel && projSel.value) ? projSel.value : null;
             }
 
             // Handle empty completion_date
