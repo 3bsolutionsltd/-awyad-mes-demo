@@ -27,7 +27,6 @@ COPY --from=base --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --chown=nodejs:nodejs src/ ./src/
 COPY --chown=nodejs:nodejs public/ ./public/
 COPY --chown=nodejs:nodejs data/ ./data/
-COPY --chown=nodejs:nodejs config/ ./config/
 COPY --chown=nodejs:nodejs package.json ./
 
 # Copy root-level JS/HTML files served as static assets
