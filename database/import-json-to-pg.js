@@ -169,18 +169,27 @@ async function run() {
         }
       }
 
-      // indicator_scope: use 'project' only when project_id is set AND result_area exists
+      // indicator_scope: use 'project' only when project_id is set
       // otherwise fall back to 'awyad' to satisfy the DB trigger
       const resultArea = ind.resultArea || ind.result_area || ind.name || ind.code || 'General';
       const indicatorScope = projId ? 'project' : 'awyad';
+
+      // Normalise to title-case to satisfy CHECK constraints (migrations 025 & 026)
+      const toTitleCase = (s, fallback) => {
+        if (!s) return fallback;
+        return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+      };
+      const indicatorLevel = toTitleCase(ind.level || ind.indicator_level, 'Output');
+      // data_type must be 'Number' or 'Percentage'
+      const dataType = /percent/i.test(ind.dataType || ind.data_type || '') ? 'Percentage' : 'Number';
 
       const res = await client.query(
         `INSERT INTO indicators
            (code, name, type, baseline, baseline_date, lop_target, annual_target,
             achieved, unit, project_id, thematic_area_id,
             q1_target, q2_target, q3_target, q4_target,
-            indicator_scope, result_area)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+            indicator_scope, result_area, indicator_level, data_type)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
          ON CONFLICT (code) DO NOTHING
          RETURNING id`,
         [
@@ -201,6 +210,8 @@ async function run() {
           safeNum(ind.q4Target),
           indicatorScope,
           resultArea,
+          indicatorLevel,
+          dataType,
         ]
       );
       if (res.rowCount > 0) counts.indicators++;
@@ -273,7 +284,14 @@ async function run() {
          RETURNING id`,
         [
           act.name,
-          act.status || 'Planned',
+          // Map mock status values to allowed CHECK values: Planned/In Progress/Completed/Cancelled
+          (() => {
+            const s = (act.status || '').toLowerCase();
+            if (s === 'completed') return 'Completed';
+            if (s === 'in progress' || s === 'in_progress') return 'In Progress';
+            if (s === 'cancelled' || s === 'canceled') return 'Cancelled';
+            return 'Planned'; // covers 'pending', 'draft', anything else
+          })(),
           safeDate(act.date) || new Date().toISOString().split('T')[0],
           act.location || 'Unknown',
           safeNum(act.target),
