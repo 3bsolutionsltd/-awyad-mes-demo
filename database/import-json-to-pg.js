@@ -169,12 +169,18 @@ async function run() {
         }
       }
 
+      // indicator_scope: use 'project' only when project_id is set AND result_area exists
+      // otherwise fall back to 'awyad' to satisfy the DB trigger
+      const resultArea = ind.resultArea || ind.result_area || ind.name || ind.code || 'General';
+      const indicatorScope = projId ? 'project' : 'awyad';
+
       const res = await client.query(
         `INSERT INTO indicators
            (code, name, type, baseline, baseline_date, lop_target, annual_target,
             achieved, unit, project_id, thematic_area_id,
-            q1_target, q2_target, q3_target, q4_target)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+            q1_target, q2_target, q3_target, q4_target,
+            indicator_scope, result_area)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
          ON CONFLICT (code) DO NOTHING
          RETURNING id`,
         [
@@ -193,6 +199,8 @@ async function run() {
           safeNum(ind.q2Target),
           safeNum(ind.q3Target),
           safeNum(ind.q4Target),
+          indicatorScope,
+          resultArea,
         ]
       );
       if (res.rowCount > 0) counts.indicators++;
