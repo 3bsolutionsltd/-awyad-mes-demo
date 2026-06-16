@@ -452,13 +452,13 @@ function showAddUserModal() {
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label for="username" class="form-label">Username <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="username" required>
+                                    <input type="text" class="form-control" id="username" pattern="[a-zA-Z0-9]+" minlength="3" maxlength="30" title="Username must contain only letters and numbers (no spaces or special characters)" required>
                                 </div>
                             </div>
                             <div class="mb-3">
-                                <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
-                                <input type="password" class="form-control" id="password" required>
-                                <div class="form-text">Minimum 8 characters</div>
+                                <label for="password" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="password" minlength="8" autocomplete="new-password">
+                                <div class="form-text">Minimum 8 characters. Leave blank to auto-generate a temporary password.</div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Assign Roles</label>
@@ -518,41 +518,54 @@ async function saveNewUser(modal) {
         return;
     }
 
-    const firstName = sanitizeInput(document.getElementById('firstName').value);
-    const lastName = sanitizeInput(document.getElementById('lastName').value);
-    const email = sanitizeInput(document.getElementById('email').value);
-    const username = sanitizeInput(document.getElementById('username').value);
-    const password = document.getElementById('password').value;
+    const firstName = sanitizeInput(document.getElementById('firstName').value.trim());
+    const lastName = sanitizeInput(document.getElementById('lastName').value.trim());
+    const email = sanitizeInput(document.getElementById('email').value.trim());
+    const username = sanitizeInput(document.getElementById('username').value.trim());
+    const passwordRaw = document.getElementById('password').value;
+
+    // Explicit password length check — browser minlength only fires on submit,
+    // but we want a clear styled message rather than the browser's generic tooltip.
+    if (passwordRaw && passwordRaw.length < 8) {
+        const pwdEl = document.getElementById('password');
+        pwdEl.setCustomValidity('Password must be at least 8 characters long.');
+        form.reportValidity();
+        pwdEl.setCustomValidity(''); // reset so future submits work
+        return;
+    }
 
     // Get selected roles
     const roleIds = Array.from(document.querySelectorAll('.form-check-input:checked'))
         .map(cb => cb.value);
+
+    // Build payload — omit password if blank so backend auto-generates one
+    const payload = { firstName, lastName, email, username, roleIds };
+    if (passwordRaw) {
+        payload.password = passwordRaw;
+    }
 
     try {
         const saveBtn = document.getElementById('btn-save-user');
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating...';
 
-        await apiService.post('/users', {
-            firstName,
-            lastName,
-            email,
-            username,
-            password,
-            roleIds
-        });
+        const result = await apiService.post('/users', payload);
 
         // Close modal
         modal.hide();
 
-        // Show success message
-        showSuccessToast('User created successfully');
+        // Show the server's message (includes email delivery status)
+        const toastMsg = result.message || 'User created successfully';
+        showSuccessToast(toastMsg);
 
         // Reload users
         await loadUsers();
     } catch (error) {
         console.error('Error creating user:', error);
-        alert('Error creating user: ' + error.message);
+        const detail = error.errors && error.errors.length
+            ? '\n' + error.errors.map(e => `• ${e.field}: ${e.message}`).join('\n')
+            : '';
+        alert('Error creating user: ' + error.message + detail);
         
         const saveBtn = document.getElementById('btn-save-user');
         saveBtn.disabled = false;

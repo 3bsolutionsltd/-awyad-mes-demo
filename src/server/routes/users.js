@@ -291,8 +291,9 @@ router.post(
 
       // Send welcome email (always for admin-created users, or when flag is set)
       const notify = req.body.sendWelcomeEmail !== false; // default true
+      let emailSent = false;
       if (notify) {
-        await emailService.sendWelcomeEmail(
+        emailSent = await emailService.sendWelcomeEmail(
           { email: user.email, first_name: user.first_name, username: user.username },
           isAdminGenerated ? plainPassword : '(password set by user)'
         );
@@ -304,9 +305,16 @@ router.post(
 
       logger.info('User created by admin:', { userId: user.id, createdBy: req.user.userId });
 
+      let message = 'User created successfully.';
+      if (notify) {
+        message += emailSent
+          ? ' A welcome email with login credentials has been sent.'
+          : ' Welcome email could not be sent — SMTP is not configured. Please share login credentials manually.';
+      }
+
       res.status(201).json({
         success: true,
-        message: `User created successfully${notify ? ' — welcome email sent' : ''}`,
+        message,
         data: { user },
       });
     } catch (error) {

@@ -47,14 +47,16 @@ class EmailService {
   async _send({ to, subject, html }) {
     if (!this.configured) {
       logger.info(`[EMAIL-NO-SMTP] To: ${to} | Subject: ${subject}`);
-      return;
+      return false;
     }
     try {
       await this.transporter.sendMail({ from: this.from, to, subject, html });
       logger.info(`Email sent → ${to}: ${subject}`);
+      return true;
     } catch (err) {
       logger.error(`Email send failed → ${to}: ${err.message}`);
       // Do not re-throw — email failure must never crash a user-facing operation
+      return false;
     }
   }
 
@@ -63,7 +65,7 @@ class EmailService {
    * @param {{ email, first_name, username }} user
    */
   async sendRegistrationWelcomeEmail(user) {
-    await this._send({
+    return this._send({
       to: user.email,
       subject: 'Welcome to AWYAD MES — Account Created',
       html: `
@@ -97,7 +99,7 @@ class EmailService {
    * @param {string} tempPassword - Plain-text temporary password (shown once)
    */
   async sendWelcomeEmail(user, tempPassword) {
-    await this._send({
+    return this._send({
       to: user.email,
       subject: 'Welcome to AWYAD MES — Your Account Details',
       html: `

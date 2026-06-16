@@ -78,8 +78,10 @@ class APIService {
             const response = await this.authManager.authenticatedFetch(url, options);
             
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Request failed');
+                const errorBody = await response.json();
+                const err = new Error(errorBody.message || 'Request failed');
+                if (errorBody.errors) err.errors = errorBody.errors;
+                throw err;
             }
 
             const data = await response.json();
