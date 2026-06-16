@@ -83,12 +83,103 @@ async function run() {
   await client.connect();
   console.log('✅ Connected to PostgreSQL\n');
 
-  let counts = { thematicAreas: 0, projects: 0, indicators: 0, activities: 0, cases: 0 };
+  let counts = { strategies: 0, pillars: 0, components: 0, thematicAreas: 0, projects: 0, indicators: 0, activities: 0, cases: 0 };
 
   try {
     await client.query('BEGIN');
 
-    // ── 1. Thematic Areas ──────────────────────────────────────────────────
+    // ── 0. Strategic Framework ─────────────────────────────────────────────
+    console.log('📥 Importing strategic framework (strategies → pillars → components)...');
+
+    const strategies = [
+      { code: 'PROT-2026',    name: 'AWYAD Protection Strategy',   description: 'Comprehensive protection framework focusing on rights, lives, and livelihoods of vulnerable populations (2026-2030)',   order: 1 },
+      { code: 'EMPOWER-2026', name: 'AWYAD Empowerment Strategy',  description: 'Holistic empowerment approach building knowledge, resources, and opportunities for sustainable development (2026-2030)', order: 2 },
+    ];
+
+    const pillars = [
+      // Protection strategy pillars
+      { code: 'P1-RIGHTS',      name: 'Protection of Rights and Promotion of Gender Equality', description: 'Ensuring fundamental rights are protected and gender equality is promoted across all intervention areas', strategyCode: 'PROT-2026',    order: 1 },
+      { code: 'P2-LIVES',       name: 'Protection of Lives',                                  description: 'Protection from violence, abuse and exploitation through comprehensive safety measures',                 strategyCode: 'PROT-2026',    order: 2 },
+      { code: 'P3-LIVELIHOODS', name: 'Protection of Livelihoods',                            description: 'Ensuring sustainable livelihoods and economic security for vulnerable populations',                      strategyCode: 'PROT-2026',    order: 3 },
+      { code: 'P4-MHPSS',       name: 'Mental Health and Psychosocial Support',               description: 'Comprehensive mental health and psychosocial support services',                                          strategyCode: 'PROT-2026',    order: 4 },
+      // Empowerment strategy pillars
+      { code: 'E1-KNOWLEDGE',   name: 'Knowledge and Skills',                                 description: 'Building knowledge and skills for personal and professional development',                                 strategyCode: 'EMPOWER-2026', order: 1 },
+      { code: 'E2-RESOURCES',   name: 'Access to Resources',                                  description: 'Ensuring access to productive resources and essential services',                                          strategyCode: 'EMPOWER-2026', order: 2 },
+      { code: 'E3-OPPORTUNITIES',name: 'Access to Opportunities',                             description: 'Creating and facilitating access to development opportunities',                                           strategyCode: 'EMPOWER-2026', order: 3 },
+    ];
+
+    const components = [
+      // P1 – Rights
+      { code: 'P1-C1', name: 'Rights and Gender Equality Awareness and Education',  description: 'Community and school-based education on rights and gender equality',            pillarCode: 'P1-RIGHTS',       order: 1 },
+      { code: 'P1-C2', name: 'Rights and Gender Equality Advocacy',                description: 'Evidence-based advocacy for rights protection and gender equality',               pillarCode: 'P1-RIGHTS',       order: 2 },
+      // P2 – Lives
+      { code: 'P2-C1', name: 'Child Protection',                                   description: 'Comprehensive child protection services and case management',                     pillarCode: 'P2-LIVES',        order: 1 },
+      { code: 'P2-C2', name: 'Gender-Based Violence Prevention and Response',       description: 'Prevention and response to all forms of gender-based violence',                  pillarCode: 'P2-LIVES',        order: 2 },
+      { code: 'P2-C3', name: 'Women Protection and Empowerment',                   description: 'Protection and empowerment services for women and adolescent girls',              pillarCode: 'P2-LIVES',        order: 3 },
+      { code: 'P2-C4', name: 'Youth Protection and Positive Development',           description: 'Protection services and positive development opportunities for youth',            pillarCode: 'P2-LIVES',        order: 4 },
+      // P3 – Livelihoods
+      { code: 'P3-C1', name: 'Livelihood Support and Economic Strengthening',       description: 'Economic strengthening and livelihood support for vulnerable households',        pillarCode: 'P3-LIVELIHOODS',  order: 1 },
+      { code: 'P3-C2', name: 'Food Security and Nutrition',                        description: 'Ensuring food security and improved nutrition for vulnerable populations',        pillarCode: 'P3-LIVELIHOODS',  order: 2 },
+      // P4 – MHPSS
+      { code: 'P4-C1', name: 'Mental Health Services',                             description: 'Clinical and community-based mental health services',                            pillarCode: 'P4-MHPSS',        order: 1 },
+      { code: 'P4-C2', name: 'Psychosocial Support Programs',                      description: 'Group and community-based psychosocial support activities',                      pillarCode: 'P4-MHPSS',        order: 2 },
+      // E1 – Knowledge
+      { code: 'E1-C1', name: 'Education and Literacy',                             description: 'Formal and non-formal education and literacy programs',                          pillarCode: 'E1-KNOWLEDGE',    order: 1 },
+      { code: 'E1-C2', name: 'Skills Training and Vocational Education',            description: 'Technical and vocational skills training for employment',                        pillarCode: 'E1-KNOWLEDGE',    order: 2 },
+      { code: 'E1-C3', name: 'Leadership and Civic Engagement',                    description: 'Building leadership capacity and promoting civic participation',                  pillarCode: 'E1-KNOWLEDGE',    order: 3 },
+      // E2 – Resources
+      { code: 'E2-C1', name: 'Access to Productive Resources',                     description: 'Facilitating access to land, credit, and productive assets',                     pillarCode: 'E2-RESOURCES',    order: 1 },
+      { code: 'E2-C2', name: 'Access to Basic Services',                           description: 'Improving access to essential health, education, and social services',           pillarCode: 'E2-RESOURCES',    order: 2 },
+      { code: 'E2-C3', name: 'Access to Information',                              description: 'Ensuring access to relevant information and knowledge',                           pillarCode: 'E2-RESOURCES',    order: 3 },
+      // E3 – Opportunities
+      { code: 'E3-C1', name: 'Business and Employment Opportunities',               description: 'Creating and linking to business and employment opportunities',                  pillarCode: 'E3-OPPORTUNITIES', order: 1 },
+      { code: 'E3-C2', name: 'Youth Development Opportunities',                    description: 'Comprehensive youth development and transition support',                          pillarCode: 'E3-OPPORTUNITIES', order: 2 },
+      { code: 'E3-C3', name: 'Women Economic Empowerment',                         description: 'Economic empowerment opportunities specifically for women',                       pillarCode: 'E3-OPPORTUNITIES', order: 3 },
+    ];
+
+    // Insert strategies
+    for (const s of strategies) {
+      const r = await client.query(
+        `INSERT INTO strategies (code, name, description, display_order, is_active)
+         VALUES ($1,$2,$3,$4,true)
+         ON CONFLICT (code) DO NOTHING
+         RETURNING id`,
+        [s.code, s.name, s.description, s.order]
+      );
+      if (r.rowCount > 0) counts.strategies++;
+    }
+
+    // Insert pillars (resolve strategy_id by code)
+    for (const p of pillars) {
+      const strat = await client.query('SELECT id FROM strategies WHERE code = $1', [p.strategyCode]);
+      const stratId = strat.rows[0]?.id;
+      if (!stratId) continue;
+      const r = await client.query(
+        `INSERT INTO pillars (code, name, description, strategy_id, display_order, is_active)
+         VALUES ($1,$2,$3,$4,$5,true)
+         ON CONFLICT (code) DO NOTHING
+         RETURNING id`,
+        [p.code, p.name, p.description, stratId, p.order]
+      );
+      if (r.rowCount > 0) counts.pillars++;
+    }
+
+    // Insert components (resolve pillar_id by code)
+    for (const c of components) {
+      const pillar = await client.query('SELECT id FROM pillars WHERE code = $1', [c.pillarCode]);
+      const pillarId = pillar.rows[0]?.id;
+      if (!pillarId) continue;
+      const r = await client.query(
+        `INSERT INTO core_program_components (code, name, description, pillar_id, display_order, is_active)
+         VALUES ($1,$2,$3,$4,$5,true)
+         ON CONFLICT (code) DO NOTHING
+         RETURNING id`,
+        [c.code, c.name, c.description, pillarId, c.order]
+      );
+      if (r.rowCount > 0) counts.components++;
+    }
+
+    console.log(`   ✔ ${counts.strategies} strategies, ${counts.pillars} pillars, ${counts.components} components inserted\n`);
     console.log('📥 Importing thematic areas...');
     for (const ta of thematicAreas) {
       const res = await client.query(
@@ -346,6 +437,9 @@ async function run() {
 
     console.log('✅ Import complete!\n');
     console.log('Summary:');
+    console.log(`  strategies    : ${counts.strategies}`);
+    console.log(`  pillars       : ${counts.pillars}`);
+    console.log(`  components    : ${counts.components}`);
     console.log(`  thematicAreas : ${counts.thematicAreas}`);
     console.log(`  projects      : ${counts.projects}`);
     console.log(`  indicators    : ${counts.indicators}`);
