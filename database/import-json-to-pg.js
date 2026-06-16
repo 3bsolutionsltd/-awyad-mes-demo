@@ -171,7 +171,8 @@ async function run() {
 
       // indicator_scope: use 'project' only when project_id is set
       // otherwise fall back to 'awyad' to satisfy the DB trigger
-      const resultArea = ind.resultArea || ind.result_area || ind.name || ind.code || 'General';
+      const rawResultArea = ind.resultArea || ind.result_area || ind.name || ind.code || 'General';
+      const resultArea = rawResultArea.substring(0, 200); // VARCHAR(200) limit
       const indicatorScope = projId ? 'project' : 'awyad';
 
       // Normalise to title-case to satisfy CHECK constraints (migrations 025 & 026)
