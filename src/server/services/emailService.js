@@ -59,6 +59,39 @@ class EmailService {
   }
 
   /**
+   * Send welcome email to a self-registered user.
+   * @param {{ email, first_name, username }} user
+   */
+  async sendRegistrationWelcomeEmail(user) {
+    await this._send({
+      to: user.email,
+      subject: 'Welcome to AWYAD MES — Account Created',
+      html: `
+        <div style="font-family:sans-serif;max-width:600px;margin:auto">
+          <h2 style="color:#0d6efd">Welcome to AWYAD MES, ${user.first_name}!</h2>
+          <p>Your account has been created successfully. You can now log in using the email address and password you registered with.</p>
+          <p>
+            <a href="${this.appUrl}/login.html"
+               style="background:#0d6efd;color:#fff;padding:10px 20px;border-radius:4px;text-decoration:none">
+              Go to AWYAD MES
+            </a>
+          </p>
+          <hr style="border:none;border-top:1px solid #dee2e6;margin:24px 0">
+          <h3 style="color:#495057;font-size:1rem">Quick Reference</h3>
+          <ul style="color:#495057;font-size:0.9rem;padding-left:1.2rem">
+            <li><strong>Login email:</strong> ${user.email}</li>
+            <li>If you forget your password, use the <em>Forgot Password</em> link on the login page.</li>
+            <li>If you forget your login email, contact your system administrator — they can look it up by your username (<strong>${user.username}</strong>).</li>
+          </ul>
+          <p style="color:#6c757d;font-size:0.8rem;margin-top:24px">
+            If you did not create this account, please contact your administrator immediately.
+          </p>
+        </div>
+      `,
+    });
+  }
+
+  /**
    * Send welcome email to a newly admin-created user.
    * @param {{ email, first_name, username }} user
    * @param {string} tempPassword - Plain-text temporary password (shown once)

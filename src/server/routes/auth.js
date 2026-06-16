@@ -92,9 +92,14 @@ router.post(
 
       res.status(201).json({
         success: true,
-        message: 'User registered successfully. Please check your email to verify your account.',
+        message: 'User registered successfully. A welcome email has been sent to your address.',
         data: { user },
       });
+
+      // Send welcome email asynchronously — never blocks the response
+      emailService.sendRegistrationWelcomeEmail(user).catch(err =>
+        logger.error('Registration welcome email failed:', err.message)
+      );
     } catch (error) {
       next(error);
     }
