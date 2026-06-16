@@ -171,9 +171,10 @@ async function run() {
 
       const res = await client.query(
         `INSERT INTO indicators
-           (code, name, indicator_type, baseline, lop_target, annual_target,
-            achieved, unit, project_id, thematic_area_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+           (code, name, type, baseline, baseline_date, lop_target, annual_target,
+            achieved, unit, project_id, thematic_area_id,
+            q1_target, q2_target, q3_target, q4_target)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
          ON CONFLICT (code) DO NOTHING
          RETURNING id`,
         [
@@ -181,12 +182,17 @@ async function run() {
           ind.name,
           ind.type || 'Output',
           safeNum(ind.baseline),
+          safeDate(ind.baselineDate),
           safeNum(ind.lopTarget),
           safeNum(ind.annualTarget),
           safeNum(ind.achieved),
           ind.unit || 'Individuals',
           projId,
           taId,
+          safeNum(ind.q1Target),
+          safeNum(ind.q2Target),
+          safeNum(ind.q3Target),
+          safeNum(ind.q4Target),
         ]
       );
       if (res.rowCount > 0) counts.indicators++;
@@ -222,40 +228,58 @@ async function run() {
         }
       }
 
-      const ben = act.beneficiaries || {};
       const dis = act.disaggregation || {};
+      const ref = dis.refugee || {};
+      const hst = dis.host || {};
+      const refM = ref.male || {};
+      const refF = ref.female || {};
+      const hstM = hst.male || {};
+      const hstF = hst.female || {};
       const nat = act.nationality || {};
+
+      // Resolve thematic_area_id via project
+      let actTaId = null;
+      if (projId) {
+        const taRow = await client.query(
+          'SELECT thematic_area_id FROM projects WHERE id = $1',
+          [projId]
+        );
+        actTaId = taRow.rows[0]?.thematic_area_id || null;
+      }
 
       const res = await client.query(
         `INSERT INTO activities
-           (activity_code, name, status, activity_date, location, reported_by,
-            approval_status, target, achieved, budget, expenditure,
-            indicator_id, project_id,
-            male_refugee, female_refugee, male_host, female_host,
-            disaggregation, nationality)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
-         ON CONFLICT DO NOTHING
+           (activity_name, status, planned_date, location,
+            target_value, achieved_value, budget, actual_cost,
+            indicator_id, project_id, thematic_area_id,
+            refugee_male_0_4, refugee_male_5_17, refugee_male_18_49, refugee_male_50_plus,
+            refugee_female_0_4, refugee_female_5_17, refugee_female_18_49, refugee_female_50_plus,
+            host_male_0_4, host_male_5_17, host_male_18_49, host_male_50_plus,
+            host_female_0_4, host_female_5_17, host_female_18_49, host_female_50_plus,
+            nationality_sudanese, nationality_congolese, nationality_south_sudanese, nationality_others)
+         VALUES
+           ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
+            $12,$13,$14,$15,$16,$17,$18,$19,
+            $20,$21,$22,$23,$24,$25,$26,$27,
+            $28,$29,$30,$31)
          RETURNING id`,
         [
-          act.activityCode || act.id,
           act.name,
-          act.status || 'Pending',
-          safeDate(act.date),
-          act.location || null,
-          act.reportedBy || null,
-          act.approvalStatus || 'Pending Review',
+          act.status || 'Planned',
+          safeDate(act.date) || new Date().toISOString().split('T')[0],
+          act.location || 'Unknown',
           safeNum(act.target),
           safeNum(act.achieved),
           safeNum(act.budget),
           safeNum(act.expenditure),
           indId,
           projId,
-          safeNum(ben.maleRefugee),
-          safeNum(ben.femaleRefugee),
-          safeNum(ben.maleHost),
-          safeNum(ben.femaleHost),
-          JSON.stringify(dis),
-          JSON.stringify(nat),
+          actTaId,
+          safeNum(refM['0-4']),  safeNum(refM['5-17']),  safeNum(refM['18-49']),  safeNum(refM['50+']),
+          safeNum(refF['0-4']),  safeNum(refF['5-17']),  safeNum(refF['18-49']),  safeNum(refF['50+']),
+          safeNum(hstM['0-4']),  safeNum(hstM['5-17']),  safeNum(hstM['18-49']),  safeNum(hstM['50+']),
+          safeNum(hstF['0-4']),  safeNum(hstF['5-17']),  safeNum(hstF['18-49']),  safeNum(hstF['50+']),
+          safeNum(nat.sudanese), safeNum(nat.congolese), safeNum(nat.southSudanese), safeNum(nat.others),
         ]
       );
       if (res.rowCount > 0) counts.activities++;
