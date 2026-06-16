@@ -120,8 +120,8 @@ async function run() {
 
       const res = await client.query(
         `INSERT INTO projects
-           (name, description, status, start_date, end_date, budget, expenditure, thematic_area_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+           (name, description, status, start_date, end_date, budget, expenditure, thematic_area_id, donor)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
          ON CONFLICT DO NOTHING
          RETURNING id`,
         [
@@ -133,6 +133,7 @@ async function run() {
           safeNum(p.budget),
           safeNum(p.expenditure),
           taId,
+          p.donor || 'Unknown',
         ]
       );
       if (res.rowCount > 0) counts.projects++;
