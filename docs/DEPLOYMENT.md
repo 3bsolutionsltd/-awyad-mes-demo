@@ -1,295 +1,395 @@
-# Deployment Guide - AWYAD MES Demo
+﻿# Deployment Guide - AWYAD MES (Staging)
 
-## Option 1: GitHub Pages (Recommended - Free & Easy)
-
-### Steps:
-1. **Create GitHub repository**
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit: AWYAD MES Demo"
-   ```
-
-2. **Create repository on GitHub.com**
-   - Go to https://github.com/new
-   - Name it: `awyad-mes-demo`
-   - Make it public (for free hosting)
-
-3. **Push to GitHub**
-   ```bash
-   git remote add origin https://github.com/YOUR-USERNAME/awyad-mes-demo.git
-   git branch -M main
-   git push -u origin main
-   ```
-
-4. **Enable GitHub Pages**
-   - Go to repository Settings
-   - Navigate to "Pages" section
-   - Source: Select "main" branch
-   - Click Save
-   - Your site will be live at: `https://YOUR-USERNAME.github.io/awyad-mes-demo/`
-
-### Advantages:
-✅ Free hosting
-✅ HTTPS enabled
-✅ Easy updates (just git push)
-✅ No server management
+> **Staging URL:** https://awyad.3bs.ltd
+> **VPS OS:** Ubuntu 24.04.4 LTS
+> **Already on VPS:** Docker, Nginx (host), Certbot
+> **Stack:** Docker container + dedicated Postgres container + host Nginx reverse proxy
 
 ---
 
-## Option 2: Netlify (Alternative - Free with Drag & Drop)
+## Overview
 
-### Steps:
-1. **Go to Netlify**: https://www.netlify.com
-2. **Sign up** (free account)
-3. **Drag & drop** your project folder onto Netlify
-4. **Get instant URL**: `https://random-name.netlify.app`
-5. **Optional**: Set custom domain
+Run these 10 steps **in order**, top to bottom. Each step depends on the previous one.
 
-### Advantages:
-✅ No git required
-✅ Instant deployment
-✅ Automatic HTTPS
-✅ Form handling (for future features)
-
----
-
-## Option 3: Vercel (Alternative - Free & Fast)
-
-### Steps:
-1. **Install Vercel CLI**:
-   ```bash
-   npm install -g vercel
-   ```
-
-2. **Deploy**:
-   ```bash
-   cd C:\Users\DELL\awyad-mes-demo
-   vercel
-   ```
-
-3. **Follow prompts** (login, set project name)
-4. **Get instant URL**: `https://awyad-mes-demo.vercel.app`
-
-### Advantages:
-✅ Extremely fast CDN
-✅ Auto-deployments
-✅ Analytics included
-
----
-
-## Pre-Deployment Checklist
-
-### Files to Include:
-- [x] index.html
-- [x] app.js
-- [x] mockData.js
-- [x] All render*.js files
-- [x] exportFunctions.js
-- [x] README.md
-
-### Files to Exclude (Create .gitignore):
 ```
-# Python
-__pycache__/
-*.py[cod]
-*.pyc
-
-# Backup files
-*_backup.js
-mockData_new.js
-
-# Parsing scripts (not needed for demo)
-parse_csv_to_data.py
-generate_complete_data.py
-parsed_data.json
-
-# CSV source files (optional - already in mockData)
-*.csv
-
-# OS files
-.DS_Store
-Thumbs.db
+Step 1  SSH into VPS
+Step 2  Clone the repo
+Step 3  Create Docker network
+Step 4  Start the database container
+Step 5  Configure .env
+Step 6  Build and start the app container
+Step 7  Initialize the database
+Step 8  Configure Nginx
+Step 9  Point DNS and get SSL certificate
+Step 10 Verify everything works
 ```
 
-### Optional: Create .gitignore file
+---
+
+## Step 1 — SSH into the VPS
+
 ```bash
-# In your project folder
-echo "*.csv" > .gitignore
-echo "*_backup.js" >> .gitignore
-echo "*.py" >> .gitignore
-echo "parsed_data.json" >> .gitignore
+ssh your-user@<VPS-IP>
 ```
 
 ---
 
-## Quick GitHub Deployment (Copy-Paste)
+## Step 2 — Clone the Repository
 
-Open PowerShell in your project folder and run:
+Create the app directory and clone the code. This must come first because the
+Docker image is built from this source code.
 
-```powershell
-# Initialize git
-git init
-
-# Create .gitignore
-@"
-__pycache__/
-*.py[cod]
-*_backup.js
-mockData_new.js
-parse_csv_to_data.py
-generate_complete_data.py
-parsed_data.json
-*.csv
-"@ | Out-File -FilePath .gitignore -Encoding UTF8
-
-# Add all files
-git add .
-
-# Commit
-git commit -m "Initial commit: AWYAD MES Demo v1.0"
-
-# Connect to GitHub (replace YOUR-USERNAME)
-git remote add origin https://github.com/YOUR-USERNAME/awyad-mes-demo.git
-
-# Push
-git branch -M main
-git push -u origin main
-```
-
-Then enable GitHub Pages in repository settings.
-
----
-
-## Custom Domain (Optional)
-
-### For GitHub Pages:
-1. Buy domain (e.g., Namecheap, GoDaddy)
-2. Add CNAME file to repository:
-   ```
-   demo.awyad.org
-   ```
-3. Configure DNS records:
-   ```
-   Type: CNAME
-   Name: demo
-   Value: YOUR-USERNAME.github.io
-   ```
-
-### For Netlify/Vercel:
-- Follow platform-specific domain connection guide
-- Usually just update DNS nameservers
-
----
-
-## Sharing the Demo
-
-### Share Links:
-After deployment, share:
-- **Live Demo**: `https://YOUR-USERNAME.github.io/awyad-mes-demo/`
-- **Documentation**: `https://YOUR-USERNAME.github.io/awyad-mes-demo/README.md`
-- **Source Code**: `https://github.com/YOUR-USERNAME/awyad-mes-demo`
-
-### Demo Email Template:
-```
-Subject: AWYAD MES System Demo - Live Preview
-
-Dear [Name],
-
-I'm pleased to share a live demonstration of the AWYAD Monitoring, Evaluation, 
-and Learning (MES) System:
-
-🌐 Live Demo: [Your URL]
-📖 User Guide: [Your URL]/README.md
-💻 Source Code: [GitHub URL]
-
-Key Features:
-- Real-time activity tracking with disaggregation
-- Indicator performance monitoring
-- Monthly and quarterly reporting
-- CSV export capabilities
-- Case management system
-
-The demo uses real data from our current tracking tools and demonstrates how 
-the system can streamline M&E workflows while maintaining data quality.
-
-Please explore and let me know if you have any questions or feedback.
-
-Best regards,
-[Your Name]
-```
-
----
-
-## Updating the Demo
-
-### After deployment, to update:
-
-**GitHub Pages:**
 ```bash
-# Make changes to files
-git add .
-git commit -m "Update: [describe changes]"
-git push
-# Changes live in ~1 minute
+sudo mkdir -p /opt/awyad-mes
+sudo chown $USER:$USER /opt/awyad-mes
+
+git clone https://github.com/3bsolutionsltd/-awyad-mes-demo.git /opt/awyad-mes
+cd /opt/awyad-mes
 ```
 
-**Netlify:**
-- Drag & drop updated folder, or
-- Connect to GitHub for auto-deployments
+---
 
-**Vercel:**
+## Step 3 — Create the Docker Network
+
+Create an isolated network for AWYAD MES. This must happen before starting any
+containers, because both the database and app containers attach to it.
+
+All existing VPS networks are owned by other projects and must not be touched:
+
+| Existing network | Owner |
+|-----------------|-------|
+| `amis-staging_default` | AMIS |
+| `tc_staging_network` | TC |
+| `schoolbox_schoolbox_net` | Schoolbox |
+| `opf-cd_opfcd-network` | OPFCD |
+
 ```bash
-vercel --prod
-# Instant deployment
+docker network create awyad-net
 ```
+
+---
+
+## Step 4 — Start the Database Container
+
+Start a dedicated Postgres container on `awyad-net`. It does not share storage or
+network with the three existing Postgres containers on this VPS
+(`amis-staging-db-1`, `tc_postgres_staging`, `schoolbox-db`).
+
+```bash
+docker run -d \
+  --name awyad-mes-db \
+  --restart unless-stopped \
+  --network awyad-net \
+  -e POSTGRES_USER=awyad_user \
+  -e POSTGRES_PASSWORD='<STRONG_DB_PASSWORD>' \
+  -e POSTGRES_DB=awyad_mes \
+  -v awyad-mes-pgdata:/var/lib/postgresql/data \
+  postgres:16-alpine
+```
+
+Replace `<STRONG_DB_PASSWORD>` with your password **inside the single quotes** — do not
+remove the single quotes. They prevent bash from misinterpreting special characters
+like `!`, `$`, and `&`. Avoid using `'` (single quote) in the password itself.
+
+Verify it is running:
+
+```bash
+docker ps --filter name=awyad-mes-db
+# STATUS column should say "Up"
+```
+
+> The named volume `awyad-mes-pgdata` persists data across restarts and image rebuilds.
+
+---
+
+## Step 5 — Configure Environment Variables
+
+```bash
+cd /opt/awyad-mes
+cp .env.example .env
+nano .env
+```
+
+Replace the entire file contents with the following, filling in your values
+where indicated:
+
+```env
+NODE_ENV=production
+PORT=3000
+HOST=0.0.0.0
+
+# Storage — use PostgreSQL
+USE_DATABASE=true
+
+# Database — container name works as hostname because both containers share awyad-net
+DB_HOST=awyad-mes-db
+DB_PORT=5432
+DB_NAME=awyad_mes
+DB_USER=awyad_user
+DB_PASSWORD=<STRONG_DB_PASSWORD>
+DB_POOL_SIZE=20
+
+# JWT — generate a secret with the command below, then paste it here
+JWT_SECRET=<64-char-random-hex>
+JWT_EXPIRES_IN=1h
+REFRESH_TOKEN_EXPIRES_IN=7d
+
+# API
+API_BASE_URL=/api/v1
+MAX_REQUEST_SIZE=10mb
+
+# CORS
+CORS_ORIGIN=https://awyad.3bs.ltd
+
+# Rate limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=200
+
+# Logging
+LOG_LEVEL=info
+LOG_FILE=logs/app.log
+```
+
+Generate the JWT secret:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+```
+
+Copy the output and paste it as the value of `JWT_SECRET` in `.env`.
+
+Lock the file so only your user can read it:
+
+```bash
+chmod 600 /opt/awyad-mes/.env
+```
+
+---
+
+## Step 6 — Build and Start the App Container
+
+Build the Docker image from the cloned source code, then run it.
+Port 3001 on the host is confirmed free on this VPS.
+
+```bash
+cd /opt/awyad-mes
+
+# Build the image (takes 1-2 minutes on first run)
+docker build -t awyad-mes:latest .
+
+# Run the container
+docker run -d \
+  --name awyad-mes \
+  --restart unless-stopped \
+  --network awyad-net \
+  --env-file /opt/awyad-mes/.env \
+  -p 127.0.0.1:3001:3000 \
+  awyad-mes:latest
+```
+
+`-p 127.0.0.1:3001:3000` binds port 3001 to localhost only — it is never directly
+reachable from the internet. Nginx will proxy it in Step 8.
+
+Verify it started:
+
+```bash
+docker ps --filter name=awyad-mes
+docker logs awyad-mes --tail 30
+```
+
+You should see `Server running at http://0.0.0.0:3000` in the logs.
+
+---
+
+## Step 7 — Initialize the Database
+
+Run these commands inside the running app container. They create the schema,
+seed the initial data, and verify the result.
+
+```bash
+# Create all tables and seed initial admin user
+docker exec -it awyad-mes node database/setup.js
+
+# Apply any pending migrations
+docker exec -it awyad-mes node database/migrate.js
+
+# Confirm tables and seed data look correct
+docker exec -it awyad-mes node database/setup.js verify
+```
+
+Default admin credentials created by setup:
+- **Email:** admin@awyad.org
+- **Password:** Admin@123
+
+> **Change this password immediately after first login.**
+
+Quick smoke test:
+
+```bash
+curl http://127.0.0.1:3001/api/v1/health
+# Should return: {"success":true,"message":"API is running",...}
+```
+
+---
+
+## Step 8 — Configure Nginx
+
+Add a new server block for `awyad.3bs.ltd`. Do **not** edit any existing config files.
+
+```bash
+sudo nano /etc/nginx/sites-available/awyad-mes
+```
+
+Paste this exactly:
+
+```nginx
+server {
+    listen 80;
+    server_name awyad.3bs.ltd;
+
+    location / {
+        proxy_pass         http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header   Upgrade $http_upgrade;
+        proxy_set_header   Connection 'upgrade';
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        client_max_body_size 10m;
+    }
+}
+```
+
+Enable the site and reload:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/awyad-mes /etc/nginx/sites-enabled/
+sudo nginx -t
+# Must print: syntax is ok / test is successful
+sudo systemctl reload nginx
+```
+
+---
+
+## Step 9 — DNS and SSL
+
+### 9a. Add DNS A Record
+
+In your DNS provider (wherever `3bs.ltd` is managed), add:
+
+| Type | Name | Value | TTL |
+|------|------|-------|-----|
+| A | `awyad` | `<VPS-IP>` | 300 |
+
+Wait for propagation (usually a few minutes). Test it:
+
+```bash
+curl -I http://awyad.3bs.ltd
+# Should return HTTP/1.1 200 OK (not a connection error)
+```
+
+### 9b. Issue SSL Certificate
+
+Certbot is already installed. This only affects `awyad.3bs.ltd` — existing
+certificates for other domains are not touched.
+
+```bash
+sudo certbot --nginx -d awyad.3bs.ltd
+```
+
+Certbot automatically updates the Nginx config with the HTTPS block and HTTP redirect.
+Reload to apply:
+
+```bash
+sudo systemctl reload nginx
+```
+
+Test renewal works:
+
+```bash
+sudo certbot renew --dry-run
+```
+
+---
+
+## Step 10 — Final Verification
+
+```bash
+# App container running
+docker ps --filter name=awyad-mes
+
+# DB container running
+docker ps --filter name=awyad-mes-db
+
+# API health over localhost
+curl http://127.0.0.1:3001/api/v1/health
+
+# API health over HTTPS (end-to-end test)
+curl https://awyad.3bs.ltd/api/v1/health
+```
+
+Then open https://awyad.3bs.ltd in a browser and log in with admin@awyad.org / Admin@123.
+**Change the password immediately.**
+
+---
+
+## Deploying Code Updates
+
+```bash
+cd /opt/awyad-mes
+git pull origin main
+
+docker build -t awyad-mes:latest .
+docker stop awyad-mes && docker rm awyad-mes
+
+docker run -d \
+  --name awyad-mes \
+  --restart unless-stopped \
+  --network awyad-net \
+  --env-file /opt/awyad-mes/.env \
+  -p 127.0.0.1:3001:3000 \
+  awyad-mes:latest
+
+docker exec -it awyad-mes node database/migrate.js
+docker logs awyad-mes --tail 30
+```
+
+---
+
+## Maintenance Commands
+
+| Task | Command |
+|------|---------|
+| View app logs (live) | `docker logs awyad-mes -f` |
+| Restart app | `docker restart awyad-mes` |
+| Open shell in container | `docker exec -it awyad-mes sh` |
+| Run DB migrations | `docker exec -it awyad-mes node database/migrate.js` |
+| View Nginx error log | `sudo tail -f /var/log/nginx/error.log` |
+| Reload Nginx | `sudo systemctl reload nginx` |
+| Renew all SSL certs | `sudo certbot renew` |
 
 ---
 
 ## Troubleshooting
 
-### Issue: Files not loading
-**Solution**: Check file paths are relative (no `C:\` or absolute paths)
-
-### Issue: Module import errors
-**Solution**: Ensure all `.js` files use `.js` extension in imports
-
-### Issue: Data not showing
-**Solution**: Check browser console (F12) for errors, verify mockData.js syntax
-
-### Issue: Slow loading
-**Solution**: Use CDN hosting (GitHub Pages, Netlify, Vercel all have fast CDN)
+| Symptom | What to check |
+|---------|--------------|
+| `502 Bad Gateway` | `docker ps` — is `awyad-mes` running? Check `docker logs awyad-mes` |
+| Container exits immediately | `docker logs awyad-mes` — usually a missing or wrong `.env` value |
+| DB connection refused | Confirm both containers are on `awyad-net`: `docker network inspect awyad-net` |
+| `setup.js` fails | Confirm Step 4 ran first and `awyad-mes-db` is healthy |
+| Certbot fails | DNS must resolve before running certbot — confirm with `curl -I http://awyad.3bs.ltd` first |
 
 ---
 
-## Security Notes
+## Security Checklist
 
-### For Public Demo:
-✅ No sensitive data in mockData.js
-✅ No authentication credentials
-✅ No API keys
-✅ All data is mock/anonymized
-
-### For Production:
-⚠️ Add authentication
-⚠️ Use backend API
-⚠️ Implement role-based access
-⚠️ Add data encryption
-⚠️ Use environment variables for secrets
-
----
-
-## Next Steps
-
-1. ✅ Deploy to GitHub Pages
-2. ✅ Share with stakeholders
-3. 📊 Gather feedback
-4. 🔄 Iterate based on feedback
-5. 🚀 Plan production implementation
-
----
-
-**Need Help?**
-- GitHub Pages Guide: https://pages.github.com/
-- Netlify Docs: https://docs.netlify.com/
-- Vercel Docs: https://vercel.com/docs
+- [ ] Container runs as non-root user (already enforced by the Dockerfile)
+- [ ] Port 3001 bound to `127.0.0.1` only — not reachable from the internet
+- [ ] `.env` permissions are `600` — only your user can read it
+- [ ] Default admin password changed after first login
+- [ ] `JWT_SECRET` is a unique 64-char random hex string
+- [ ] `CORS_ORIGIN` is `https://awyad.3bs.ltd` — not `*`
+- [ ] HTTPS active and HTTP redirects to HTTPS

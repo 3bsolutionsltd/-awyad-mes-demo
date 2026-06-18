@@ -65,6 +65,9 @@ router.get('/strategic-hierarchy', authenticate, async (req, res, next) => {
 
             strategy.pillars = pillars;
             strategy.pillar_count = pillars.length;
+            strategy.component_count = pillars.reduce((sum, p) => sum + (p.component_count || 0), 0);
+            strategy.project_count = pillars.reduce((sum, p) =>
+                sum + (p.components || []).reduce((s2, c) => s2 + (c.project_count || 0), 0), 0);
         }
 
         res.json({
