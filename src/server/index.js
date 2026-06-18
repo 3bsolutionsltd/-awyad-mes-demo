@@ -27,6 +27,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
+// Trust the first proxy (Nginx reverse proxy)
+app.set('trust proxy', 1);
+
 // ============ Security Middleware ============
 
 // Helmet for security headers
