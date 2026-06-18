@@ -15,6 +15,14 @@
 export function createStrategyCard(strategy, expanded = false) {
     const collapseClass = expanded ? 'show' : '';
     const iconClass = expanded ? 'bi-caret-down-fill' : 'bi-caret-right-fill';
+
+    const pillars = strategy.pillars || [];
+    const pillarCount = strategy.pillar_count ?? pillars.length;
+    const componentCount = strategy.component_count ??
+        pillars.reduce((sum, p) => sum + (p.component_count ?? (p.components?.length || 0)), 0);
+    const projectCount = strategy.project_count ??
+        pillars.reduce((sum, p) =>
+            sum + (p.components || []).reduce((s, c) => s + (c.project_count ?? (c.projects?.length || 0)), 0), 0);
     
     return `
         <div class="card strategy-card mb-3" data-strategy-id="${strategy.id}">
@@ -27,13 +35,13 @@ export function createStrategyCard(strategy, expanded = false) {
                     </div>
                     <div class="strategy-badges">
                         <span class="badge bg-primary me-1" title="Number of Pillars">
-                            <i class="bi bi-diagram-3"></i> ${strategy.pillar_count || strategy.pillars?.length || 0} Pillars
+                            <i class="bi bi-diagram-3"></i> ${pillarCount} Pillars
                         </span>
                         <span class="badge bg-info text-dark me-1" title="Number of Components">
-                            <i class="bi bi-boxes"></i> ${strategy.component_count || 0} Components
+                            <i class="bi bi-boxes"></i> ${componentCount} Components
                         </span>
                         <span class="badge bg-success" title="Number of Projects">
-                            <i class="bi bi-folder"></i> ${strategy.project_count || 0} Projects
+                            <i class="bi bi-folder"></i> ${projectCount} Projects
                         </span>
                     </div>
                 </div>
