@@ -137,7 +137,7 @@ function renderLinkedProjects(projects) {
                 ${projects.map(project => `
                     <a href="#project-dashboard?id=${project.id}" 
                        class="list-group-item list-group-item-action"
-                       onclick="navigateToProject('${project.id}')">
+                       onclick="navigateToProject('${project.id}', ${JSON.stringify(project.name || '')})">
                         <div class="d-flex justify-content-between align-items-start">
                             <div class="flex-grow-1">
                                 <h6 class="mb-1">${escapeHtml(project.name)}</h6>
@@ -194,8 +194,11 @@ window.closeComponentCard = function() {
 /**
  * Navigate to project dashboard
  */
-window.navigateToProject = function(projectId) {
+window.navigateToProject = function(projectId, projectName) {
     // Will integrate with main navigation
+    if (projectName && typeof window.rememberProjectRecentContext === 'function') {
+        window.rememberProjectRecentContext(projectId, projectName);
+    }
     window.location.hash = `project-dashboard?id=${projectId}`;
 };
 

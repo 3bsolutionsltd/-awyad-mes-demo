@@ -33,19 +33,27 @@ import { showCreateActivityModal, showEditActivityModal, showViewActivityModal }
  * Displays activities with full disaggregation data and approval workflow
  * 
  * @param {HTMLElement} contentArea - Container element for content
+ * @param {Object} filters - Optional filters { reporting_month: 'YYYY-MM' }
  * @returns {Promise<void>}
  * 
  * @example
  * await renderActivities(document.getElementById('content-area'));
+ * await renderActivities(document.getElementById('content-area'), { reporting_month: '2024-01' });
  */
-export async function renderActivities(contentArea) {
+export async function renderActivities(contentArea, filters = {}) {
     try {
         // Show loading state
         contentArea.innerHTML = createLoadingSpinner('Loading activities...');
 
+        // Build query parameters
+        const queryParams = new URLSearchParams({ limit: '1000' });
+        if (filters.reporting_month) {
+            queryParams.set('reporting_month', filters.reporting_month);
+        }
+
         // Fetch data in parallel - get all records
         const [activitiesRes, projectsRes, indicatorsRes] = await Promise.all([
-            apiService.get('/activities?limit=1000'),
+            apiService.get(`/activities?${queryParams.toString()}`),
             apiService.get('/projects?limit=1000'),
             apiService.get('/indicators?limit=1000')
         ]);
@@ -61,6 +69,7 @@ export async function renderActivities(contentArea) {
         // Calculate summary metrics
         const totalActivities = activities.length;
         const completedActivities = activities.filter(a => a.status === 'Completed').length;
+        const reportedActivities = activities.filter(a => a.reportingMonth).length;
         const approvedActivities = activities.filter(a => a.approvalStatus === 'Approved').length;
         const totalBeneficiaries = activities.reduce((sum, a) => sum + (a.totalBeneficiaries || 0), 0);
         const totalBudget = activities.reduce((sum, a) => sum + (a.budget || 0), 0);
@@ -88,6 +97,56 @@ export async function renderActivities(contentArea) {
             ]
         });
 
+        // Generate reporting month options (current month + last 12 months)
+        const generateMonthOptions = () => {
+            const months = [];
+            const now = new Date();
+            for (let i = 0; i < 13; i++) {
+                const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                const label = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+                months.push({ value, label });
+            }
+            return months;
+        };
+
+        const monthOptions = generateMonthOptions();
+        const currentFilter = filters.reporting_month || '';
+        
+        // Create filter section
+        const filterSection = `
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row align-items-end">
+                        <div class="col-md-4">
+                            <label for="filterReportingMonth" class="form-label">Filter by Reporting Month</label>
+                            <select class="form-select" id="filterReportingMonth">
+                                <option value="">All Months</option>
+                                ${monthOptions.map(m => `<option value="${m.value}" ${m.value === currentFilter ? 'selected' : ''}>${m.label}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-outline-secondary w-100" id="clearFilterBtn">
+                                <i class="bi bi-x-circle"></i> Clear Filter
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const pathwayGuidance = `
+            <div class="alert alert-info mb-3">
+                <div class="d-flex align-items-start">
+                    <i class="bi bi-signpost-2 me-2 mt-1"></i>
+                    <div>
+                        <strong>Recommended Pathway:</strong> For project-level work, use <strong>Project Dashboard</strong> to add and manage indicators and activities together.
+                        ATT remains available for direct activity entry and updates.
+                    </div>
+                </div>
+            </div>
+        `;
+
         // Create summary cards
         const summaryCards = `
             <div class="row mb-4">
@@ -104,6 +163,13 @@ export async function renderActivities(contentArea) {
                     subtitle: `${(approvedActivities/totalActivities*100).toFixed(0)}% approval rate`,
                     bgColor: 'success',
                     icon: 'check-circle'
+                })}
+                ${createSummaryCard({
+                    title: 'Reported',
+                    value: reportedActivities,
+                    subtitle: `${totalActivities ? ((reportedActivities/totalActivities)*100).toFixed(0) : 0}% with reports`,
+                    bgColor: 'warning',
+                    icon: 'journal-check'
                 })}
                 ${createSummaryCard({
                     title: 'Beneficiaries',
@@ -134,6 +200,8 @@ export async function renderActivities(contentArea) {
         // Render complete page
         contentArea.innerHTML = `
             ${header}
+            ${pathwayGuidance}
+            ${filterSection}
             ${summaryCards}
             
             <!-- Data Visualizations -->
@@ -202,6 +270,52 @@ export async function renderActivities(contentArea) {
                 window.editActivity(activityId);
             });
         });
+
+        contentArea.querySelectorAll('.delete-activity-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const activityId = btn.dataset.activityId;
+                const activityName = btn.dataset.activityName;
+                
+                if (!confirm(`Are you sure you want to delete activity "${activityName}"? This action cannot be undone.`)) {
+                    return;
+                }
+                
+                try {
+                    await apiService.deleteActivity(activityId);
+                    // Remove the row directly from DOM for instant feedback
+                    const row = btn.closest('tr');
+                    if (row) {
+                        row.remove();
+                    }
+                    alert('Activity deleted successfully');
+                } catch (error) {
+                    console.error('Delete failed:', error);
+                    alert('Failed to delete activity: ' + error.message);
+                }
+            });
+        });
+
+        // Attach filter event listeners
+        const filterDropdown = document.getElementById('filterReportingMonth');
+        const clearFilterBtn = document.getElementById('clearFilterBtn');
+
+        if (filterDropdown) {
+            filterDropdown.addEventListener('change', () => {
+                const selectedMonth = filterDropdown.value;
+                if (selectedMonth) {
+                    renderActivities(contentArea, { reporting_month: selectedMonth });
+                }
+            });
+        }
+
+        if (clearFilterBtn) {
+            clearFilterBtn.addEventListener('click', () => {
+                if (filterDropdown) {
+                    filterDropdown.value = '';
+                }
+                renderActivities(contentArea);
+            });
+        }
     } catch (error) {
         console.error('Activities error:', error);
         contentArea.innerHTML = createErrorAlert(
@@ -235,6 +349,9 @@ function createActivitiesTable(activities, projects, indicators) {
         const indicatorCode = indicatorMap[activity.indicatorId] || 'N/A';
         const statusBadge = createStatusBadge(activity.status || 'Unknown');
         const approvalBadge = createStatusBadge(activity.approvalStatus || 'Pending');
+        const reportBadge = activity.reportingMonth
+            ? `<span class="badge bg-warning text-dark">Reported ${activity.reportingMonth}</span>`
+            : '<span class="badge bg-secondary">Not Reported</span>';
         const actualCost = activity.actual_cost || activity.expenditure || 0;
         const burnRateIndicator = createBurnRateIndicator(activity.budget || 0, actualCost);
 
@@ -249,6 +366,7 @@ function createActivitiesTable(activities, projects, indicators) {
                 <td><small>${formatDate(activity.date)}</small></td>
                 <td>${statusBadge}</td>
                 <td>${approvalBadge}</td>
+                <td>${reportBadge}</td>
                 <td class="text-end">${formatCurrency(activity.budget || 0)}</td>
                 <td class="text-end">${formatCurrency(actualCost)}</td>
                 <td>${burnRateIndicator}</td>
@@ -260,6 +378,9 @@ function createActivitiesTable(activities, projects, indicators) {
                         </button>
                         <button class="btn btn-outline-secondary edit-activity-btn" data-activity-id="${activity.id}" title="Edit">
                             <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-danger delete-activity-btn" data-activity-id="${activity.id}" data-activity-name="${activity.title}" title="Delete">
+                            <i class="bi bi-trash"></i>
                         </button>
                     </div>
                 </td>
@@ -278,6 +399,7 @@ function createActivitiesTable(activities, projects, indicators) {
                         <th>Date</th>
                         <th>Status</th>
                         <th>Approval</th>
+                        <th>Report</th>
                         <th class="text-end">Budget</th>
                         <th class="text-end">Spent</th>
                         <th style="width: 120px;">Burn Rate</th>

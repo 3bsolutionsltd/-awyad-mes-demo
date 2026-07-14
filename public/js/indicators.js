@@ -53,14 +53,23 @@ export async function renderIndicators(contentArea) {
         // Extract thematic areas from indicators
         const thematicAreasMap = new Map();
         indicators.forEach(ind => {
-            if (ind.thematicAreaId && ind.thematicArea) {
-                if (!thematicAreasMap.has(ind.thematicAreaId)) {
-                    thematicAreasMap.set(ind.thematicAreaId, {
-                        id: ind.thematicAreaId,
-                        name: ind.thematicArea
+            const ids = Array.isArray(ind.thematicAreaIds) && ind.thematicAreaIds.length
+                ? ind.thematicAreaIds
+                : (ind.thematicAreaId ? [ind.thematicAreaId] : []);
+            const names = Array.isArray(ind.thematicAreas) && ind.thematicAreas.length
+                ? ind.thematicAreas
+                : (ind.thematicArea ? [ind.thematicArea] : []);
+
+            ids.forEach((id, idx) => {
+                if (!id) return;
+                const areaName = names[idx] || names[0] || 'Unknown Thematic Area';
+                if (!thematicAreasMap.has(id)) {
+                    thematicAreasMap.set(id, {
+                        id,
+                        name: areaName
                     });
                 }
-            }
+            });
         });
         const thematicAreas = Array.from(thematicAreasMap.values());
 
@@ -163,9 +172,22 @@ export async function renderIndicators(contentArea) {
         // Create quarterly breakdown
         const quarterlyBreakdown = createQuarterlyBreakdown(indicators);
 
+        const pathwayGuidance = `
+            <div class="alert alert-info mb-3">
+                <div class="d-flex align-items-start">
+                    <i class="bi bi-signpost-2 me-2 mt-1"></i>
+                    <div>
+                        <strong>Recommended Pathway:</strong> Use <strong>Project Dashboard</strong> for project indicators so teams can add indicators and activities in one place.
+                        ITT still supports both Organizational and Project-Specific indicator creation when needed.
+                    </div>
+                </div>
+            </div>
+        `;
+
         // Render complete page
         contentArea.innerHTML = `
             ${header}
+            ${pathwayGuidance}
             ${summaryCards}
             
             <!-- Data Visualizations -->
@@ -263,6 +285,30 @@ export async function renderIndicators(contentArea) {
             });
         });
 
+        contentArea.querySelectorAll('.delete-indicator-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const indicatorId = btn.dataset.indicatorId;
+                const indicatorName = btn.dataset.indicatorName;
+                
+                if (!confirm(`Are you sure you want to delete "${indicatorName}"? This action cannot be undone.`)) {
+                    return;
+                }
+                
+                try {
+                    await apiService.deleteIndicator(indicatorId);
+                    // Remove the row directly from DOM for instant feedback
+                    const row = btn.closest('tr');
+                    if (row) {
+                        row.remove();
+                    }
+                    alert('Indicator deleted successfully');
+                } catch (error) {
+                    console.error('Delete failed:', error);
+                    alert('Failed to delete indicator: ' + error.message);
+                }
+            });
+        });
+
     } catch (error) {
         console.error('Indicators error:', error);
         contentArea.innerHTML = createErrorAlert(
@@ -332,6 +378,9 @@ function createProjectScopedTable(projectByProject) {
                     <button class="btn btn-sm btn-outline-secondary edit-indicator-btn" data-indicator-id="${indicator.id}" title="Edit">
                         <i class="bi bi-pencil"></i>
                     </button>
+                    <button class="btn btn-sm btn-outline-danger delete-indicator-btn" data-indicator-id="${indicator.id}" data-indicator-name="${indicator.name}" title="Delete">
+                        <i class="bi bi-trash"></i>
+                    </button>
                 </td>
             </tr>`;
         });
@@ -368,12 +417,24 @@ function groupIndicatorsByThematicArea(indicators, thematicAreas) {
 
     // Group indicators
     indicators.forEach(indicator => {
-        const areaId = indicator.thematicAreaId || 'unknown';
-        if (grouped[areaId]) {
-            grouped[areaId].indicators.push(indicator);
-        } else {
+        const areaIds = Array.isArray(indicator.thematicAreaIds) && indicator.thematicAreaIds.length
+            ? indicator.thematicAreaIds
+            : (indicator.thematicAreaId ? [indicator.thematicAreaId] : []);
+
+        if (!areaIds.length) {
             grouped['unknown'].indicators.push(indicator);
+            return;
         }
+
+        areaIds.forEach((areaId) => {
+            if (grouped[areaId]) {
+                if (!grouped[areaId].indicators.some(ind => ind.id === indicator.id)) {
+                    grouped[areaId].indicators.push(indicator);
+                }
+            } else if (!grouped['unknown'].indicators.some(ind => ind.id === indicator.id)) {
+                grouped['unknown'].indicators.push(indicator);
+            }
+        });
     });
 
     return grouped;
@@ -459,6 +520,9 @@ function createIndicatorsTable(indicatorsByArea) {
                             </button>
                             <button class="btn btn-sm btn-outline-secondary edit-indicator-btn" data-indicator-id="${indicator.id}" title="Edit">
                                 <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger delete-indicator-btn" data-indicator-id="${indicator.id}" data-indicator-name="${indicator.name}" title="Delete">
+                                <i class="bi bi-trash"></i>
                             </button>
                         </td>
                     </tr>

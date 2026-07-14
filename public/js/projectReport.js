@@ -11,6 +11,16 @@
 
 import { apiService } from './apiService.js';
 import { createModal, showNotification } from './components.js';
+import { showViewIndicatorModal } from './indicatorForms.js';
+import { showViewActivityModal } from './activityForms.js';
+
+const REPORT_HISTORY_KEY_PREFIX = 'awyad_project_report_history:';
+
+window.openProjectReportIndicator = (indicatorId) => showViewIndicatorModal(indicatorId);
+window.openProjectReportActivity = (activityId) => showViewActivityModal(activityId);
+window.printProjectReport = async (projectId) => {
+    await _printProjectReport(projectId);
+};
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -70,6 +80,77 @@ function _fmtDate(d) {
 function _fmtCurrency(v, currency = 'UGX') {
     const n = parseFloat(v) || 0;
     return `${currency} ${n.toLocaleString(undefined, { minimumFractionDigits: 0 })}`;
+}
+
+function _historyKey(projectId) {
+    return `${REPORT_HISTORY_KEY_PREFIX}${projectId}`;
+}
+
+function _loadReportHistory(projectId) {
+    try {
+        const raw = localStorage.getItem(_historyKey(projectId));
+        const history = raw ? JSON.parse(raw) : [];
+        return Array.isArray(history) ? history : [];
+    } catch {
+        return [];
+    }
+}
+
+function _saveReportHistory(projectId, history) {
+    localStorage.setItem(_historyKey(projectId), JSON.stringify(history.slice(0, 10)));
+}
+
+function _recordReportEvent(projectId, type, label = '') {
+    if (!projectId) return;
+    const history = _loadReportHistory(projectId);
+    history.unshift({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        type,
+        label,
+        timestamp: new Date().toISOString()
+    });
+    _saveReportHistory(projectId, history);
+}
+
+export function getProjectReportSummary(projectId) {
+    const history = _loadReportHistory(projectId);
+    const lastViewed = history.find(item => item.type === 'viewed');
+    const lastPrinted = history.find(item => item.type === 'printed');
+    return {
+        totalEvents: history.length,
+        lastViewed,
+        lastPrinted,
+        recentHistory: history.slice(0, 3)
+    };
+}
+
+function _historySection(projectId) {
+    const history = _loadReportHistory(projectId);
+    if (history.length === 0) {
+        return `<div class="alert alert-info mb-0">No report history yet. Open or print this report to start tracking activity.</div>`;
+    }
+
+    const rows = history.map(item => `
+        <tr>
+            <td><span class="badge bg-${item.type === 'printed' ? 'secondary' : 'info'} text-uppercase">${_esc(item.type)}</span></td>
+            <td>${_esc(item.label || 'Project report')}</td>
+            <td>${new Date(item.timestamp).toLocaleString()}</td>
+        </tr>
+    `).join('');
+
+    return `
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0 report-table">
+                <thead class="table-light">
+                    <tr>
+                        <th>Action</th>
+                        <th>Details</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>`;
 }
 
 // ─── section renderers ──────────────────────────────────────────────────────
@@ -143,7 +224,12 @@ function _indicatorSection(indicators) {
 
         return `
         <tr>
-            <td class="small">${_esc(ind.name)}</td>
+            <td class="small">
+                <button class="btn btn-link p-0 text-start text-decoration-none no-print" onclick="openProjectReportIndicator('${ind.id}')">
+                    ${_esc(ind.name)}
+                </button>
+                <span class="d-none d-print-inline">${_esc(ind.name)}</span>
+            </td>
             <td class="text-center small">${_esc(ind.indicator_level || '—')}</td>
             <td class="text-center">${_num(parseFloat(ind.baseline || 0))}</td>
             <td class="text-center">${_num(target)}</td>
@@ -233,7 +319,12 @@ function _activitySection(activities) {
         const benef = parseInt(a.total_beneficiaries) || 0;
         return `
         <tr>
-            <td class="small">${_esc(a.activity_name || a.name || '—')}</td>
+            <td class="small">
+                <button class="btn btn-link p-0 text-start text-decoration-none no-print" onclick="openProjectReportActivity('${a.id}')">
+                    ${_esc(a.activity_name || a.name || '—')}
+                </button>
+                <span class="d-none d-print-inline">${_esc(a.activity_name || a.name || '—')}</span>
+            </td>
             <td class="text-center">${_statusBadge(a.status)}</td>
             <td class="text-center small">${_fmtDate(a.planned_date)}</td>
             <td class="text-center small">${a.completion_date ? _fmtDate(a.completion_date) : '—'}</td>
@@ -446,6 +537,210 @@ function _section(title, icon, content) {
     </div>`;
 }
 
+async function _loadProjectReportData(projectId) {
+    const [projRes, finRes, indRes, actRes, caseRes] = await Promise.all([
+        apiService.get(`/projects/${projectId}`),
+        apiService.get(`/projects/${projectId}/financials`).catch(() => ({ success: false })),
+        apiService.get(`/projects/${projectId}/indicators`).catch(() => ({ success: false })),
+        apiService.get(`/projects/${projectId}/activities`).catch(() => ({ success: false })),
+        apiService.get(`/projects/${projectId}/cases`).catch(() => ({ success: false })),
+    ]);
+
+    return {
+        project: projRes.data || projRes,
+        financials: finRes.success ? finRes.data : null,
+        indicators: indRes.success ? (Array.isArray(indRes.data) ? indRes.data : []) : [],
+        activities: actRes.success ? (Array.isArray(actRes.data) ? actRes.data : []) : [],
+        cases: caseRes.success ? caseRes.data : {},
+    };
+}
+
+function _buildProjectReportHtml({ project, financials, indicators, activities, cases, generatedAt }) {
+    return `
+        <style>
+            .report-table { font-size: 0.8rem; }
+            .report-section-header { border-bottom-width: 2px !important; }
+            .table-responsive {
+                overflow: visible !important;
+                display: block !important;
+                width: 100% !important;
+            }
+            @media print {
+                .no-print { display: none !important; }
+                .report-page { padding: 0 !important; }
+                .report-section { page-break-inside: avoid; }
+            }
+        </style>
+        ${_coverPage(project, generatedAt)}
+        ${_section('1. Indicator Performance', 'bi-graph-up-arrow', _indicatorSection(indicators))}
+        ${_section('2. Activity Tracker', 'bi-calendar-check', _activitySection(activities))}
+        ${_section('3. Beneficiary Disaggregation', 'bi-people', _beneficiarySection(activities))}
+        ${_section('4. Budget Utilization', 'bi-cash-stack', _budgetSection(financials, project))}
+        ${_section('5. Case Management Summary', 'bi-briefcase', _caseSection(cases))}
+        <div class="text-muted small text-end mt-4 pt-2 border-top">
+            Report generated on ${generatedAt.toLocaleString()} &mdash; AWYAD MES
+        </div>`;
+}
+
+async function _renderProjectReportContent(projectId) {
+    const data = await _loadProjectReportData(projectId);
+    return _buildProjectReportHtml({ ...data, generatedAt: new Date() });
+}
+
+async function _printProjectReport(projectId) {
+    _recordReportEvent(projectId, 'printed', 'Saved/printed report');
+
+    const data = await _loadProjectReportData(projectId);
+    const content = _buildProjectReportHtml({ ...data, generatedAt: new Date() });
+
+    const printWindow = window.open('', '_blank', 'width=1100,height=800');
+    if (!printWindow) {
+        throw new Error('Unable to open print window');
+    }
+
+    printWindow.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Report</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        @page { size: A4 landscape; margin: 10mm; }
+        body {
+            font-size: 12px;
+            color: #212529;
+            background: #fff;
+            margin: 0;
+            padding: 0;
+        }
+        .report-page {
+            padding: 0;
+            background: #fff;
+        }
+        .container-fluid {
+            max-width: 100% !important;
+            width: 100% !important;
+        }
+        .no-print {
+            display: none !important;
+        }
+        .report-cover,
+        .report-section {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .report-table {
+            font-size: 0.75rem;
+        }
+        .table {
+            width: 100% !important;
+        }
+        .table-responsive {
+            overflow: visible !important;
+            display: block !important;
+            width: 100% !important;
+        }
+        .badge, .progress-bar {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .btn, .nav, .alert button {
+            display: none !important;
+        }
+        .btn-link {
+            display: inline !important;
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            color: inherit !important;
+            text-decoration: none !important;
+        }
+        a {
+            color: inherit;
+            text-decoration: none;
+            pointer-events: none;
+        }
+        .container-fluid {
+            max-width: 100% !important;
+        }
+        .border {
+            border-color: #dee2e6 !important;
+        }
+        .bg-white {
+            background: #fff !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-3">
+        ${content}
+    </div>
+    <script>
+        window.onload = function() {
+            window.focus();
+            window.print();
+            setTimeout(function() { window.close(); }, 300);
+        };
+    <\/script>
+</body>
+</html>`);
+    printWindow.document.close();
+}
+
+export async function renderProjectReportPage(projectId) {
+    if (!projectId) {
+        return `
+            <div class="alert alert-info text-center">
+                <i class="bi bi-info-circle fs-1"></i>
+                <h4 class="mt-3">Select a Project</h4>
+                <p>Please select a project from the dashboard dropdown to view its report.</p>
+            </div>
+        `;
+    }
+
+    try {
+        _recordReportEvent(projectId, 'viewed', 'Opened report page');
+        const content = await _renderProjectReportContent(projectId);
+        const historySummary = getProjectReportSummary(projectId);
+        return `
+            <div class="report-page container-fluid py-3">
+                <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+                    <div>
+                        <h3 class="mb-0"><i class="bi bi-file-earmark-bar-graph me-2"></i>Project Report</h3>
+                        <div class="text-muted small">Detailed performance view with indicators, activities, beneficiaries, and finance</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" onclick="window.location.hash='project-dashboard?id=${projectId}'">
+                            <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="window.printProjectReport('${projectId}')">
+                            <i class="bi bi-printer me-1"></i>Print / Save as PDF
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-white border rounded p-3">
+                    ${content}
+                </div>
+                <div class="mt-4 no-print">
+                    ${_section('6. Report History', 'bi-clock-history', _historySection(projectId))}
+                </div>
+            </div>
+        `;
+    } catch (err) {
+        return `
+            <div class="alert alert-danger">
+                <h4><i class="bi bi-exclamation-triangle"></i> Failed to generate report</h4>
+                <p>${_esc(err.message)}</p>
+                <button class="btn btn-outline-danger" onclick="window.location.hash='project-dashboard?id=${projectId}'">
+                    <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+                </button>
+            </div>
+        `;
+    }
+}
+
 // ─── main export ────────────────────────────────────────────────────────────
 
 export async function showProjectReport(projectId) {
@@ -480,48 +775,12 @@ export async function showProjectReport(projectId) {
     const modal = new bootstrap.Modal(document.getElementById(id));
     modal.show();
 
-    document.getElementById('reportPrintBtn').addEventListener('click', () => _printReport(projectId));
+    document.getElementById('reportPrintBtn').addEventListener('click', () => _printProjectReport(projectId));
     document.getElementById(id).addEventListener('hidden.bs.modal', function () { this.remove(); });
 
     try {
-        const [projRes, finRes, indRes, actRes, caseRes] = await Promise.all([
-            apiService.get(`/projects/${projectId}`),
-            apiService.get(`/projects/${projectId}/financials`).catch(() => ({ success: false })),
-            apiService.get(`/projects/${projectId}/indicators`).catch(() => ({ success: false })),
-            apiService.get(`/projects/${projectId}/activities`).catch(() => ({ success: false })),
-            apiService.get(`/projects/${projectId}/cases`).catch(() => ({ success: false })),
-        ]);
-
-        const project    = projRes.data || projRes;
-        const financials = finRes.success ? finRes.data : null;
-        const indicators = indRes.success ? (Array.isArray(indRes.data) ? indRes.data : []) : [];
-        const activities = actRes.success ? (Array.isArray(actRes.data) ? actRes.data : []) : [];
-        const cases      = caseRes.success ? caseRes.data : {};
-
-        const generatedAt = new Date();
-
-        const html = `
-            <style>
-                .report-table { font-size: 0.8rem; }
-                .report-section-header { border-bottom-width: 2px !important; }
-                @media print {
-                    .modal-footer, .modal-header .btn-close { display: none !important; }
-                    .modal-dialog { max-width: 100% !important; margin: 0 !important; }
-                    .modal-body { overflow: visible !important; height: auto !important; }
-                    .report-section { page-break-inside: avoid; }
-                }
-            </style>
-            ${_coverPage(project, generatedAt)}
-            ${_section('1. Indicator Performance', 'bi-graph-up-arrow', _indicatorSection(indicators))}
-            ${_section('2. Activity Tracker', 'bi-calendar-check', _activitySection(activities))}
-            ${_section('3. Beneficiary Disaggregation', 'bi-people', _beneficiarySection(activities))}
-            ${_section('4. Budget Utilization', 'bi-cash-stack', _budgetSection(financials, project))}
-            ${_section('5. Case Management Summary', 'bi-briefcase', _caseSection(cases))}
-            <div class="text-muted small text-end mt-4 pt-2 border-top">
-                Report generated on ${generatedAt.toLocaleString()} &mdash; AWYAD MES
-            </div>`;
-
-        document.getElementById('reportBody').innerHTML = html;
+        _recordReportEvent(projectId, 'viewed', 'Opened report modal');
+        document.getElementById('reportBody').innerHTML = await _renderProjectReportContent(projectId);
 
     } catch (err) {
         document.getElementById('reportBody').innerHTML =
@@ -530,34 +789,3 @@ export async function showProjectReport(projectId) {
     }
 }
 
-// ─── print helper ────────────────────────────────────────────────────────────
-
-function _printReport(projectId) {
-    const body = document.getElementById('reportBody');
-    if (!body) return;
-
-    const printWindow = window.open('', '_blank', 'width=1100,height=800');
-    printWindow.document.write(`<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Project Report</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <style>
-        body { font-size: 12px; padding: 20px; }
-        .report-table { font-size: 0.75rem; }
-        .report-section { page-break-inside: avoid; margin-bottom: 24px; }
-        .report-section-header { border-bottom: 2px solid #0d6efd; margin-bottom: 12px; padding-bottom: 6px; }
-        .badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .progress-bar { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        @page { margin: 15mm; }
-    </style>
-</head>
-<body>
-    ${body.innerHTML}
-    <script>window.onload = () => { window.print(); }<\/script>
-</body>
-</html>`);
-    printWindow.document.close();
-}

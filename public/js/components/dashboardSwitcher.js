@@ -168,6 +168,10 @@ window.switchDashboard = function(type) {
         // Wait for project selection
         const selector = document.getElementById('project-selector');
         if (selector && selector.value) {
+            const projectName = selector.options[selector.selectedIndex]?.text?.trim();
+            if (projectName && typeof window.rememberProjectRecentContext === 'function') {
+                window.rememberProjectRecentContext(selector.value, projectName);
+            }
             window.location.hash = `project-dashboard?id=${selector.value}`;
         }
     }
@@ -178,6 +182,15 @@ window.switchDashboard = function(type) {
  */
 window.selectProjectDashboard = function(projectId) {
     if (!projectId) return;
+
+    const selector = document.getElementById('project-selector');
+    const matchingOption = selector
+        ? Array.from(selector.options).find(option => option.value === projectId)
+        : null;
+    const projectName = matchingOption?.text?.trim();
+    if (projectName && typeof window.rememberProjectRecentContext === 'function') {
+        window.rememberProjectRecentContext(projectId, projectName);
+    }
     
     // Save selection
     saveSelection('project', projectId);

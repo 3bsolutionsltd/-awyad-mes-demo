@@ -413,12 +413,16 @@ function renderIndicatorRow(ind) {
     const q3Progress = calculateQuarterProgress(ind.q3_target, ind.q3_achieved);
     const q4Progress = calculateQuarterProgress(ind.q4_target, ind.q4_achieved);
 
+    const thematicAreaBadges = Array.isArray(ind.thematic_area_names) && ind.thematic_area_names.length
+        ? ind.thematic_area_names.map(name => `<span class="badge bg-secondary me-1 mb-1">${escapeHtml(name)}</span>`).join('')
+        : (ind.thematic_area_name ? `<span class="badge bg-secondary">${escapeHtml(ind.thematic_area_name)}</span>` : '');
+
     return `
         <tr>
             <td>
                 <strong>${escapeHtml(ind.name)}</strong>
                 ${ind.code ? `<br><small class="text-muted">${escapeHtml(ind.code)}</small>` : ''}
-                ${ind.thematic_area_name ? `<br><span class="badge bg-secondary">${escapeHtml(ind.thematic_area_name)}</span>` : ''}
+                ${thematicAreaBadges ? `<br>${thematicAreaBadges}` : ''}
             </td>
             <td>
                 <span class="badge bg-info">${escapeHtml(ind.indicator_level || 'N/A')}</span>

@@ -263,6 +263,8 @@ class APIService {
      */
     async deleteProject(id) {
         const response = await this.delete(`/projects/${id}`);
+        // Clear all cache since project delete affects multiple endpoints
+        stateManager.clearCache();
         return response.data;
     }
 
@@ -325,6 +327,22 @@ class APIService {
      */
     async updateIndicator(id, data) {
         const response = await this.put(`/indicators/${id}`, data);
+        return response.data;
+    }
+
+    /**
+     * Delete an indicator
+     * 
+     * @param {string} id - Indicator ID
+     * @returns {Promise<Object>} Deletion confirmation
+     * 
+     * @example
+     * await apiService.deleteIndicator('uuid-here');
+     */
+    async deleteIndicator(id) {
+        const response = await this.delete(`/indicators/${id}`);
+        // Clear all cache since indicator delete affects multiple endpoints
+        stateManager.clearCache();
         return response.data;
     }
 
@@ -399,6 +417,8 @@ class APIService {
      */
     async deleteActivity(id) {
         const response = await this.delete(`/activities/${id}`);
+        // Clear all cache since activity delete affects multiple endpoints
+        stateManager.clearCache();
         return response.data;
     }
 

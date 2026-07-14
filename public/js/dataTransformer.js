@@ -41,6 +41,7 @@ export function transformActivity(activity) {
         description: activity.description,
         location: activity.location,
         date: activity.date || activity.planned_date,
+        reportingMonth: activity.reporting_month,
         status: activity.status,
         approvalStatus: activity.approval_status,
         budget: Number(activity.budget) || 0,
@@ -120,6 +121,13 @@ export function transformProject(project) {
 export function transformIndicator(indicator) {
     if (!indicator) return null;
 
+    const thematicAreaIds = Array.isArray(indicator.thematic_area_ids)
+        ? indicator.thematic_area_ids
+        : (indicator.thematic_area_id ? [indicator.thematic_area_id] : []);
+    const thematicAreaNames = Array.isArray(indicator.thematic_area_names)
+        ? indicator.thematic_area_names
+        : (indicator.thematic_area_name ? String(indicator.thematic_area_name).split(',').map(v => v.trim()).filter(Boolean) : []);
+
     const achieved = Number(indicator.achieved) || 0;
     const target = Number(indicator.target) || 0;
     const annualTarget = Number(indicator.annual_target) || target;  // Use target if annual_target doesn't exist
@@ -132,8 +140,10 @@ export function transformIndicator(indicator) {
         projectId: indicator.project_id,
         projectName: indicator.project_name,
         indicatorScope: indicator.indicator_scope,
-        thematicAreaId: indicator.thematic_area_id,
-        thematicArea: indicator.thematic_area_name,
+        thematicAreaId: thematicAreaIds[0] || indicator.thematic_area_id,
+        thematicAreaIds,
+        thematicArea: thematicAreaNames.join(', ') || indicator.thematic_area_name,
+        thematicAreas: thematicAreaNames,
         code: indicator.indicator_code || indicator.code,
         name: indicator.indicator_name || indicator.name,
         type: indicator.indicator_type || indicator.type,

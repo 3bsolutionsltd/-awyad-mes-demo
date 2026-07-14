@@ -1,7 +1,7 @@
 # AWYAD MES — User Acceptance Testing (UAT) Guide
 **System:** AWYAD Monitoring, Evaluation & Learning System  
 **Version:** 2.0 Enterprise  
-**Guide Version:** 2.0  
+**Guide Version:** 2.1  
 **Date:** June 2026  
 **Estimated Duration:** 150–180 minutes (full run) | 60 minutes (smoke test)
 
@@ -26,31 +26,42 @@ Navigate to: **http://localhost:3001**
 | Role | Username | Password | What they can do |
 |------|----------|----------|-----------------|
 | **Admin** | `admin` | `Admin123!` | Everything — full system access |
-| **Manager** | Create in Suite 9 | `Manager123!` | View + Edit data, reports, no user management |
-| **Field Officer** | Create in Suite 9 | `Field123!` | Submit activities and indicator data |
-| **Viewer** | Create in Suite 9 | `Viewer123!` | Read only across all modules |
+| **Manager** | Create in Suite 10 | `Manager123!` | View + Edit data, reports, no user management |
+| **Field Officer** | Create in Suite 10 | `Field123!` | Submit activities and indicator data |
+| **Viewer** | Create in Suite 10 | `Viewer123!` | Read only across all modules |
 
 ### 4. System Map
 
 ```
 AWYAD MES (http://localhost:3001)
 │
-├── / (index.html)          → Main dashboard with sidebar
-│   ├── #dashboard          → KPI cards + charts
-│   ├── #projects           → Project portfolio
-│   ├── #indicators         → Indicator Tracking Table (ITT)
-│   ├── #activities         → Activity Tracking Table (ATT)
-│   ├── #cases              → Case Management
-│   ├── #monthly            → Monthly Tracking / Calendar
-│   ├── #entry-form         → New Activity data entry
-│   ├── #users              → User Management (Admin)
-│   └── #profile            → User profile + password
+├── / (index.html)              → Main app shell with sidebar
+│   │
+│   ├── #dashboard              → Home — post-login landing page / task router
+│   ├── #overview-dashboard     → Overview Dashboard — KPI cards + charts
+│   ├── #strategic-dashboard    → AWYAD Strategic Dashboard (hierarchy view)
+│   ├── #projects               → Project portfolio
+│   ├── #indicators             → Indicator Tracking Table (ITT)
+│   ├── #activities             → Activity Tracking Table (ATT)
+│   ├── #cases                  → Case Management
+│   ├── #monthly                → Monthly Tracking / Calendar
+│   ├── #entry-form             → Activity Report Form (report completed activities)
+│   ├── #profile                → User profile + password
+│   ├── #sessions               → Session Management
+│   ├── #help                   → Help & Quick Reference
+│   │
+│   ├── #users                  → User Management         (Admin only)
+│   ├── #thematic-areas         → Thematic Areas config    (Admin only)
+│   ├── #support-data           → Support Data management  (Admin only)
+│   ├── #donors                 → Donor Management         (Admin only)
+│   ├── #permissions            → Permission Matrix        (Admin only)
+│   └── #audit-logs             → Audit Logs               (Admin only)
 │
-├── /rbm-dashboard.html     → Results-Based Management dashboard
-├── /rbm-strategy.html      → Strategy Framework hierarchy
-├── /rbm-indicators.html    → RBM Indicator list
-├── /rbm-submit.html        → Submit Indicator Data
-├── /rbm-validation.html    → Validation Queue
+├── /rbm-dashboard.html         → Results-Based Management dashboard
+├── /rbm-strategy.html          → Strategy Framework hierarchy
+├── /rbm-indicators.html        → RBM Indicator list
+├── /rbm-submit.html            → Submit Indicator Data
+├── /rbm-validation.html        → Validation Queue
 └── /non-program-activities.html → Non-Program Activities
 ```
 
@@ -87,7 +98,7 @@ Comment: ___________________________________________________
 2. Click **Login**
 
 **Pass if:**
-- Redirected to the main Dashboard
+- Redirected to the main Home page
 - User name shown in header or sidebar
 - Sidebar navigation is visible
 
@@ -113,7 +124,7 @@ Comment: ___________________________________________________
 1. While logged in as Admin, press **F5** to hard-refresh the page
 
 **Pass if:**
-- Stays on Dashboard — NOT redirected back to login
+- Stays on Home — NOT redirected back to login
 - Token and session are maintained
 
 ☐ Pass   ☐ Fail   Comment: ___________________________
@@ -152,10 +163,12 @@ Comment: ___________________________________________________
 
 ---
 
-## Suite 2 — Main Dashboard
+## Suite 2 — Dashboards
 
-### UAT-2.1: KPI Summary Cards
-**Navigation:** Click **Dashboard** in the sidebar  
+> The system opens on **Home** (`#dashboard`) after login. The analytics dashboard views are separate sidebar routes: **Overview Dashboard** (`#overview-dashboard`) and **Strategic Dashboard** (`#strategic-dashboard`).
+
+### UAT-2.1: Overview Dashboard — KPI Summary Cards
+**Navigation:** Click **Overview Dashboard** in the sidebar  
 **Pass if:**
 - 4 KPI summary cards are visible:
   - Active Projects (a positive number)
@@ -168,7 +181,7 @@ Comment: ___________________________________________________
 
 ---
 
-### UAT-2.2: Thematic Area Progress Bars
+### UAT-2.2: Overview Dashboard — Thematic Area Progress Bars
 **Pass if:**
 - "Thematic Areas" or "Results Framework" section is visible
 - Progress bars shown for RESULT 2 (GBV) and RESULT 3 (Child Protection)
@@ -178,7 +191,7 @@ Comment: ___________________________________________________
 
 ---
 
-### UAT-2.3: Charts Render Correctly
+### UAT-2.3: Overview Dashboard — Charts Render Correctly
 **Pass if:**
 - At least one chart renders without blank area or broken canvas
 - Charts include data (not empty state)
@@ -188,20 +201,35 @@ Comment: ___________________________________________________
 
 ---
 
-### UAT-2.4: Strategic vs Project Dashboard Switcher
-**Action:** If **"Strategic Dashboard"** / **"Project Dashboard"** tabs or buttons exist, click each one  
+### UAT-2.4: Overview Dashboard — Project/Strategic View Switcher
+**Action:** Within the Overview Dashboard, locate the **"AWYAD Strategic View"** / **"Project Dashboards"** switcher bar at the top of the content area and click each button  
 **Pass if:**
-- Content changes when switching views
-- Active tab is visually highlighted
-- No page errors occur during switch
+- Selecting **"AWYAD Strategic View"** hides the project selector dropdown
+- Selecting **"Project Dashboards"** reveals a project selector dropdown
+- Choosing a project from the dropdown loads a project-specific dashboard
+- Selection persists across page refreshes (saved in browser localStorage)
 
 ☐ Pass   ☐ Fail   Comment: ___________________________
 
 ---
 
-### UAT-2.5: Dashboard Performance
+### UAT-2.5: Strategic Dashboard — Hierarchy View
+**Navigation:** Click **Strategic Dashboard** in the sidebar  
 **Pass if:**
-- Dashboard fully loads within 5 seconds on localhost
+- Page loads showing the AWYAD Strategic Framework
+- Summary cards show totals for Strategies, Pillars, Components, and Projects
+- Strategy cards are expandable/collapsible by clicking the card header
+- Each strategy card shows badge counts: Pillars, Components, Projects
+- AWYAD-level indicators section is visible below the hierarchy
+- No "NaN", "null", or blank badge counts in any card
+
+☐ Pass   ☐ Fail   Comment: ___________________________
+
+---
+
+### UAT-2.6: Dashboard Performance
+**Pass if:**
+- Both dashboard views fully load within 5 seconds on localhost
 - No spinners stuck indefinitely
 - All API calls resolve (check Network tab in F12 — no failed requests)
 
@@ -922,21 +950,30 @@ Test any row you haven't already covered with the steps above.
 
 Click each sidebar item and confirm it loads correctly:
 
-| # | Link | Expected Page | Result |
-|---|------|---------------|--------|
-| 1 | Dashboard | KPI cards and charts | ☐ Pass ☐ Fail |
-| 2 | Projects | Project list | ☐ Pass ☐ Fail |
-| 3 | Indicators | ITT table | ☐ Pass ☐ Fail |
-| 4 | Activities | ATT table | ☐ Pass ☐ Fail |
-| 5 | Cases | Case management | ☐ Pass ☐ Fail |
-| 6 | Monthly Tracking | Calendar / month view | ☐ Pass ☐ Fail |
-| 7 | New Activity Report | Data entry form | ☐ Pass ☐ Fail |
-| 8 | Users (Admin only) | User management | ☐ Pass ☐ Fail |
-| 9 | Profile | Profile/settings | ☐ Pass ☐ Fail |
-| 10 | RBM Dashboard | `/rbm-dashboard.html` | ☐ Pass ☐ Fail |
-| 11 | Strategy Framework | `/rbm-strategy.html` | ☐ Pass ☐ Fail |
-| 12 | Submit Data | `/rbm-submit.html` | ☐ Pass ☐ Fail |
-| 13 | Non-Program Activities | `/non-program-activities.html` | ☐ Pass ☐ Fail |
+| # | Link | Expected Page | Admin only? | Result |
+|---|------|---------------|:-----------:|--------|
+| 1 | Home | Post-login landing page and pathway guidance | | ☐ Pass ☐ Fail |
+| 2 | Overview Dashboard | KPI cards and charts | | ☐ Pass ☐ Fail |
+| 3 | Strategic Dashboard | Strategy hierarchy + AWYAD indicators | | ☐ Pass ☐ Fail |
+| 4 | Projects | Project list | | ☐ Pass ☐ Fail |
+| 5 | Indicator Tracking (ITT) | ITT table | | ☐ Pass ☐ Fail |
+| 6 | Activity Tracking (ATT) | ATT table | | ☐ Pass ☐ Fail |
+| 7 | Case Management | Case management | | ☐ Pass ☐ Fail |
+| 8 | Monthly Tracking | Calendar / month view | | ☐ Pass ☐ Fail |
+| 9 | Activity Report Form | Report completed activities with disaggregation | | ☐ Pass ☐ Fail |
+| 10 | RBM Dashboard | `/rbm-dashboard.html` | | ☐ Pass ☐ Fail |
+| 11 | Submit Indicator Data | `/rbm-submit.html` | | ☐ Pass ☐ Fail |
+| 12 | RBM Validation | `/rbm-validation.html` | | ☐ Pass ☐ Fail |
+| 13 | Help & Quick Reference | Help guides | | ☐ Pass ☐ Fail |
+| 14 | Profile | Profile/settings | | ☐ Pass ☐ Fail |
+| 15 | Sessions | Session management | | ☐ Pass ☐ Fail |
+| 16 | User Management | User list and creation | ✅ | ☐ Pass ☐ Fail |
+| 17 | Thematic Areas | Thematic area config | ✅ | ☐ Pass ☐ Fail |
+| 18 | Support Data | Support data management | ✅ | ☐ Pass ☐ Fail |
+| 19 | Donors | Donor management | ✅ | ☐ Pass ☐ Fail |
+| 20 | Permissions | Permission matrix | ✅ | ☐ Pass ☐ Fail |
+| 21 | Audit Logs | Audit log table | ✅ | ☐ Pass ☐ Fail |
+| 22 | Non-Program Activities | `/non-program-activities.html` | | ☐ Pass ☐ Fail |
 
 ---
 
@@ -989,7 +1026,7 @@ Complete this table after all suites are finished.
 | Suite | # Tests | Pass | Fail | Skip | Notes |
 |-------|---------|------|------|------|-------|
 | 1. Authentication | 6 | | | | |
-| 2. Main Dashboard | 5 | | | | |
+| 2. Dashboards | 6 | | | | |
 | 3. Projects | 5 | | | | |
 | 4. Indicators (ITT) | 6 | | | | |
 | 5. Activities (ATT) | 5 | | | | |
@@ -1002,9 +1039,9 @@ Complete this table after all suites are finished.
 | 12. User Profile | 2 | | | | |
 | 13. Audit Logs | 2 | | | | |
 | 14. Navigation & UI | 4 | | | | |
-| **TOTAL** | **63** | | | | |
+| **TOTAL** | **64** | | | | |
 
-**Overall Score:** ______ / 63  
+**Overall Score:** ______ / 64  
 **Test Date:** _______________  
 **Tested By:** _______________  
 **Sign-off Status:** ☐ Accepted   ☐ Accepted with conditions   ☐ Rejected
@@ -1058,4 +1095,4 @@ Severity:          Critical / High / Medium / Low
 
 ---
 
-*UAT Guide v2.0 — AWYAD MES System — June 2026 — 3B Solutions Ltd*
+*UAT Guide v2.1 — AWYAD MES System — June 2026 — 3B Solutions Ltd*

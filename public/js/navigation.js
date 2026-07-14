@@ -11,7 +11,8 @@
  */
 
 import { createDashboardSwitcher, initializeDashboardSwitcher } from './components/dashboardSwitcher.js';
-import { renderDashboard } from './dashboard.js';
+import { renderDashboard as renderLandingPage } from './landing.js';
+import { renderDashboard as renderOverviewDashboard } from './dashboard.js';
 import { renderProjects } from './projects.js';
 import { renderIndicators } from './indicators.js';
 import { renderActivities } from './activities.js';
@@ -29,17 +30,44 @@ import { renderHelp } from './help.js';
 import { renderProfile } from './renderProfile.js';
 import { renderStrategicDashboard } from './renderStrategicDashboard.js';
 import { renderProjectDashboard } from './renderProjectDashboard.js';
+import { renderProjectReportPage } from './projectReport.js';
 
 // Stream 6: New Dashboard System
 import { renderAWYADStrategicDashboard } from './dashboards/strategicDashboard.js';
 import { renderProjectDashboardNew } from './dashboards/projectDashboard.js';
 
+const RECENT_NAVIGATION_KEY = 'awyad.navigation.recent';
+const PROJECT_NAME_CACHE_KEY = 'awyad.navigation.projectNames';
+const ROUTE_LABELS = {
+    'dashboard': 'Home',
+    'overview-dashboard': 'Overview Dashboard',
+    'strategic-dashboard': 'Strategic Dashboard',
+    'project-dashboard': 'Project Dashboard',
+    'project-report': 'Project Report',
+    'projects': 'Projects',
+    'indicators': 'Indicator Tracking (ITT)',
+    'activities': 'Activity Tracking (ATT)',
+    'cases': 'Case Management',
+    'monthly': 'Monthly Tracking',
+    'entry-form': 'Activity Report Form',
+    'users': 'User Management',
+    'audit-logs': 'Audit Logs',
+    'permissions': 'Permissions',
+    'sessions': 'Sessions',
+    'thematic-areas': 'Thematic Areas',
+    'support-data': 'Support Data',
+    'donors': 'Donors',
+    'help': 'Help & Quick Reference',
+    'profile': 'Profile'
+};
+
 /**
  * Navigation routes mapping
  */
 const routes = {
-    '': renderDashboard,
-    'dashboard': renderDashboard,
+    '': renderLandingPage,
+    'dashboard': renderLandingPage,
+    'overview-dashboard': renderOverviewDashboard,
     
     // Stream 6: Enhanced Dashboard Routes
     'strategic-dashboard': async (container) => {
@@ -62,6 +90,11 @@ const routes = {
                 initializeDashboardSwitcher();
             }, 150);
         }
+    },
+    'project-report': async (container) => {
+        const urlParams = new URLSearchParams(window.location.hash.split('?')[1]);
+        const projectId = urlParams.get('id');
+        container.innerHTML = await renderProjectReportPage(projectId);
     },
     
     // Legacy routes (kept for backward compatibility)
@@ -212,6 +245,9 @@ async function handleRouteChange() {
     // Update active navigation item
     updateActiveNavItem(route);
 
+    // Track recent navigation for the landing page.
+    rememberRecentRoute(route, hash);
+
     // Get render function for route
     const renderFunction = routes[route];
 
@@ -226,7 +262,7 @@ async function handleRouteChange() {
                     <h4><i class="bi bi-exclamation-triangle"></i> Error</h4>
                     <p>Failed to load page: ${error.message}</p>
                     <button class="btn btn-sm btn-outline-danger" onclick="window.location.hash='dashboard'">
-                        <i class="bi bi-house"></i> Go to Dashboard
+                        <i class="bi bi-house"></i> Go to Home
                     </button>
                 </div>
             `;
@@ -238,7 +274,7 @@ async function handleRouteChange() {
                 <h4><i class="bi bi-question-circle"></i> Page Not Found</h4>
                 <p>The page you're looking for doesn't exist.</p>
                 <button class="btn btn-sm btn-outline-primary" onclick="window.location.hash='dashboard'">
-                    <i class="bi bi-house"></i> Go to Dashboard
+                    <i class="bi bi-house"></i> Go to Home
                 </button>
             </div>
         `;
@@ -287,4 +323,90 @@ function updateActiveNavItem(route) {
 export function getCurrentRoute() {
     let route = window.location.hash.substring(1);
     return route || 'dashboard';
+}
+
+window.rememberProjectRecentContext = function(projectId, projectName) {
+    rememberProjectName(projectId, projectName);
+};
+
+function rememberRecentRoute(route, hash) {
+    if (!route || route === 'dashboard') {
+        return;
+    }
+
+    const href = hash || route;
+    const label = buildRecentLabel(route, hash);
+    const recentItem = {
+        route,
+        href,
+        label,
+        visitedAt: new Date().toISOString()
+    };
+
+    let history = [];
+    try {
+        history = JSON.parse(localStorage.getItem(RECENT_NAVIGATION_KEY) || '[]');
+        if (!Array.isArray(history)) {
+            history = [];
+        }
+    } catch {
+        history = [];
+    }
+
+    const nextHistory = [recentItem, ...history.filter(item => item.href !== href)].slice(0, 6);
+    localStorage.setItem(RECENT_NAVIGATION_KEY, JSON.stringify(nextHistory));
+}
+
+function buildRecentLabel(route, hash) {
+    if (route === 'project-dashboard') {
+        const params = new URLSearchParams(hash.split('?')[1] || '');
+        const projectId = params.get('id');
+        const projectName = getRememberedProjectName(projectId);
+        if (projectName) {
+            return `Project Dashboard: ${projectName}`;
+        }
+        return projectId ? `Project Dashboard (${projectId.slice(0, 8)})` : 'Project Dashboard';
+    }
+
+    if (route === 'project-report') {
+        return 'Project Report';
+    }
+
+    return ROUTE_LABELS[route] || route;
+}
+
+function rememberProjectName(projectId, projectName) {
+    if (!projectId || !projectName) {
+        return;
+    }
+
+    let cache = {};
+    try {
+        cache = JSON.parse(localStorage.getItem(PROJECT_NAME_CACHE_KEY) || '{}');
+        if (!cache || typeof cache !== 'object' || Array.isArray(cache)) {
+            cache = {};
+        }
+    } catch {
+        cache = {};
+    }
+
+    cache[projectId] = projectName;
+    localStorage.setItem(PROJECT_NAME_CACHE_KEY, JSON.stringify(cache));
+}
+
+function getRememberedProjectName(projectId) {
+    if (!projectId) {
+        return '';
+    }
+
+    try {
+        const cache = JSON.parse(localStorage.getItem(PROJECT_NAME_CACHE_KEY) || '{}');
+        if (cache && typeof cache === 'object' && !Array.isArray(cache)) {
+            return cache[projectId] || '';
+        }
+    } catch {
+        return '';
+    }
+
+    return '';
 }

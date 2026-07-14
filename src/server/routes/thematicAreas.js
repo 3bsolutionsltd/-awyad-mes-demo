@@ -70,10 +70,16 @@ router.get(
         ta.id, ta.code, ta.name, ta.description, ta.is_active,
         ta.created_at, ta.updated_at,
         COUNT(DISTINCT p.id) as project_count,
-        COUNT(DISTINCT i.id) as indicator_count
+        (
+          SELECT COUNT(DISTINCT x.indicator_id)
+          FROM (
+            SELECT i2.id AS indicator_id FROM indicators i2 WHERE i2.thematic_area_id = ta.id
+            UNION
+            SELECT ita2.indicator_id FROM indicator_thematic_areas ita2 WHERE ita2.thematic_area_id = ta.id
+          ) x
+        ) as indicator_count
        FROM thematic_areas ta
        LEFT JOIN projects p ON p.thematic_area_id = ta.id
-       LEFT JOIN indicators i ON i.thematic_area_id = ta.id
        WHERE ta.id = $1
        GROUP BY ta.id`,
       [id]
@@ -241,7 +247,14 @@ router.delete(
     const usage = await db.query(
       `SELECT 
         (SELECT COUNT(*) FROM projects WHERE thematic_area_id = $1) as project_count,
-        (SELECT COUNT(*) FROM indicators WHERE thematic_area_id = $1) as indicator_count`,
+        (
+          SELECT COUNT(DISTINCT x.indicator_id)
+          FROM (
+            SELECT i.id AS indicator_id FROM indicators i WHERE i.thematic_area_id = $1
+            UNION
+            SELECT ita.indicator_id FROM indicator_thematic_areas ita WHERE ita.thematic_area_id = $1
+          ) x
+        ) as indicator_count`,
       [id]
     );
     

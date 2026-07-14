@@ -1,7 +1,7 @@
 # AWYAD M&E System - User Manual
 
 **Version:** 2.0.0  
-**Last Updated:** January 20, 2026  
+**Last Updated:** July 8, 2026  
 **Organization:** AWYAD (Association for Women and Youth in Action for Development)
 
 ---
@@ -59,14 +59,30 @@ The system uses a **sidebar menu** with the following sections:
 
 | Menu Item | Purpose |
 |-----------|---------|
-| 🏠 **Dashboard** | Overview of all KPIs and performance |
+| 🏠 **Home** | Default post-login page with pathway guidance and self-help |
+| 📈 **Overview Dashboard** | KPI cards, charts, and analytics overview |
 | 📁 **Projects** | Manage projects, budgets, and donors |
 | 📊 **Indicator Tracking (ITT)** | Monitor indicators and targets |
 | ✅ **Activity Tracking (ATT)** | Track activities and beneficiaries |
 | 💼 **Case Management** | GBV case registration and follow-up |
 | 📅 **Monthly Tracking** | Calendar view and monthly breakdown |
-| ➕ **New Activity Report** | Quick activity entry form |
-| 📖 **Demo Guide** | System tutorials and help |
+| ➕ **Activity Report Form** | Report completed activities with disaggregation |
+| 📖 **Help & Quick Reference** | Pathway guidance, tutorials, and self-help |
+
+### Start on Home
+
+After login, the system opens on **Home**. Use this page to:
+
+1. Choose the correct workflow before entering data
+2. Go to the right module for project work, AWYAD-level reporting, or activity reporting
+3. Resume recent items and follow role-specific guidance
+
+### Choose the Right Route
+
+- Use **Projects** or **Project Dashboard** to create and manage project activities
+- Use **Overview Dashboard** for KPI and analytics review
+- Use **Strategic Dashboard** for AWYAD-level indicators
+- Use **Activity Report Form** only after an activity has already been carried out and you are reporting results
 
 ### Sidebar Toggle
 
@@ -76,6 +92,13 @@ The system uses a **sidebar menu** with the following sections:
 ---
 
 ## 3. Dashboard Overview
+
+### Home vs Overview Dashboard
+
+The system has two different starting concepts:
+
+1. **Home** is the default post-login landing page for routing users to the correct workflow.
+2. **Overview Dashboard** is the analytics page for KPI cards, charts, and summary reporting.
 
 ### Summary Cards
 
@@ -321,8 +344,8 @@ Each activity tracks:
 
 ### Adding a New Activity
 
-**Option 1: New Activity Report (Quick Entry)**
-1. Click **New Activity Report** in sidebar
+**Option 1: Activity Report Form (Completed Activity Reporting)**
+1. Click **Activity Report Form** in sidebar
 2. Fill in form sections:
    - **Basic Information:**
      - Project (dropdown)
@@ -340,6 +363,8 @@ Each activity tracks:
      - Actual Cost (if spent)
 3. Click **Save Activity**
 4. System auto-calculates totals
+
+> Use this form only after the activity has been carried out. To create or manage project activities, use Projects, Project Dashboard, or ATT.
 
 **Option 2: Activity Tracking Page**
 1. Navigate to **Activity Tracking (ATT)**
@@ -558,9 +583,9 @@ Click on any month to expand and see:
 
 ## 9. Data Entry Forms
 
-### New Activity Report Form
+### Activity Report Form
 
-**Best Practice for Activity Entry:**
+**Best Practice for Reporting Completed Activities:**
 
 #### Step 1: Basic Information
 ```

@@ -26,17 +26,23 @@ export async function showCreateIndicatorModal(onSuccess) {
                 <!-- Scope selector -->
                 <div class="mb-3">
                     <label class="form-label fw-bold">Indicator Scope <span class="text-danger">*</span></label>
-                    <div class="d-flex gap-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="indicator_scope" id="scopeAwyad" value="awyad" checked>
+                    <div class="alert alert-warning py-2 px-3 small mb-2" id="scopeSelectionHint" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        First, choose indicator scope. This changes the required fields below.
+                    </div>
+                    <div class="d-flex flex-wrap gap-3">
+                        <div class="form-check border rounded px-3 py-2">
+                            <input class="form-check-input" type="radio" name="indicator_scope" id="scopeAwyad" value="awyad" required>
                             <label class="form-check-label" for="scopeAwyad">
-                                <i class="bi bi-building"></i> Organizational (AWYAD-level)
+                                <i class="bi bi-building"></i> <strong>Organizational (AWYAD-level)</strong>
+                                <div class="small text-muted">Use for AWYAD-wide indicators linked to a thematic area.</div>
                             </label>
                         </div>
-                        <div class="form-check">
+                        <div class="form-check border rounded px-3 py-2">
                             <input class="form-check-input" type="radio" name="indicator_scope" id="scopeProject" value="project">
                             <label class="form-check-label" for="scopeProject">
-                                <i class="bi bi-folder"></i> Project-Specific
+                                <i class="bi bi-folder"></i> <strong>Project-Specific</strong>
+                                <div class="small text-muted">Use for one project only. Requires project and result area.</div>
                             </label>
                         </div>
                     </div>
@@ -72,12 +78,25 @@ export async function showCreateIndicatorModal(onSuccess) {
                 </div>
 
                 <!-- AWYAD scope: thematic area (shown when scope = 'awyad') -->
-                <div id="awyadScopeFields" class="mb-3">
-                    <label for="indicatorThematicArea" class="form-label">Thematic Area <span class="text-danger">*</span></label>
-                    <select class="form-select" id="indicatorThematicArea" name="thematic_area_id">
-                        <option value="">Select Thematic Area</option>
-                        ${thematicAreas.map(ta => `<option value="${ta.id}">${ta.name}</option>`).join('')}
-                    </select>
+                <div id="awyadScopeFields" class="mb-3 d-none">
+                    <label for="indicatorThematicArea" class="form-label">Thematic Areas <span class="text-danger">*</span></label>
+                    <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
+                        <input type="text" class="form-control form-control-sm" id="indicatorThematicAreaSearch" placeholder="Search thematic areas..." style="max-width: 280px;">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="indicatorTaSelectAll">Select Visible</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="indicatorTaClear">Clear</button>
+                    </div>
+                    <div id="indicatorThematicAreaCheckboxes" class="border rounded p-2" style="max-height: 240px; overflow: auto;">
+                        ${thematicAreas.map(ta => `
+                            <div class="form-check py-1 thematic-area-item">
+                                    <input class="form-check-input thematic-area-checkbox" type="checkbox" value="${ta.id}" id="indicatorTa_${ta.id}">
+                                    <label class="form-check-label" for="indicatorTa_${ta.id}">${ta.name}</label>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="form-text d-flex justify-content-between">
+                        <span>Select all thematic areas that apply to this organizational indicator.</span>
+                        <span id="indicatorThematicAreaCount" class="text-muted">0 selected</span>
+                    </div>
                 </div>
 
                 <!-- Project scope: project + result area (shown when scope = 'project') -->
@@ -94,6 +113,13 @@ export async function showCreateIndicatorModal(onSuccess) {
                             <label for="indicatorResultArea" class="form-label">Result Area <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="indicatorResultArea" name="result_area" maxlength="200" placeholder="e.g., Protection Services">
                         </div>
+                    </div>
+                    <div class="alert alert-warning py-2 px-3 small d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-lightbulb me-1"></i>
+                            Recommended: for project indicators, use the Project Dashboard so teams can manage indicators and activities in one place.
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary ms-2" id="goToProjectDashboardBtn">Open Project Dashboard</button>
                     </div>
                 </div>
 
@@ -140,6 +166,7 @@ export async function showCreateIndicatorModal(onSuccess) {
 
         const footerHTML = `
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <span id="selectedScopeBadge" class="badge text-bg-secondary ms-2 me-2">Scope: Not Selected</span>
             <button type="button" class="btn btn-primary" id="saveIndicatorBtn">
                 <i class="bi bi-check-lg"></i> Create Indicator
             </button>
@@ -161,16 +188,104 @@ export async function showCreateIndicatorModal(onSuccess) {
         const modal = new bootstrap.Modal(document.getElementById('createIndicatorModal'));
         modal.show();
 
+        const saveBtn = document.getElementById('saveIndicatorBtn');
+        const scopeHint = document.getElementById('scopeSelectionHint');
+        const selectedScopeBadge = document.getElementById('selectedScopeBadge');
+        const goToProjectDashboardBtn = document.getElementById('goToProjectDashboardBtn');
+        const thematicAreaCheckboxes = document.querySelectorAll('.thematic-area-checkbox');
+        const thematicAreaCount = document.getElementById('indicatorThematicAreaCount');
+        const thematicAreaSearch = document.getElementById('indicatorThematicAreaSearch');
+        const thematicAreaSelectAllBtn = document.getElementById('indicatorTaSelectAll');
+        const thematicAreaClearBtn = document.getElementById('indicatorTaClear');
+
+        const updateThematicAreaCount = () => {
+            const selectedCount = Array.from(thematicAreaCheckboxes).filter(cb => cb.checked).length;
+            thematicAreaCount.textContent = `${selectedCount} selected`;
+        };
+
+        const applyCreateThematicFilter = () => {
+            const term = (thematicAreaSearch.value || '').trim().toLowerCase();
+            thematicAreaCheckboxes.forEach(cb => {
+                const item = cb.closest('.thematic-area-item');
+                const label = item?.querySelector('label')?.textContent?.toLowerCase() || '';
+                item.style.display = !term || label.includes(term) ? '' : 'none';
+            });
+        };
+
+        const getVisibleCreateThematicCheckboxes = () => {
+            return Array.from(thematicAreaCheckboxes).filter(cb => {
+                const item = cb.closest('.thematic-area-item');
+                return item && item.style.display !== 'none';
+            });
+        };
+
+        thematicAreaCheckboxes.forEach(cb => cb.addEventListener('change', updateThematicAreaCount));
+        thematicAreaSearch.addEventListener('input', applyCreateThematicFilter);
+        thematicAreaSelectAllBtn.addEventListener('click', () => {
+            getVisibleCreateThematicCheckboxes().forEach(cb => { cb.checked = true; });
+            updateThematicAreaCount();
+        });
+        thematicAreaClearBtn.addEventListener('click', () => {
+            thematicAreaCheckboxes.forEach(cb => { cb.checked = false; });
+            updateThematicAreaCount();
+        });
+
+        const toggleScopeFields = () => {
+            const isProject = document.getElementById('scopeProject').checked;
+            const isAwyad = document.getElementById('scopeAwyad').checked;
+            const hasScope = isProject || isAwyad;
+
+            document.getElementById('awyadScopeFields').classList.toggle('d-none', !isAwyad);
+            document.getElementById('projectScopeFields').classList.toggle('d-none', !isProject);
+            document.getElementById('indicatorProject').required = isProject;
+            document.getElementById('indicatorResultArea').required = isProject;
+            thematicAreaCheckboxes.forEach(cb => {
+                cb.disabled = !isAwyad;
+            });
+
+            saveBtn.disabled = !hasScope;
+
+            if (!hasScope) {
+                scopeHint.className = 'alert alert-warning py-2 px-3 small mb-2';
+                scopeHint.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>First, choose indicator scope. This changes the required fields below.';
+                selectedScopeBadge.className = 'badge text-bg-secondary ms-2 me-2';
+                selectedScopeBadge.textContent = 'Scope: Not Selected';
+            } else if (isAwyad) {
+                scopeHint.className = 'alert alert-info py-2 px-3 small mb-2';
+                scopeHint.innerHTML = '<i class="bi bi-info-circle-fill me-1"></i>You selected <strong>Organizational</strong>: choose a thematic area. Do not select a project.';
+                selectedScopeBadge.className = 'badge text-bg-info ms-2 me-2';
+                selectedScopeBadge.textContent = 'Scope: Organizational (AWYAD-level)';
+            } else {
+                scopeHint.className = 'alert alert-info py-2 px-3 small mb-2';
+                scopeHint.innerHTML = '<i class="bi bi-info-circle-fill me-1"></i>You selected <strong>Project-Specific</strong>: choose a project and result area. Thematic area is not used.';
+                selectedScopeBadge.className = 'badge text-bg-primary ms-2 me-2';
+                selectedScopeBadge.textContent = 'Scope: Project-Specific';
+            }
+        };
+
         // Toggle scope-specific fields based on radio selection
         document.querySelectorAll('input[name="indicator_scope"]').forEach(radio => {
-            radio.addEventListener('change', () => {
-                const isProject = document.getElementById('scopeProject').checked;
-                document.getElementById('awyadScopeFields').classList.toggle('d-none', isProject);
-                document.getElementById('projectScopeFields').classList.toggle('d-none', !isProject);
-                document.getElementById('indicatorThematicArea').required = !isProject;
-                document.getElementById('indicatorProject').required = isProject;
-                document.getElementById('indicatorResultArea').required = isProject;
-            });
+            radio.addEventListener('change', toggleScopeFields);
+        });
+
+        // Force an explicit scope choice before allowing submit.
+        toggleScopeFields();
+        updateThematicAreaCount();
+        applyCreateThematicFilter();
+
+        goToProjectDashboardBtn.addEventListener('click', () => {
+            const projectId = document.getElementById('indicatorProject').value;
+            if (!projectId) {
+                showNotification('Select a project first to open its dashboard.', 'warning');
+                return;
+            }
+            const projectSelect = document.getElementById('indicatorProject');
+            const projectName = projectSelect.options[projectSelect.selectedIndex]?.text?.trim();
+            if (projectName && typeof window.rememberProjectRecentContext === 'function') {
+                window.rememberProjectRecentContext(projectId, projectName);
+            }
+            modal.hide();
+            window.location.hash = `project-dashboard?id=${projectId}`;
         });
 
         document.getElementById('saveIndicatorBtn').addEventListener('click', async () => {
@@ -183,6 +298,30 @@ export async function showCreateIndicatorModal(onSuccess) {
 
             const formData = new FormData(form);
             const data = Object.fromEntries(formData.entries());
+
+            // Normalize scope-specific fields to match backend rules.
+            const isProjectScope = data.indicator_scope === 'project';
+            if (isProjectScope) {
+                data.thematic_area_id = null;
+                data.thematic_area_ids = [];
+                data.project_id = data.project_id || null;
+                data.result_area = (data.result_area || '').trim() || null;
+            } else {
+                const selectedThematicAreaIds = Array.from(document.querySelectorAll('.thematic-area-checkbox:checked')).map(cb => cb.value).filter(Boolean);
+                if (!selectedThematicAreaIds.length) {
+                    showNotification('Select at least one thematic area for an organizational indicator.', 'warning');
+                    return;
+                }
+                data.thematic_area_ids = selectedThematicAreaIds;
+                data.thematic_area_id = selectedThematicAreaIds[0] || null;
+                data.project_id = null;
+                data.result_area = null;
+            }
+
+            data.description = (data.description || '').trim() || null;
+            data.unit = (data.unit || '').trim() || null;
+            data.code = (data.code || '').trim() || null;
+
             // Convert numeric fields
             ['baseline', 'lop_target', 'annual_target', 'q1_target', 'q2_target', 'q3_target', 'q4_target'].forEach(f => {
                 if (data[f] !== undefined) data[f] = parseFloat(data[f]) || 0;
@@ -252,12 +391,31 @@ export async function showEditIndicatorModal(indicatorId, onSuccess) {
                             ${projects.map(p => `<option value="${p.id}" ${p.id === indicator.project_id ? 'selected' : ''}>${p.name}</option>`).join('')}
                         </select>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="editIndicatorThematicArea" class="form-label">Thematic Area <span class="text-danger">*</span></label>
-                        <select class="form-select" id="editIndicatorThematicArea" name="thematic_area_id" required>
-                            <option value="">Select Thematic Area</option>
-                            ${thematicAreas.map(ta => `<option value="${ta.id}" ${ta.id === indicator.thematic_area_id ? 'selected' : ''}>${ta.name}</option>`).join('')}
-                        </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="editIndicatorThematicArea" class="form-label">Thematic Areas <span class="text-danger">*</span></label>
+                    <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
+                        <input type="text" class="form-control form-control-sm" id="editIndicatorThematicAreaSearch" placeholder="Search thematic areas..." style="max-width: 280px;">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="editIndicatorTaSelectAll">Select Visible</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="editIndicatorTaClear">Clear</button>
+                    </div>
+                    <div id="editIndicatorThematicAreaCheckboxes" class="border rounded p-2" style="max-height: 240px; overflow: auto;">
+                        ${thematicAreas.map(ta => {
+                            const selectedIds = Array.isArray(indicator.thematic_area_ids)
+                                ? indicator.thematic_area_ids
+                                : (indicator.thematic_area_id ? [indicator.thematic_area_id] : []);
+                            return `
+                                <div class="form-check py-1 thematic-area-item">
+                                    <input class="form-check-input edit-thematic-area-checkbox" type="checkbox" value="${ta.id}" id="editIndicatorTa_${ta.id}" ${selectedIds.includes(ta.id) ? 'checked' : ''}>
+                                    <label class="form-check-label" for="editIndicatorTa_${ta.id}">${ta.name}</label>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    <div class="form-text d-flex justify-content-between">
+                        <span>Select all thematic areas that apply to this organizational indicator.</span>
+                        <span id="editIndicatorThematicAreaCount" class="text-muted">0 selected</span>
                     </div>
                 </div>
                 
@@ -317,6 +475,65 @@ export async function showEditIndicatorModal(indicatorId, onSuccess) {
         const modal = new bootstrap.Modal(document.getElementById('editIndicatorModal'));
         modal.show();
 
+        const editProjectField = document.getElementById('editIndicatorProject');
+        const editThematicAreaCheckboxes = document.querySelectorAll('.edit-thematic-area-checkbox');
+        const editThematicAreaCount = document.getElementById('editIndicatorThematicAreaCount');
+        const editThematicAreaSearch = document.getElementById('editIndicatorThematicAreaSearch');
+        const editThematicAreaSelectAllBtn = document.getElementById('editIndicatorTaSelectAll');
+        const editThematicAreaClearBtn = document.getElementById('editIndicatorTaClear');
+        const isProjectScopeIndicator = indicator.indicator_scope === 'project';
+
+        const updateEditThematicAreaCount = () => {
+            const selectedCount = Array.from(editThematicAreaCheckboxes).filter(cb => cb.checked).length;
+            editThematicAreaCount.textContent = `${selectedCount} selected`;
+        };
+
+        const applyEditThematicFilter = () => {
+            const term = (editThematicAreaSearch.value || '').trim().toLowerCase();
+            editThematicAreaCheckboxes.forEach(cb => {
+                const item = cb.closest('.thematic-area-item');
+                const label = item?.querySelector('label')?.textContent?.toLowerCase() || '';
+                item.style.display = !term || label.includes(term) ? '' : 'none';
+            });
+        };
+
+        const getVisibleEditThematicCheckboxes = () => {
+            return Array.from(editThematicAreaCheckboxes).filter(cb => {
+                const item = cb.closest('.thematic-area-item');
+                return item && item.style.display !== 'none';
+            });
+        };
+
+        editThematicAreaCheckboxes.forEach(cb => cb.addEventListener('change', updateEditThematicAreaCount));
+        editThematicAreaSearch.addEventListener('input', applyEditThematicFilter);
+        editThematicAreaSelectAllBtn.addEventListener('click', () => {
+            getVisibleEditThematicCheckboxes().forEach(cb => { cb.checked = true; });
+            updateEditThematicAreaCount();
+        });
+        editThematicAreaClearBtn.addEventListener('click', () => {
+            editThematicAreaCheckboxes.forEach(cb => { cb.checked = false; });
+            updateEditThematicAreaCount();
+        });
+
+        updateEditThematicAreaCount();
+        applyEditThematicFilter();
+
+        if (isProjectScopeIndicator) {
+            editProjectField.required = true;
+            editProjectField.disabled = false;
+            editThematicAreaCheckboxes.forEach(cb => {
+                cb.checked = false;
+                cb.disabled = true;
+            });
+            updateEditThematicAreaCount();
+        } else {
+            editProjectField.required = false;
+            editProjectField.disabled = true;
+            editThematicAreaCheckboxes.forEach(cb => {
+                cb.disabled = false;
+            });
+        }
+
         document.getElementById('updateIndicatorBtn').addEventListener('click', async () => {
             const form = document.getElementById('editIndicatorForm');
             
@@ -327,6 +544,25 @@ export async function showEditIndicatorModal(indicatorId, onSuccess) {
 
             const formData = new FormData(form);
             const data = Object.fromEntries(formData.entries());
+
+            if (isProjectScopeIndicator) {
+                data.thematic_area_id = null;
+                data.thematic_area_ids = [];
+                data.project_id = data.project_id || null;
+            } else {
+                const selectedThematicAreaIds = Array.from(document.querySelectorAll('.edit-thematic-area-checkbox:checked')).map(cb => cb.value).filter(Boolean);
+                if (!selectedThematicAreaIds.length) {
+                    showNotification('Select at least one thematic area for an organizational indicator.', 'warning');
+                    return;
+                }
+                data.thematic_area_ids = selectedThematicAreaIds;
+                data.thematic_area_id = selectedThematicAreaIds[0] || null;
+                data.project_id = null;
+                data.result_area = null;
+            }
+
+            data.description = (data.description || '').trim() || null;
+            data.unit = (data.unit || '').trim() || null;
 
             try {
                 const updateBtn = document.getElementById('updateIndicatorBtn');
@@ -364,6 +600,9 @@ export async function showViewIndicatorModal(indicatorId) {
     try {
         const indicatorRes = await apiService.get(`/indicators/${indicatorId}`);
         const indicator = indicatorRes.data;
+        const thematicAreaNames = Array.isArray(indicator.thematic_area_names)
+            ? indicator.thematic_area_names
+            : (indicator.thematic_area_name ? String(indicator.thematic_area_name).split(',').map(v => v.trim()).filter(Boolean) : []);
 
         const pct = parseFloat(indicator.achievement_percentage) || 0;
         const pctColor = pct >= 100 ? 'bg-success' : pct >= 75 ? 'bg-info' : pct >= 50 ? 'bg-warning' : 'bg-danger';
@@ -380,8 +619,10 @@ export async function showViewIndicatorModal(indicatorId) {
                     <strong>Project:</strong><br>${indicator.project_name || 'N/A'}
                 </div>
                 <div class="col-md-6 mb-3">
-                    <strong>Thematic Area:</strong><br>
-                    <span class="badge bg-info">${indicator.thematic_area_name || 'N/A'}</span>
+                    <strong>Thematic Areas:</strong><br>
+                    ${thematicAreaNames.length
+                        ? thematicAreaNames.map(name => `<span class="badge bg-info me-1 mb-1">${name}</span>`).join('')
+                        : `<span class="badge bg-info">${indicator.thematic_area_name || 'N/A'}</span>`}
                 </div>
             </div>
             <div class="row">

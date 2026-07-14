@@ -8,6 +8,7 @@ import AppError from '../utils/AppError.js';
 import Joi from 'joi';
 
 const router = express.Router();
+const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // Enhanced validation schemas with multi-currency and disaggregation
 const createActivitySchema = Joi.object({
@@ -111,6 +112,9 @@ const createActivitySchema = Joi.object({
 
     target_value: Joi.number().integer().min(0).default(0),
     achieved_value: Joi.number().integer().min(0).default(0),
+
+    // Reporting month
+    reporting_month: Joi.string().pattern(/^\d{4}-(0[1-9]|1[0-2])$/).allow(null),
 });
 
 const updateActivitySchema = Joi.object({
@@ -189,7 +193,10 @@ const updateActivitySchema = Joi.object({
     longitude: Joi.number().min(-180).max(180).allow(null),
 
     target_value: Joi.number().integer().min(0),
-    achieved_value: Joi.number().integer().min(0)
+    achieved_value: Joi.number().integer().min(0),
+
+    // Reporting month
+    reporting_month: Joi.string().pattern(/^\d{4}-(0[1-9]|1[0-2])$/).allow(null)
 }).min(1);
 
 const budgetTransferSchema = Joi.object({
@@ -220,6 +227,7 @@ router.get('/', authenticate, checkPermission('activities.read'), async (req, re
             project_id,
             currency,
             is_costed,
+            reporting_month,
             search 
         } = req.query;
 
@@ -240,6 +248,11 @@ router.get('/', authenticate, checkPermission('activities.read'), async (req, re
         if (project_id) {
             filters.push(`a.project_id = $${paramIndex++}`);
             params.push(project_id);
+        }
+
+        if (reporting_month) {
+            filters.push(`a.reporting_month = $${paramIndex++}`);
+            params.push(reporting_month);
         }
 
         if (currency) {
@@ -321,6 +334,12 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
             req.body.project_id = String(req.body.project_id);
         }
 
+        // Defensive normalization: treat non-UUID thematic_area_id as null and derive it server-side.
+        if (req.body && req.body.thematic_area_id != null) {
+            const rawThematicId = String(req.body.thematic_area_id).trim();
+            req.body.thematic_area_id = UUID_V4_REGEX.test(rawThematicId) ? rawThematicId : null;
+        }
+
         // Validate payload after potential coercion
         const { error, value } = createActivitySchema.validate(req.body);
         if (error) {
@@ -329,7 +348,7 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
 
         // Verify indicator exists
         const indicator = await databaseService.queryOne(
-            'SELECT id FROM indicators WHERE id = $1',
+            'SELECT id, project_id, thematic_area_id FROM indicators WHERE id = $1',
             [value.indicator_id]
         );
 
@@ -339,13 +358,22 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
 
         // Verify project exists (do after indicator check to preserve test expectations)
         const project = await databaseService.queryOne(
-            'SELECT id, start_date, end_date FROM projects WHERE id = $1',
+            'SELECT id, start_date, end_date, thematic_area_id FROM projects WHERE id = $1',
             [value.project_id]
         );
 
         if (!project) {
             throw new AppError('Project not found', 404);
         }
+
+        // Enforce project-indicator consistency for project-scoped indicators.
+        if (indicator.project_id && indicator.project_id !== value.project_id) {
+            throw new AppError('Selected indicator does not belong to the selected project', 400);
+        }
+
+        // Authoritative thematic area mapping: indicator -> project -> payload.
+        const resolvedThematicAreaId =
+            indicator.thematic_area_id || project.thematic_area_id || value.thematic_area_id || null;
 
         // Default planned_date to project.start_date when not provided
         if (!value.planned_date && project.start_date) {
@@ -418,7 +446,7 @@ router.post('/', authenticate, checkPermission('activities.create'), async (req,
         }
 
         const activity = await databaseService.queryOne(query, [
-            value.thematic_area_id,
+            resolvedThematicAreaId,
             value.indicator_id,
             value.project_id,
             value.activity_name,
@@ -1210,6 +1238,13 @@ router.get('/:id', authenticate, checkPermission('activities.read'), async (req,
 router.put('/:id', authenticate, checkPermission('activities.update'), async (req, res, next) => {
     try {
         const { id } = req.params;
+
+        // Defensive normalization: keep validation stable across all clients.
+        if (req.body && req.body.thematic_area_id != null) {
+            const rawThematicId = String(req.body.thematic_area_id).trim();
+            req.body.thematic_area_id = UUID_V4_REGEX.test(rawThematicId) ? rawThematicId : null;
+        }
+
         const { error, value } = updateActivitySchema.validate(req.body);
         
         if (error) {
@@ -1217,7 +1252,7 @@ router.put('/:id', authenticate, checkPermission('activities.update'), async (re
         }
 
         const existing = await databaseService.queryOne(
-            'SELECT id, is_locked FROM activities WHERE id = $1',
+            'SELECT id, is_locked, project_id, indicator_id FROM activities WHERE id = $1',
             [id]
         );
 
@@ -1250,6 +1285,24 @@ router.put('/:id', authenticate, checkPermission('activities.update'), async (re
 
             if (!project) {
                 throw new AppError('Project not found', 404);
+            }
+        }
+
+        // Enforce project-indicator consistency for project-scoped indicators.
+        const effectiveIndicatorId = value.indicator_id || existing.indicator_id;
+        const effectiveProjectId = value.project_id || existing.project_id;
+        if (effectiveIndicatorId && effectiveProjectId) {
+            const indicatorForConsistency = await databaseService.queryOne(
+                'SELECT id, project_id FROM indicators WHERE id = $1',
+                [effectiveIndicatorId]
+            );
+
+            if (!indicatorForConsistency) {
+                throw new AppError('Indicator not found', 404);
+            }
+
+            if (indicatorForConsistency.project_id && indicatorForConsistency.project_id !== effectiveProjectId) {
+                throw new AppError('Selected indicator does not belong to the selected project', 400);
             }
         }
 
@@ -1344,16 +1397,6 @@ router.delete('/:id', authenticate, checkPermission('activities.delete'), async 
 
         if (activity.is_locked) {
             throw new AppError('Activity is locked and cannot be deleted.', 403);
-        }
-
-        // Check for budget transfers
-        const transfers = await databaseService.queryOne(
-            'SELECT COUNT(*) as count FROM activity_budget_transfers WHERE from_activity_id = $1 OR to_activity_id = $1',
-            [id]
-        );
-
-        if (transfers.count > 0) {
-            throw new AppError('Cannot delete activity with budget transfers. Please remove transfers first.', 400);
         }
 
         await databaseService.query('DELETE FROM activities WHERE id = $1', [id]);

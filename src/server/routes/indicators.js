@@ -8,6 +8,136 @@ import indicatorMappingService from '../services/indicatorMappingService.js';
 
 const router = express.Router();
 
+const THEMATIC_AREA_MULTI_JOIN = `
+    LEFT JOIN LATERAL (
+        SELECT
+            array_agg(ta2.id ORDER BY ta2.name) AS thematic_area_ids,
+            array_agg(ta2.name ORDER BY ta2.name) AS thematic_area_names,
+            string_agg(ta2.name, ', ' ORDER BY ta2.name) AS thematic_area_name
+        FROM indicator_thematic_areas ita
+        JOIN thematic_areas ta2 ON ita.thematic_area_id = ta2.id
+        WHERE ita.indicator_id = i.id
+    ) ta_multi ON TRUE
+`;
+
+function toUniqueUuidList(values = []) {
+    return [...new Set(values.filter(Boolean))];
+}
+
+function resolveThematicAreaIds(payload = {}, scope = 'awyad') {
+    if (scope !== 'awyad') return [];
+
+    if (Array.isArray(payload.thematic_area_ids)) {
+        return toUniqueUuidList(payload.thematic_area_ids);
+    }
+
+    if (payload.thematic_area_id) {
+        return [payload.thematic_area_id];
+    }
+
+    return [];
+}
+
+async function validateThematicAreaIds(ids = []) {
+    if (!ids.length) return;
+
+    const result = await databaseService.query(
+        'SELECT id FROM thematic_areas WHERE id = ANY($1::uuid[])',
+        [ids]
+    );
+
+    if ((result.rows || []).length !== ids.length) {
+        throw new AppError('One or more thematic areas were not found', 404);
+    }
+}
+
+async function syncIndicatorThematicAreas(indicatorId, thematicAreaIds = []) {
+    await databaseService.query(
+        'DELETE FROM indicator_thematic_areas WHERE indicator_id = $1',
+        [indicatorId]
+    );
+
+    if (!thematicAreaIds.length) return;
+
+    await databaseService.query(
+        `
+            INSERT INTO indicator_thematic_areas (indicator_id, thematic_area_id)
+            SELECT $1, x
+            FROM unnest($2::uuid[]) AS x
+            ON CONFLICT (indicator_id, thematic_area_id) DO NOTHING
+        `,
+        [indicatorId, thematicAreaIds]
+    );
+}
+
+function normalizeIndicatorPayload(body = {}) {
+    const normalized = { ...body };
+
+    // Normalize blank strings to null for nullable UUID/text fields.
+    ['thematic_area_id', 'project_id', 'result_area', 'description', 'unit', 'code'].forEach((field) => {
+        if (normalized[field] !== undefined && typeof normalized[field] === 'string') {
+            const trimmed = normalized[field].trim();
+            normalized[field] = trimmed === '' ? null : trimmed;
+        }
+    });
+
+    if (normalized.thematic_area_ids !== undefined) {
+        if (Array.isArray(normalized.thematic_area_ids)) {
+            normalized.thematic_area_ids = toUniqueUuidList(
+                normalized.thematic_area_ids.map((id) => (typeof id === 'string' ? id.trim() : id))
+            );
+        } else if (typeof normalized.thematic_area_ids === 'string') {
+            const trimmed = normalized.thematic_area_ids.trim();
+            normalized.thematic_area_ids = trimmed ? [trimmed] : [];
+        } else {
+            normalized.thematic_area_ids = [];
+        }
+    }
+
+    return normalized;
+}
+
+function sanitizeIndicatorUpdatePayload(value = {}) {
+    const sanitized = { ...value };
+
+    // Backward compatibility: some forms still send `target`; treat it as annual_target.
+    if (sanitized.target !== undefined && sanitized.annual_target === undefined) {
+        sanitized.annual_target = sanitized.target;
+    }
+    delete sanitized.target;
+    delete sanitized.thematic_area_ids;
+
+    // Keep only columns that exist on indicators table.
+    const allowedColumns = new Set([
+        'name',
+        'description',
+        'indicator_level',
+        'data_type',
+        'thematic_area_id',
+        'project_id',
+        'result_area',
+        'lop_target',
+        'annual_target',
+        'baseline',
+        'baseline_date',
+        'q1_target',
+        'q2_target',
+        'q3_target',
+        'q4_target',
+        'q1_achieved',
+        'q2_achieved',
+        'q3_achieved',
+        'q4_achieved',
+        'achieved',
+        'unit',
+        'code'
+    ]);
+
+    return Object.fromEntries(
+        Object.entries(sanitized).filter(([key]) => allowedColumns.has(key))
+    );
+}
+
 // Validation schemas for the enhanced two-tier indicator system
 const createIndicatorSchema = Joi.object({
     // Scope: AWYAD or Project
@@ -24,6 +154,7 @@ const createIndicatorSchema = Joi.object({
     // For AWYAD indicators: use thematic_area_id
     // For Project indicators: use project_id and result_area
     thematic_area_id: Joi.string().uuid().allow(null),
+    thematic_area_ids: Joi.array().items(Joi.string().uuid()).min(1).allow(null),
     project_id: Joi.string().uuid().allow(null),
     result_area: Joi.string().max(200).allow('', null),
     
@@ -58,6 +189,7 @@ const updateIndicatorSchema = Joi.object({
     indicator_level: Joi.string().valid('Output', 'Outcome', 'Impact'),
     data_type: Joi.string().valid('Number', 'Percentage'),
     thematic_area_id: Joi.string().uuid().allow(null),
+    thematic_area_ids: Joi.array().items(Joi.string().uuid()).min(1).allow(null),
     project_id: Joi.string().uuid().allow(null),
     result_area: Joi.string().max(200).allow('', null),
     lop_target: Joi.number().min(0),
@@ -112,8 +244,12 @@ router.get('/', authenticate, checkPermission('indicators.read'), async (req, re
         }
 
         if (thematic_area_id) {
-            filters.push(`i.thematic_area_id = $${paramIndex++}`);
+            filters.push(`(i.thematic_area_id = $${paramIndex} OR EXISTS (
+                SELECT 1 FROM indicator_thematic_areas ita_f
+                WHERE ita_f.indicator_id = i.id AND ita_f.thematic_area_id = $${paramIndex}
+            ))`);
             params.push(thematic_area_id);
+            paramIndex++;
         }
 
         if (indicator_level) {
@@ -145,7 +281,9 @@ router.get('/', authenticate, checkPermission('indicators.read'), async (req, re
         const query = `
             SELECT 
                 i.*,
-                ta.name as thematic_area_name,
+                COALESCE(ta_multi.thematic_area_name, ta.name) as thematic_area_name,
+                COALESCE(ta_multi.thematic_area_names, CASE WHEN ta.name IS NOT NULL THEN ARRAY[ta.name]::text[] ELSE ARRAY[]::text[] END) as thematic_area_names,
+                COALESCE(ta_multi.thematic_area_ids, CASE WHEN ta.id IS NOT NULL THEN ARRAY[ta.id]::uuid[] ELSE ARRAY[]::uuid[] END) as thematic_area_ids,
                 p.name as project_name,
                 u.username as created_by_username,
                 CASE 
@@ -157,6 +295,7 @@ router.get('/', authenticate, checkPermission('indicators.read'), async (req, re
                 (SELECT COUNT(*) FROM indicator_mappings WHERE project_indicator_id = i.id) as linked_to_awyad_count
             FROM indicators i
             LEFT JOIN thematic_areas ta ON i.thematic_area_id = ta.id
+            ${THEMATIC_AREA_MULTI_JOIN}
             LEFT JOIN projects p ON i.project_id = p.id
             LEFT JOIN users u ON i.created_by = u.id
             ${whereClause}
@@ -197,7 +336,9 @@ router.get('/:id', authenticate, checkPermission('indicators.read'), async (req,
         const query = `
             SELECT 
                 i.*,
-                ta.name as thematic_area_name,
+                COALESCE(ta_multi.thematic_area_name, ta.name) as thematic_area_name,
+                COALESCE(ta_multi.thematic_area_names, CASE WHEN ta.name IS NOT NULL THEN ARRAY[ta.name]::text[] ELSE ARRAY[]::text[] END) as thematic_area_names,
+                COALESCE(ta_multi.thematic_area_ids, CASE WHEN ta.id IS NOT NULL THEN ARRAY[ta.id]::uuid[] ELSE ARRAY[]::uuid[] END) as thematic_area_ids,
                 p.name as project_name,
                 p.id as project_id,
                 u1.username as created_by_username,
@@ -210,6 +351,7 @@ router.get('/:id', authenticate, checkPermission('indicators.read'), async (req,
                 (SELECT SUM(total_beneficiaries) FROM activities WHERE indicator_id = i.id) as total_beneficiaries
             FROM indicators i
             LEFT JOIN thematic_areas ta ON i.thematic_area_id = ta.id
+            ${THEMATIC_AREA_MULTI_JOIN}
             LEFT JOIN projects p ON i.project_id = p.id
             LEFT JOIN users u1 ON i.created_by = u1.id
             LEFT JOIN users u2 ON i.updated_by = u2.id
@@ -277,15 +419,18 @@ router.get('/:id', authenticate, checkPermission('indicators.read'), async (req,
  */
 router.post('/', authenticate, checkPermission('indicators.create'), async (req, res, next) => {
     try {
-        const { error, value } = createIndicatorSchema.validate(req.body);
+        const normalizedBody = normalizeIndicatorPayload(req.body);
+        const { error, value } = createIndicatorSchema.validate(normalizedBody);
         if (error) {
             throw new AppError(error.details[0].message, 400);
         }
 
         // Validate scope-specific requirements
+        const thematicAreaIds = resolveThematicAreaIds(value, value.indicator_scope);
+
         if (value.indicator_scope === 'awyad') {
-            if (!value.thematic_area_id) {
-                throw new AppError('AWYAD indicators must have a thematic_area_id', 400);
+            if (!thematicAreaIds.length) {
+                throw new AppError('AWYAD indicators must have at least one thematic area', 400);
             }
             if (value.project_id) {
                 throw new AppError('AWYAD indicators cannot have a project_id', 400);
@@ -299,17 +444,7 @@ router.post('/', authenticate, checkPermission('indicators.create'), async (req,
             }
         }
 
-        // Verify thematic area exists if provided
-        if (value.thematic_area_id) {
-            const thematicArea = await databaseService.queryOne(
-                'SELECT id FROM thematic_areas WHERE id = $1',
-                [value.thematic_area_id]
-            );
-
-            if (!thematicArea) {
-                throw new AppError('Thematic area not found', 404);
-            }
-        }
+        await validateThematicAreaIds(thematicAreaIds);
 
         // Verify project exists if provided
         if (value.project_id) {
@@ -364,7 +499,7 @@ router.post('/', authenticate, checkPermission('indicators.create'), async (req,
             value.description,
             value.indicator_level,
             value.data_type,
-            value.thematic_area_id,
+            thematicAreaIds[0] || null,
             value.project_id,
             value.result_area,
             value.lop_target,
@@ -384,10 +519,17 @@ router.post('/', authenticate, checkPermission('indicators.create'), async (req,
             req.user.id
         ]);
 
+        if (value.indicator_scope === 'awyad') {
+            await syncIndicatorThematicAreas(indicator.id, thematicAreaIds);
+        }
+
         res.status(201).json({
             success: true,
             message: 'Indicator created successfully',
-            data: indicator
+            data: {
+                ...indicator,
+                thematic_area_ids: thematicAreaIds
+            }
         });
     } catch (error) {
         next(error);
@@ -401,7 +543,8 @@ router.post('/', authenticate, checkPermission('indicators.create'), async (req,
 router.put('/:id', authenticate, checkPermission('indicators.update'), async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { error, value } = updateIndicatorSchema.validate(req.body);
+        const normalizedBody = normalizeIndicatorPayload(req.body);
+        const { error, value } = updateIndicatorSchema.validate(normalizedBody);
         
         if (error) {
             throw new AppError(error.details[0].message, 400);
@@ -417,11 +560,34 @@ router.put('/:id', authenticate, checkPermission('indicators.update'), async (re
             throw new AppError('Indicator not found', 404);
         }
 
+        const thematicSelectionTouched = Object.prototype.hasOwnProperty.call(value, 'thematic_area_ids')
+            || Object.prototype.hasOwnProperty.call(value, 'thematic_area_id');
+        const requestedThematicAreaIds = resolveThematicAreaIds(value, existing.indicator_scope);
+
+        if (existing.indicator_scope === 'awyad' && thematicSelectionTouched) {
+            if (!requestedThematicAreaIds.length) {
+                throw new AppError('AWYAD indicators must have at least one thematic area', 400);
+            }
+            await validateThematicAreaIds(requestedThematicAreaIds);
+        }
+
+        const updatePayload = sanitizeIndicatorUpdatePayload(value);
+
+        if (thematicSelectionTouched) {
+            updatePayload.thematic_area_id = existing.indicator_scope === 'awyad'
+                ? (requestedThematicAreaIds[0] || null)
+                : null;
+        }
+
+        if (Object.keys(updatePayload).length === 0) {
+            throw new AppError('No valid fields to update', 400);
+        }
+
         // Validate project_id if being updated
-        if (value.project_id) {
+        if (updatePayload.project_id) {
             const project = await databaseService.queryOne(
                 'SELECT id FROM projects WHERE id = $1',
-                [value.project_id]
+                [updatePayload.project_id]
             );
 
             if (!project) {
@@ -429,11 +595,11 @@ router.put('/:id', authenticate, checkPermission('indicators.update'), async (re
             }
         }
 
-        // Validate thematic_area_id if being updated
-        if (value.thematic_area_id) {
+        // Validate thematic_area_id if being updated directly
+        if (updatePayload.thematic_area_id && !thematicSelectionTouched) {
             const thematicArea = await databaseService.queryOne(
                 'SELECT id FROM thematic_areas WHERE id = $1',
-                [value.thematic_area_id]
+                [updatePayload.thematic_area_id]
             );
 
             if (!thematicArea) {
@@ -446,7 +612,7 @@ router.put('/:id', authenticate, checkPermission('indicators.update'), async (re
         const params = [];
         let paramIndex = 1;
 
-        Object.entries(value).forEach(([key, val]) => {
+        Object.entries(updatePayload).forEach(([key, val]) => {
             updates.push(`${key} = $${paramIndex++}`);
             params.push(val);
         });
@@ -463,10 +629,23 @@ router.put('/:id', authenticate, checkPermission('indicators.update'), async (re
 
         const indicator = await databaseService.queryOne(query, params);
 
+        if (existing.indicator_scope === 'awyad' && thematicSelectionTouched) {
+            await syncIndicatorThematicAreas(id, requestedThematicAreaIds);
+        }
+
+        if (existing.indicator_scope !== 'awyad' && thematicSelectionTouched) {
+            await syncIndicatorThematicAreas(id, []);
+        }
+
         res.json({
             success: true,
             message: 'Indicator updated successfully',
-            data: indicator
+            data: {
+                ...indicator,
+                thematic_area_ids: existing.indicator_scope === 'awyad'
+                    ? (thematicSelectionTouched ? requestedThematicAreaIds : undefined)
+                    : []
+            }
         });
     } catch (error) {
         next(error);
@@ -490,15 +669,11 @@ router.delete('/:id', authenticate, checkPermission('indicators.delete'), async 
             throw new AppError('Indicator not found', 404);
         }
 
-        // Check if indicator has activities
-        const { count } = await databaseService.queryOne(
-            'SELECT COUNT(*) as count FROM activities WHERE indicator_id = $1',
+        // Cascade delete: Set indicator_id to NULL in activities before deleting
+        await databaseService.query(
+            'UPDATE activities SET indicator_id = NULL WHERE indicator_id = $1',
             [id]
         );
-
-        if (count > 0) {
-            throw new AppError('Cannot delete indicator with associated activities', 400);
-        }
 
         // Delete indicator and its mappings (CASCADE will handle mappings)
         await databaseService.query('DELETE FROM indicators WHERE id = $1', [id]);
@@ -645,7 +820,9 @@ router.get('/scope/awyad', authenticate, checkPermission('indicators.read'), asy
         const query = `
             SELECT 
                 i.*,
-                ta.name as thematic_area_name,
+                COALESCE(ta_multi.thematic_area_name, ta.name) as thematic_area_name,
+                COALESCE(ta_multi.thematic_area_names, CASE WHEN ta.name IS NOT NULL THEN ARRAY[ta.name]::text[] ELSE ARRAY[]::text[] END) as thematic_area_names,
+                COALESCE(ta_multi.thematic_area_ids, CASE WHEN ta.id IS NOT NULL THEN ARRAY[ta.id]::uuid[] ELSE ARRAY[]::uuid[] END) as thematic_area_ids,
                 u.username as created_by_username,
                 CASE 
                     WHEN i.annual_target > 0 THEN (i.achieved / i.annual_target * 100)::NUMERIC(5,2)
@@ -654,9 +831,10 @@ router.get('/scope/awyad', authenticate, checkPermission('indicators.read'), asy
                 (SELECT COUNT(*) FROM indicator_mappings WHERE awyad_indicator_id = i.id) as linked_project_indicators_count
             FROM indicators i
             LEFT JOIN thematic_areas ta ON i.thematic_area_id = ta.id
+            ${THEMATIC_AREA_MULTI_JOIN}
             LEFT JOIN users u ON i.created_by = u.id
             WHERE i.indicator_scope = 'awyad'
-            ORDER BY ta.name, i.name
+            ORDER BY COALESCE(ta_multi.thematic_area_name, ta.name), i.name
         `;
 
         const indicatorsResult = await databaseService.query(query);

@@ -88,7 +88,9 @@ router.get('/awyad-indicators', authenticate, async (req, res, next) => {
         const indicatorsResult = await databaseService.query(`
             SELECT 
                 i.*,
-                ta.name as thematic_area_name,
+                COALESCE(ta_multi.thematic_area_name, ta.name) as thematic_area_name,
+                COALESCE(ta_multi.thematic_area_names, CASE WHEN ta.name IS NOT NULL THEN ARRAY[ta.name]::text[] ELSE ARRAY[]::text[] END) as thematic_area_names,
+                COALESCE(ta_multi.thematic_area_ids, CASE WHEN ta.id IS NOT NULL THEN ARRAY[ta.id]::uuid[] ELSE ARRAY[]::uuid[] END) as thematic_area_ids,
                 (
                     SELECT COUNT(*) 
                     FROM indicator_mappings im 
@@ -100,6 +102,15 @@ router.get('/awyad-indicators', authenticate, async (req, res, next) => {
                 END as achievement_percentage
             FROM indicators i
             LEFT JOIN thematic_areas ta ON i.thematic_area_id = ta.id
+            LEFT JOIN LATERAL (
+                SELECT
+                    array_agg(ta2.id ORDER BY ta2.name) AS thematic_area_ids,
+                    array_agg(ta2.name ORDER BY ta2.name) AS thematic_area_names,
+                    string_agg(ta2.name, ', ' ORDER BY ta2.name) AS thematic_area_name
+                FROM indicator_thematic_areas ita
+                JOIN thematic_areas ta2 ON ita.thematic_area_id = ta2.id
+                WHERE ita.indicator_id = i.id
+            ) ta_multi ON TRUE
             WHERE i.indicator_scope = 'awyad'
             ORDER BY i.result_area ASC, i.name ASC
         `);
@@ -483,7 +494,14 @@ router.get('/thematic-areas', authenticate, async (req, res, next) => {
         const thematicAreasResult = await databaseService.query(`
             SELECT 
                 ta.*,
-                (SELECT COUNT(*) FROM indicators WHERE thematic_area_id = ta.id) as indicator_count
+                (
+                    SELECT COUNT(DISTINCT x.indicator_id)
+                    FROM (
+                        SELECT i.id AS indicator_id FROM indicators i WHERE i.thematic_area_id = ta.id
+                        UNION
+                        SELECT ita.indicator_id FROM indicator_thematic_areas ita WHERE ita.thematic_area_id = ta.id
+                    ) x
+                ) as indicator_count
             FROM thematic_areas ta
             ORDER BY ta.name ASC
         `);

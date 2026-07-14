@@ -185,6 +185,30 @@ export async function renderProjects(contentArea) {
             });
         });
 
+        contentArea.querySelectorAll('.delete-project-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const projectId = btn.dataset.projectId;
+                const projectName = btn.dataset.projectName;
+                
+                if (!confirm(`⚠️ WARNING: Delete Project "${projectName}"\n\nThis will permanently delete:\n• The project and all its data\n• All indicators linked to this project\n• All activities under this project\n• All cases associated with this project\n\nThis action cannot be undone. Are you sure?`)) {
+                    return;
+                }
+                
+                try {
+                    await apiService.deleteProject(projectId);
+                    // Remove the row directly from DOM for instant feedback
+                    const row = btn.closest('tr');
+                    if (row) {
+                        row.remove();
+                    }
+                    alert('Project deleted successfully');
+                } catch (error) {
+                    console.error('Delete failed:', error);
+                    alert('Failed to delete project: ' + error.message);
+                }
+            });
+        });
+
     } catch (error) {
         console.error('Projects error:', error);
         contentArea.innerHTML = createErrorAlert(
@@ -239,6 +263,9 @@ function createProjectsTable(projects, thematicAreas) {
                         </button>
                         <button class="btn btn-outline-secondary edit-project-btn" data-project-id="${project.id}" title="Edit">
                             <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-danger delete-project-btn" data-project-id="${project.id}" data-project-name="${project.name}" title="Delete">
+                            <i class="bi bi-trash"></i>
                         </button>
                     </div>
                 </td>
@@ -296,6 +323,12 @@ window.exportProjects = async function() {
 };
 
 window.viewProject = function(projectId) {
+    const project = Array.isArray(window.currentProjectsData)
+        ? window.currentProjectsData.find(item => item.id === projectId)
+        : null;
+    if (project?.name && typeof window.rememberProjectRecentContext === 'function') {
+        window.rememberProjectRecentContext(projectId, project.name);
+    }
     window.location.hash = `project-dashboard?id=${projectId}`;
 };
 

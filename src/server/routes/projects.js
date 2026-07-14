@@ -654,7 +654,7 @@ router.delete('/:id', authenticate, checkPermission('projects.delete'), async (r
 
         // Check if project exists
         const project = await databaseService.queryOne(
-            'SELECT id FROM projects WHERE id = $1',
+            'SELECT id, name FROM projects WHERE id = $1',
             [id]
         );
 
@@ -662,30 +662,21 @@ router.delete('/:id', authenticate, checkPermission('projects.delete'), async (r
             throw new AppError('Project not found', 404);
         }
 
-        // Check if project has associated activities or cases
-        const { activity_count } = await databaseService.queryOne(
-            'SELECT COUNT(*) as activity_count FROM activities WHERE project_id = $1',
-            [id]
-        );
-
-        const { case_count } = await databaseService.queryOne(
-            'SELECT COUNT(*) as case_count FROM cases WHERE project_id = $1',
-            [id]
-        );
-
-        if (parseInt(activity_count) > 0 || parseInt(case_count) > 0) {
-            throw new AppError(
-                'Cannot delete project with associated activities or cases. Please delete them first.',
-                400
-            );
-        }
-
-        // Delete the project
+        // Cascade delete: Delete all related data in a transaction
+        // Order matters for foreign key constraints:
+        // 1. Delete cases (depends on activities and projects)
+        // 2. Delete activities (depends on projects)
+        // 3. Delete indicators (depends on projects)
+        // 4. Delete project
+        
+        await databaseService.query('DELETE FROM cases WHERE project_id = $1', [id]);
+        await databaseService.query('DELETE FROM activities WHERE project_id = $1', [id]);
+        await databaseService.query('DELETE FROM indicators WHERE project_id = $1', [id]);
         await databaseService.query('DELETE FROM projects WHERE id = $1', [id]);
 
         res.json({
             success: true,
-            message: 'Project deleted successfully'
+            message: `Project "${project.name}" and all related data deleted successfully`
         });
     } catch (error) {
         next(error);

@@ -1,7 +1,7 @@
 /**
  * Entry Form Module
  * 
- * New Activity Report form with auto-calculation, real-time validation, and disaggregation input.
+ * Activity report form with auto-calculation, real-time validation, and disaggregation input.
  * Handles beneficiary data entry with automatic totaling and budget tracking.
  * Supports nationality breakdown and approval workflow submission.
  * 
@@ -20,7 +20,7 @@ import {
 } from './components.js';
 
 /**
- * Render entry form page for creating new activity reports
+ * Render entry form page for reporting completed activities
  * Includes disaggregation inputs with auto-calculation and form validation
  * 
  * @param {HTMLElement} contentArea - Container element for content
@@ -47,8 +47,8 @@ export async function renderEntryForm(contentArea) {
 
         // Create header
         const header = createPageHeader({
-            title: 'New Activity Report',
-            subtitle: 'Submit activity implementation data with disaggregation',
+            title: 'Activity Report Form',
+            subtitle: 'Report a completed activity with disaggregation and implementation results',
             icon: 'file-earmark-plus',
             actions: [
                 {
@@ -118,9 +118,11 @@ function createActivityForm(projects, indicators, districts = []) {
         `<option value="${p.id || p.project_id}">${p.name || p.project_name}</option>`
     ).join('');
 
-    // Create indicator options
+    // Create indicator options with project_id data attribute for filtering
     const indicatorOptions = indicators.map(ind =>
-        `<option value="${ind.id || ind.indicator_id}" data-thematic-area="${ind.thematic_area_id || ind.thematicAreaId}">${ind.code || ind.indicator_code} - ${ind.name || ind.indicator_name}</option>`
+        `<option value="${ind.id || ind.indicator_id}" 
+                 data-project-id="${ind.project_id || ''}" 
+                 data-thematic-area="${ind.thematic_area_id || ind.thematicAreaId}">${ind.code || ind.indicator_code} - ${ind.name || ind.indicator_name}</option>`
     ).join('');
 
     const districtOptions = districts.map(d =>
@@ -164,8 +166,22 @@ function createActivityForm(projects, indicators, districts = []) {
                 </div>
 
                 <div class="col-md-4 mb-3">
+                    <label for="reportActivityId" class="form-label">Activity to Report *</label>
+                    <select class="form-select" id="reportActivityId" required>
+                        <option value="">Select Indicator first...</option>
+                    </select>
+                    <small class="form-text text-muted">Choose the planned activity you are reporting on</small>
+                </div>
+
+                <div class="col-md-2 mb-3">
                     <label for="activityDate" class="form-label">Activity Date *</label>
                     <input type="date" class="form-control" id="activityDate" required>
+                </div>
+
+                <div class="col-md-2 mb-3">
+                    <label for="reportingMonth" class="form-label">Reporting Month *</label>
+                    <input type="month" class="form-control" id="reportingMonth" required>
+                    <small class="form-text text-muted">Format: YYYY-MM</small>
                 </div>
 
                 <div class="col-md-3 mb-3">
@@ -460,25 +476,168 @@ function initializeFormHandlers() {
         input.addEventListener('input', validateNationality);
     });
 
-    // Auto-populate thematic area from indicator selection
+    // Project → Indicator filtering
+    const projectDropdown = document.getElementById('projectId');
     const indicatorDropdown = document.getElementById('indicatorId');
+    const reportActivityDropdown = document.getElementById('reportActivityId');
+    const activityTitleInput = document.getElementById('activityTitle');
+    
+    if (projectDropdown && indicatorDropdown) {
+        projectDropdown.addEventListener('change', function() {
+            const selectedProjectId = this.value;
+            const allOptions = Array.from(indicatorDropdown.querySelectorAll('option'));
+            
+            // Reset indicator selection
+            indicatorDropdown.value = '';
+            if (reportActivityDropdown) {
+                reportActivityDropdown.value = '';
+                reportActivityDropdown.innerHTML = '<option value="">Select Indicator first...</option>';
+                reportActivityDropdown.disabled = true;
+            }
+            if (activityTitleInput) {
+                activityTitleInput.value = '';
+            }
+            
+            // Filter indicators based on project
+            allOptions.forEach(option => {
+                if (option.value === '') {
+                    // Keep the placeholder option
+                    option.style.display = '';
+                    return;
+                }
+                
+                const indicatorProjectId = option.getAttribute('data-project-id');
+                
+                if (!selectedProjectId) {
+                    // Show all if no project selected
+                    option.style.display = '';
+                } else if (indicatorProjectId === selectedProjectId) {
+                    // Show if matches selected project
+                    option.style.display = '';
+                } else {
+                    // Hide if doesn't match
+                    option.style.display = 'none';
+                }
+            });
+            
+        });
+    }
+
+    // Indicator → Activities filtering + thematic area
     if (indicatorDropdown) {
-        indicatorDropdown.addEventListener('change', function() {
-            // Store the selected indicator's thematic area ID
+        indicatorDropdown.addEventListener('change', async function() {
             const selectedOption = this.options[this.selectedIndex];
             if (selectedOption && selectedOption.value) {
-                // Find the indicator in the indicators list to get its thematic_area_id
                 const indicatorId = selectedOption.value;
-                // We'll add a data attribute to store this
                 const thematicAreaId = selectedOption.getAttribute('data-thematic-area');
+                const selectedProjectId = projectDropdown ? projectDropdown.value : '';
+                
                 // Store it for form submission
-                document.getElementById('activityForm').setAttribute('data-thematic-area-id', thematicAreaId);
+                document.getElementById('activityForm').setAttribute('data-thematic-area-id', thematicAreaId || '');
+                
+                // Load reportable activities for selected project + indicator
+                await loadReportableActivities(selectedProjectId, indicatorId);
+            } else {
+                if (reportActivityDropdown) {
+                    reportActivityDropdown.value = '';
+                    reportActivityDropdown.innerHTML = '<option value="">Select Indicator first...</option>';
+                    reportActivityDropdown.disabled = true;
+                }
+                if (activityTitleInput) {
+                    activityTitleInput.value = '';
+                }
+            }
+        });
+    }
+
+    if (reportActivityDropdown) {
+        reportActivityDropdown.addEventListener('change', function() {
+            const selected = this.options[this.selectedIndex];
+            if (!selected || !selected.value) {
+                if (activityTitleInput) activityTitleInput.value = '';
+                return;
+            }
+
+            if (activityTitleInput) {
+                activityTitleInput.value = selected.getAttribute('data-activity-name') || '';
+            }
+
+            const activityDateInput = document.getElementById('activityDate');
+            const statusInput = document.getElementById('status');
+            const notesInput = document.getElementById('notes');
+
+            const plannedDate = selected.getAttribute('data-planned-date');
+            if (activityDateInput && plannedDate) {
+                activityDateInput.value = plannedDate;
+            }
+            const status = selected.getAttribute('data-status');
+            if (statusInput && status) {
+                statusInput.value = status;
+            }
+            const description = selected.getAttribute('data-description') || '';
+            if (notesInput && !notesInput.value) {
+                notesInput.value = description;
             }
         });
     }
 
     // Form submission
     document.getElementById('activityForm').addEventListener('submit', handleFormSubmit);
+}
+
+/**
+ * Load reportable activities for selected project and indicator
+ * @param {string} projectId - The project ID
+ * @param {string} indicatorId - The indicator ID
+ */
+async function loadReportableActivities(projectId, indicatorId) {
+    const reportActivityDropdown = document.getElementById('reportActivityId');
+    if (!reportActivityDropdown) return;
+
+    if (!projectId || !indicatorId) {
+        reportActivityDropdown.innerHTML = '<option value="">Select Project and Indicator first...</option>';
+        reportActivityDropdown.disabled = true;
+        return;
+    }
+    
+    try {
+        reportActivityDropdown.disabled = true;
+        reportActivityDropdown.innerHTML = '<option value="">Loading activities...</option>';
+
+        const response = await apiService.get(`/activities?project_id=${projectId}&indicator_id=${indicatorId}&limit=1000`);
+        const activities = response.data?.activities || response.data || [];
+        
+        if (activities.length === 0) {
+            reportActivityDropdown.innerHTML = '<option value="">No activities found for this indicator</option>';
+            reportActivityDropdown.disabled = true;
+        } else {
+            reportActivityDropdown.innerHTML =
+                '<option value="">Select Activity</option>' +
+                activities.map(activity => {
+                    const plannedDate = activity.planned_date ? String(activity.planned_date).slice(0, 10) : '';
+                    const labelDate = plannedDate ? ` (${new Date(plannedDate).toLocaleDateString()})` : '';
+                    const status = activity.status ? ` - ${activity.status}` : '';
+                    const name = activity.activity_name || 'Unnamed Activity';
+
+                    return `<option value="${activity.id || activity.activity_id}"
+                                    data-activity-name="${name.replace(/"/g, '&quot;')}"
+                                    data-planned-date="${plannedDate}"
+                                    data-status="${(activity.status || '').replace(/"/g, '&quot;')}"
+                                    data-description="${(activity.description || '').replace(/"/g, '&quot;')}">
+                                ${name}${labelDate}${status}
+                            </option>`;
+                }).join('');
+            reportActivityDropdown.disabled = false;
+        }
+    } catch (error) {
+        console.error('Error loading reportable activities:', error);
+        reportActivityDropdown.innerHTML = '<option value="">Failed to load activities</option>';
+        reportActivityDropdown.disabled = true;
+    }
+}
+
+function isValidUuid(value) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value || '');
 }
 
 /**
@@ -580,13 +739,21 @@ async function handleFormSubmit(e) {
     e.preventDefault();
 
     try {
-        // Get thematic_area_id from the selected indicator
-        const thematicAreaId = document.getElementById('activityForm').getAttribute('data-thematic-area-id');
-        
-        if (!thematicAreaId) {
+        const selectedActivityId = document.getElementById('reportActivityId').value;
+        if (!selectedActivityId) {
+            alert('Please select the activity you are reporting on');
+            return;
+        }
+
+        const indicatorId = document.getElementById('indicatorId').value;
+        if (!indicatorId) {
             alert('Please select an indicator first');
             return;
         }
+
+        // Get thematic_area_id from selected indicator only if it is a valid UUID.
+        const rawThematicAreaId = document.getElementById('activityForm').getAttribute('data-thematic-area-id');
+        const thematicAreaId = isValidUuid(rawThematicAreaId) ? rawThematicAreaId : null;
 
         // Collect form data - Calculate beneficiaries from disaggregation
         // Sum up refugee disaggregation
@@ -614,9 +781,10 @@ async function handleFormSubmit(e) {
         const formData = {
             activity_name: document.getElementById('activityTitle').value,
             project_id: document.getElementById('projectId').value,
-            indicator_id: document.getElementById('indicatorId').value,
+            indicator_id: indicatorId,
             thematic_area_id: thematicAreaId,
             planned_date: document.getElementById('activityDate').value,
+            reporting_month: document.getElementById('reportingMonth').value,
             district_id: document.getElementById('districtId').value || null,
             settlement_id: document.getElementById('settlementId').value || null,
             status: document.getElementById('status').value,
@@ -633,12 +801,12 @@ async function handleFormSubmit(e) {
             indirect_other: 0
         };
 
-        // Submit to API
-        const response = await apiService.post('/activities', formData);
+        // Submit report by updating the selected planned activity
+        await apiService.put(`/activities/${selectedActivityId}`, formData);
 
         // Show success message
         const contentArea = document.getElementById('content-area');
-        const successHTML = createSuccessAlert('Activity submitted successfully!');
+        const successHTML = createSuccessAlert('Activity report submitted successfully!');
         contentArea.insertAdjacentHTML('afterbegin', successHTML);
 
         // Redirect to activities page

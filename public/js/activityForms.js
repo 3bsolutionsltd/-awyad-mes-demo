@@ -78,15 +78,20 @@ export async function showCreateActivityModal(onSuccess, options = {}) {
                 </div>
                 
                 <div class="row">
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         <label for="activityPlannedDate" class="form-label">Planned Date <span class="text-danger">*</span></label>
                         <input type="date" class="form-control" id="activityPlannedDate" name="planned_date" required value="${today}">
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         <label for="activityCompletionDate" class="form-label">Completion Date</label>
                         <input type="date" class="form-control" id="activityCompletionDate" name="completion_date">
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
+                        <label for="activityReportingMonth" class="form-label">Reporting Month</label>
+                        <input type="month" class="form-control" id="activityReportingMonth" name="reporting_month">
+                        <small class="text-muted">Month this activity is reported for</small>
+                    </div>
+                    <div class="col-md-3 mb-3">
                         <label for="activityStatus" class="form-label">Status</label>
                         <select class="form-select" id="activityStatus" name="status">
                             <option value="Planned" selected>Planned</option>
@@ -479,15 +484,20 @@ export async function showEditActivityModal(activityId, onSuccess) {
                 </div>
                 
                 <div class="row">
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         <label for="editActivityPlannedDate" class="form-label">Planned Date <span class="text-danger">*</span></label>
                         <input type="date" class="form-control" id="editActivityPlannedDate" name="planned_date" required value="${activity.planned_date ? activity.planned_date.split('T')[0] : ''}">
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         <label for="editActivityCompletionDate" class="form-label">Completion Date</label>
                         <input type="date" class="form-control" id="editActivityCompletionDate" name="completion_date" value="${activity.completion_date ? activity.completion_date.split('T')[0] : ''}">
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
+                        <label for="editActivityReportingMonth" class="form-label">Reporting Month</label>
+                        <input type="month" class="form-control" id="editActivityReportingMonth" name="reporting_month" value="${activity.reporting_month || ''}">
+                        <small class="text-muted">Month this activity is reported for</small>
+                    </div>
+                    <div class="col-md-3 mb-3">
                         <label for="editActivityStatus" class="form-label">Status</label>
                         <select class="form-select" id="editActivityStatus" name="status">
                             <option value="Planned" ${activity.status === 'Planned' ? 'selected' : ''}>Planned</option>

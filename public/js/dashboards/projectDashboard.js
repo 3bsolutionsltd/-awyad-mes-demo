@@ -8,11 +8,12 @@
  */
 
 import { dashboardService } from '../services/dashboardService.js';
+import { apiService } from '../apiService.js';
 
 import { showEditProjectModal } from '../projectForms.js';
 import { showCreateProjectIndicatorModal, showEditIndicatorModal, showViewIndicatorModal } from '../indicatorForms.js';
 import { showCreateActivityModal } from '../activityForms.js';
-import { showProjectReport } from '../projectReport.js';
+import { getProjectReportSummary } from '../projectReport.js';
 
 /**
  * Render Project Dashboard
@@ -80,6 +81,7 @@ export async function renderProjectDashboardNew(projectId) {
         // Render complete dashboard
         container.innerHTML = `
             ${renderProjectHeader(project)}
+            ${renderReportSummary(project)}
             ${renderFinancialPerformance(financials, project)}
             ${renderIndicatorPerformance(indicators, project)}
             ${renderActivitiesSection(activities, projectId, project.name)}
@@ -150,10 +152,15 @@ function renderProjectHeader(project) {
                             </div>
                             <div class="col-md-4 text-end">
                                 <button class="btn btn-outline-secondary me-2" onclick="generateProjectReport('${project.id}')">
-                                    <i class="bi bi-file-earmark-bar-graph"></i> Generate Report
+                                    <i class="bi bi-file-earmark-bar-graph"></i> Open Report
                                 </button>
-                                <button class="btn btn-primary" onclick="editProject('${project.id}')">
-                                    <i class="bi bi-pencil"></i> Edit Project
+                                <button class="btn btn-primary me-2" onclick="editProject('${project.id}')">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </button>
+                                <button class="btn btn-outline-danger" 
+                                        onclick="window.deleteProject('${project.id}', '${escapeAttr(project.name)}')" 
+                                        title="Delete Project">
+                                    <i class="bi bi-trash"></i> Delete
                                 </button>
                             </div>
                         </div>
@@ -174,6 +181,39 @@ function renderProjectHeader(project) {
                                     <strong>Team Members:</strong>
                                     <span class="badge bg-secondary ms-2">${project.team_count} members</span>
                                 ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderReportSummary(project) {
+    const summary = getProjectReportSummary(project.id);
+    const lastViewed = summary.lastViewed ? new Date(summary.lastViewed.timestamp).toLocaleString() : 'Never';
+    const lastPrinted = summary.lastPrinted ? new Date(summary.lastPrinted.timestamp).toLocaleString() : 'Never';
+
+    return `
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-info">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h5 class="mb-1"><i class="bi bi-file-earmark-bar-graph text-info me-2"></i>Report Summary</h5>
+                                <div class="text-muted small">Quick access to the project report and recent reporting activity.</div>
+                                <div class="mt-3">
+                                    <span class="badge bg-info me-2">Views: ${summary.totalEvents}</span>
+                                    <span class="badge bg-secondary me-2">Last Opened: ${lastViewed}</span>
+                                    <span class="badge bg-secondary">Last Printed: ${lastPrinted}</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <button class="btn btn-info text-white" onclick="generateProjectReport('${project.id}')">
+                                    <i class="bi bi-arrow-right-circle me-1"></i>Open Report
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -343,6 +383,11 @@ function renderIndicatorPerformance(indicators, project) {
                                                 <button class="btn btn-sm btn-outline-secondary" onclick="window.editProjectIndicator('${ind.id}')" title="Edit">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
+                                                <button class="btn btn-sm btn-outline-danger ms-1" 
+                                                        onclick="window.deleteProjectIndicator('${ind.id}', '${escapeAttr(ind.name)}', '${project?.id}')" 
+                                                        title="Delete">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
                                             </td>
                                         </tr>
                                     `).join('')}
@@ -418,6 +463,11 @@ function renderActivitiesSection(activities, projectId, projectName = '') {
                                                     <button class="btn btn-sm btn-outline-primary" 
                                                             onclick="viewActivity('${act.id}')">
                                                         <i class="bi bi-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger ms-1" 
+                                                            onclick="window.deleteProjectActivity('${act.id}', '${escapeAttr(act.activity_name || act.name || act.description)}', '${projectId}')" 
+                                                            title="Delete">
+                                                        <i class="bi bi-trash"></i>
                                                     </button>
                                                 </td>
                                             </tr>
@@ -810,6 +860,69 @@ window.editProjectIndicator = (indicatorId) => {
     });
 };
 
+window.deleteProjectIndicator = async (indicatorId, indicatorName, projectId) => {
+    if (!confirm(`Are you sure you want to delete the indicator "${indicatorName}"?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        await apiService.deleteIndicator(indicatorId);
+        // Refresh the project dashboard (silent, no alert - removal is feedback)
+        const html = await renderProjectDashboardNew(projectId);
+        const container = document.getElementById('main-content') || document.querySelector('[data-section="project-dashboard"]');
+        if (container) {
+            container.innerHTML = html;
+        }
+    } catch (error) {
+        console.error('Error deleting indicator:', error);
+        alert('Failed to delete indicator: ' + error.message);
+    }
+};
+
+window.deleteProjectActivity = async (activityId, activityName, projectId) => {
+    if (!confirm(`Are you sure you want to delete the activity "${activityName}"?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        await apiService.deleteActivity(activityId);
+        // Refresh the project dashboard (silent, no alert - removal is feedback)
+        const html = await renderProjectDashboardNew(projectId);
+        const container = document.getElementById('main-content') || document.querySelector('[data-section="project-dashboard"]');
+        if (container) {
+            container.innerHTML = html;
+        }
+    } catch (error) {
+        console.error('Error deleting activity:', error);
+        alert('Failed to delete activity: ' + error.message);
+    }
+};
+
+window.deleteProject = async (projectId, projectName) => {
+    const confirmMessage = `⚠️ WARNING: Delete Project "${projectName}"\n\n` +
+        `This will permanently delete:\n` +
+        `• The project and all its data\n` +
+        `• All indicators linked to this project\n` +
+        `• All activities under this project\n` +
+        `• All cases associated with this project\n\n` +
+        `This action CANNOT be undone!\n\n` +
+        `Are you absolutely sure?`;
+
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+
+    try {
+        await apiService.deleteProject(projectId);
+        alert('Project deleted successfully.');
+        // Navigate back to projects page
+        window.location.hash = '#/projects';
+    } catch (error) {
+        console.error('Error deleting project:', error);
+        alert('Failed to delete project. Please try again.');
+    }
+};
+
 window.viewCase = (id) => {
     console.log('View case:', id);
     if (window.viewCaseDetail) {
@@ -823,5 +936,5 @@ window.viewAllCases = (projectId) => {
 };
 
 window.generateProjectReport = (projectId) => {
-    showProjectReport(projectId);
+    window.location.hash = `project-report?id=${projectId}`;
 };

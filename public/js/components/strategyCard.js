@@ -196,7 +196,7 @@ window.showComponentDetails = function(componentId) {
                 <td class="text-center">${p.indicator_count || 0}</td>
                 <td class="text-center">${p.case_count || 0}</td>
                 <td>
-                    <button class="btn btn-sm btn-primary" onclick="window.location.hash='project-dashboard?id=${p.id}'; document.getElementById('componentDetailsModal')?.remove();" title="Open Dashboard">
+                    <button class="btn btn-sm btn-primary" onclick="if (typeof window.rememberProjectRecentContext === 'function') window.rememberProjectRecentContext('${p.id}', ${JSON.stringify(p.name || '')}); window.location.hash='project-dashboard?id=${p.id}'; document.getElementById('componentDetailsModal')?.remove();" title="Open Dashboard">
                         <i class="bi bi-kanban"></i> Open
                     </button>
                 </td>

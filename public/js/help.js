@@ -22,7 +22,7 @@ export async function renderHelp(contentArea) {
         <div class="container-fluid">
             ${createPageHeader({
                 title: 'Help & Quick Reference',
-                subtitle: 'User guides, tutorials, and system documentation',
+                subtitle: 'Current workflows, onboarding, and self-help resources',
                 icon: 'question-circle'
             })}
 
@@ -34,6 +34,30 @@ export async function renderHelp(contentArea) {
                         subtitle: 'Get started with AWYAD M&E System in 5 minutes',
                         headerClass: 'bg-primary text-white',
                         body: renderQuickStart()
+                    })}
+                </div>
+            </div>
+
+            <!-- Pathway Navigator -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    ${createCard({
+                        title: 'Pathway Navigator (Recommended Routes)',
+                        subtitle: 'Choose the right entry point before you add data',
+                        headerClass: 'bg-info text-white',
+                        body: renderPathwayNavigator()
+                    })}
+                </div>
+            </div>
+
+            <!-- Self Help Toolkit -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    ${createCard({
+                        title: 'Self-Help Toolkit for New Users',
+                        subtitle: 'Learn by doing with guided checklists and role-based paths',
+                        headerClass: 'bg-dark text-white',
+                        body: renderSelfHelpToolkit()
                     })}
                 </div>
             </div>
@@ -133,6 +157,8 @@ export async function renderHelp(contentArea) {
             </div>
         </div>
     `;
+
+    initializeSelfHelpToolkit();
 }
 
 /**
@@ -142,7 +168,7 @@ function renderQuickStart() {
     return `
         <div class="quick-start">
             <h5><i class="bi bi-rocket-takeoff"></i> Welcome to AWYAD M&E System!</h5>
-            <p class="lead">Follow these steps to get started:</p>
+            <p class="lead">Start with these 3 steps:</p>
             
             <div class="row g-3">
                 <div class="col-md-4">
@@ -150,12 +176,12 @@ function renderQuickStart() {
                         <div class="card-body">
                             <h6 class="card-title text-primary">
                                 <span class="badge bg-primary rounded-circle">1</span>
-                                Explore the Dashboard
+                                Start from ITT for AWYAD Indicators
                             </h6>
                             <p class="card-text">
-                                View real-time KPIs, project performance, and indicator achievement.
+                                Open ITT, click "New Indicator," and choose Organizational (AWYAD-level) for AWYAD-wide indicators.
                             </p>
-                            <a href="#dashboard" class="btn btn-sm btn-outline-primary">Go to Dashboard</a>
+                            <a href="#indicators" class="btn btn-sm btn-outline-primary">Open ITT</a>
                         </div>
                     </div>
                 </div>
@@ -165,12 +191,12 @@ function renderQuickStart() {
                         <div class="card-body">
                             <h6 class="card-title text-success">
                                 <span class="badge bg-success rounded-circle">2</span>
-                                Add Your First Activity
+                                Use Projects for Project Work
                             </h6>
                             <p class="card-text">
-                                Use the New Activity Report form to record your field work.
+                                Open a project dashboard to create project-specific indicators and activities together.
                             </p>
-                            <a href="#entry-form" class="btn btn-sm btn-outline-success">New Activity</a>
+                            <a href="#projects" class="btn btn-sm btn-outline-success">Go to Projects</a>
                         </div>
                     </div>
                 </div>
@@ -180,12 +206,12 @@ function renderQuickStart() {
                         <div class="card-body">
                             <h6 class="card-title text-info">
                                 <span class="badge bg-info rounded-circle">3</span>
-                                Generate Reports
+                                Pick the Correct Data Entry Route
                             </h6>
                             <p class="card-text">
-                                Export data to Excel from any module for analysis and sharing.
+                                Create project activities from Projects, Project Dashboard, or ATT. Use the Activity Report form only to report completed activities.
                             </p>
-                            <button class="btn btn-sm btn-outline-info" disabled>Export Options</button>
+                            <a href="#help" class="btn btn-sm btn-outline-info">View Pathway Navigator</a>
                         </div>
                     </div>
                 </div>
@@ -195,8 +221,132 @@ function renderQuickStart() {
 
             <div class="alert alert-info">
                 <i class="bi bi-info-circle"></i>
-                <strong>Pro Tip:</strong> Use the sidebar menu (☰) to navigate between modules. 
-                Click the toggle button to collapse the sidebar for more screen space.
+                <strong>Pro Tip:</strong> If you are unsure where to add data, first check the Pathway Navigator section below.
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Render current recommended workflow pathways
+ */
+function renderPathwayNavigator() {
+    return `
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <div class="card h-100 border-success">
+                    <div class="card-body">
+                        <h6 class="text-success mb-2"><i class="bi bi-signpost-2"></i> Recommended for Project Work</h6>
+                        <ol class="mb-2">
+                            <li>Open <strong>Projects</strong> from sidebar</li>
+                            <li>Select your project and open its dashboard</li>
+                            <li>Add project indicators and activities from the same project context</li>
+                        </ol>
+                        <a href="#projects" class="btn btn-sm btn-outline-success">Open Projects</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card h-100 border-primary">
+                    <div class="card-body">
+                        <h6 class="text-primary mb-2"><i class="bi bi-building"></i> AWYAD-Level Indicators</h6>
+                        <p class="mb-2">Use ITT to create organizational indicators. Use Strategic Dashboard to review AWYAD-wide performance after entry.</p>
+                        <a href="#indicators" class="btn btn-sm btn-outline-primary">Open ITT</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mt-1">
+            <div class="col-lg-6">
+                <div class="card h-100 border-secondary">
+                    <div class="card-body">
+                        <h6 class="mb-2"><i class="bi bi-table"></i> Indicator Tracking (ITT)</h6>
+                        <p class="mb-2">Still supports creating both Organizational and Project-Specific indicators.</p>
+                        <a href="#indicators" class="btn btn-sm btn-outline-secondary">Open ITT</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card h-100 border-secondary">
+                    <div class="card-body">
+                        <h6 class="mb-2"><i class="bi bi-calendar-event"></i> Activity Tracking (ATT)</h6>
+                        <p class="mb-2">Use ATT for creating, editing, and maintaining activity records.</p>
+                        <a href="#activities" class="btn btn-sm btn-outline-secondary">Open ATT</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-warning mt-3 mb-0">
+            <i class="bi bi-lightbulb"></i>
+            <strong>Quick Rule:</strong> Create project activities in Projects, Project Dashboard, or ATT. Use the Activity Report form only after the activity has been carried out.
+        </div>
+    `;
+}
+
+/**
+ * Render self-help tools for onboarding
+ */
+function renderSelfHelpToolkit() {
+    return `
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <h6><i class="bi bi-check2-square"></i> First-Day Checklist</h6>
+                <p class="small text-muted mb-2">Check items as you complete them. Progress is saved in your browser.</p>
+                <div class="list-group" id="firstDayChecklist">
+                    <label class="list-group-item d-flex gap-2 align-items-start">
+                        <input class="form-check-input mt-1 help-check" type="checkbox" data-help-check="open-dashboard">
+                        <span>Opened <strong>Strategic Dashboard</strong> and reviewed summary cards</span>
+                    </label>
+                    <label class="list-group-item d-flex gap-2 align-items-start">
+                        <input class="form-check-input mt-1 help-check" type="checkbox" data-help-check="open-project-dashboard">
+                        <span>Opened a <strong>Project Dashboard</strong> from Projects page</span>
+                    </label>
+                    <label class="list-group-item d-flex gap-2 align-items-start">
+                        <input class="form-check-input mt-1 help-check" type="checkbox" data-help-check="create-indicator">
+                        <span>Created one indicator with the correct scope selection</span>
+                    </label>
+                    <label class="list-group-item d-flex gap-2 align-items-start">
+                        <input class="form-check-input mt-1 help-check" type="checkbox" data-help-check="create-activity">
+                        <span>Entered one activity and verified it appears in ATT</span>
+                    </label>
+                    <label class="list-group-item d-flex gap-2 align-items-start">
+                        <input class="form-check-input mt-1 help-check" type="checkbox" data-help-check="export-data">
+                        <span>Exported one report from dashboard, ITT, or ATT</span>
+                    </label>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <small class="text-muted" id="helpChecklistProgress">0/5 completed</small>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="resetHelpChecklistBtn">Reset Checklist</button>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <h6><i class="bi bi-diagram-3"></i> Role-Based Starter Paths</h6>
+                <div class="list-group mb-3">
+                    <div class="list-group-item">
+                        <strong>M&E Officer</strong>
+                        <div class="small text-muted">ITT → Strategic Dashboard → ATT</div>
+                    </div>
+                    <div class="list-group-item">
+                        <strong>Project Manager</strong>
+                        <div class="small text-muted">Projects → Project Dashboard → ATT</div>
+                    </div>
+                    <div class="list-group-item">
+                        <strong>Data Entry User</strong>
+                        <div class="small text-muted">Activity Report Form → ATT validation</div>
+                    </div>
+                </div>
+
+                <h6><i class="bi bi-compass"></i> Not Sure Where to Go?</h6>
+                <div class="list-group">
+                    <a href="#indicators" class="list-group-item list-group-item-action">I need to add an AWYAD organizational indicator</a>
+                    <a href="#projects" class="list-group-item list-group-item-action">I need to add project-level indicator or activity</a>
+                    <a href="#indicators" class="list-group-item list-group-item-action">I need ITT table updates or indicator review</a>
+                    <a href="#activities" class="list-group-item list-group-item-action">I need ATT activity updates</a>
+                    <a href="#entry-form" class="list-group-item list-group-item-action">I need to report a completed activity with full disaggregation</a>
+                </div>
             </div>
         </div>
     `;
@@ -266,13 +416,19 @@ function renderProjectsGuide() {
  */
 function renderIndicatorsGuide() {
     return `
-        <h6>Indicator Workflow:</h6>
+        <h6>Indicator Workflow (Latest):</h6>
         <ol>
-            <li><strong>Create Indicator:</strong> Set code, name, type, targets</li>
-            <li><strong>Link to Activities:</strong> Activities contribute to achievement</li>
+            <li><strong>Choose Scope First:</strong> Organizational (AWYAD-level) or Project-Specific</li>
+            <li><strong>Create Indicator:</strong> Set code, name, level, and targets</li>
+            <li><strong>Set Thematic Areas:</strong> AWYAD indicators can use multiple thematic areas</li>
             <li><strong>Update Progress:</strong> Edit achieved values monthly</li>
             <li><strong>Monitor Status:</strong> Check on-track/at-risk/off-track</li>
         </ol>
+
+        <div class="alert alert-info alert-sm">
+            <strong>Recommendation:</strong> For project-specific indicators, use Project Dashboard for the most guided flow.
+            ITT still supports both scopes.
+        </div>
         
         <h6>Target Types:</h6>
         <ul>
@@ -294,9 +450,10 @@ function renderIndicatorsGuide() {
  */
 function renderActivitiesGuide() {
     return `
-        <h6>Recording an Activity:</h6>
+        <h6>Recording an Activity (Latest):</h6>
         <ol>
-            <li>Click <strong>New Activity Report</strong> in sidebar</li>
+            <li>To create a project activity, start at <strong>Projects</strong>, <strong>Project Dashboard</strong>, or <strong>Activity Tracking (ATT)</strong></li>
+            <li>Use the <strong>Activity Report form</strong> only when the activity has already been carried out and you are reporting results</li>
             <li>Select Project and Indicator</li>
             <li>Enter activity details and location</li>
             <li>Add beneficiary disaggregation:
@@ -318,7 +475,7 @@ function renderActivitiesGuide() {
         </div>
 
         <div class="alert alert-info alert-sm mt-3">
-            <strong>Best Practice:</strong> Enter disaggregation data immediately after activity completion for accuracy.
+            <strong>Best Practice:</strong> Create activities in Project Dashboard or ATT. Use the Activity Report form for post-activity reporting with full disaggregation.
         </div>
     `;
 }
@@ -395,30 +552,20 @@ function renderCommonTasks() {
             <div class="accordion-item">
                 <h2 class="accordion-header">
                     <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#task1">
-                        <strong>How to add a new activity with beneficiaries</strong>
+                        <strong>How to choose the correct pathway before data entry</strong>
                     </button>
                 </h2>
                 <div id="task1" class="accordion-collapse collapse show" data-bs-parent="#tasksAccordion">
                     <div class="accordion-body">
                         <ol>
-                            <li>Click <strong>New Activity Report</strong> in sidebar</li>
-                            <li>Select <strong>Project</strong> from dropdown</li>
-                            <li>Select <strong>Indicator</strong> from dropdown</li>
-                            <li>Enter <strong>Activity Name</strong> (e.g., "Community sensitization on GBV")</li>
-                            <li>Set <strong>Planned Date</strong></li>
-                            <li>Choose <strong>Location</strong></li>
-                            <li>Enter disaggregation:
-                                <ul>
-                                    <li>Refugee Male: 0-4 (5), 5-17 (30), 18-49 (45), 50+ (10)</li>
-                                    <li>Refugee Female: 0-4 (8), 5-17 (35), 18-49 (50), 50+ (12)</li>
-                                </ul>
-                            </li>
-                            <li>System calculates total automatically (195 in this example)</li>
-                            <li>Enter <strong>Budget</strong> if applicable</li>
-                            <li>Click <strong>Save Activity</strong></li>
+                            <li>If the indicator/activity is <strong>project-specific</strong>, start at <strong>Projects</strong> and open Project Dashboard.</li>
+                            <li>If the indicator is <strong>organizational (AWYAD-level)</strong>, start at <strong>Indicator Tracking (ITT)</strong>.</li>
+                            <li>Use <strong>ITT</strong> for direct indicator table operations when needed.</li>
+                            <li>Use <strong>ATT</strong> to create or manage activity records directly.</li>
+                            <li>Use the <strong>Activity Report form</strong> only to report activities that have already happened.</li>
                         </ol>
                         <div class="alert alert-success">
-                            ✅ Activity saved! It will appear in Activity Tracking and count towards indicator achievement.
+                            ✅ Correct pathway selection reduces data entry mistakes and duplicate records.
                         </div>
                     </div>
                 </div>
@@ -428,24 +575,23 @@ function renderCommonTasks() {
             <div class="accordion-item">
                 <h2 class="accordion-header">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#task2">
-                        <strong>How to update indicator achievement</strong>
+                        <strong>How to create a project indicator the recommended way</strong>
                     </button>
                 </h2>
                 <div id="task2" class="accordion-collapse collapse" data-bs-parent="#tasksAccordion">
                     <div class="accordion-body">
                         <ol>
-                            <li>Go to <strong>Indicator Tracking (ITT)</strong></li>
-                            <li>Find your indicator in the table</li>
-                            <li>Click <strong>✏️ Edit</strong> button</li>
-                            <li>Update <strong>Achieved</strong> field with current value</li>
-                            <li>Click <strong>Update Indicator</strong></li>
+                            <li>Open <strong>Projects</strong> and select your project</li>
+                            <li>Open <strong>Project Dashboard</strong></li>
+                            <li>Click <strong>New Indicator</strong> and choose <strong>Project-Specific</strong></li>
+                            <li>Complete project fields and save</li>
+                            <li>Add related activities from the same project context</li>
                         </ol>
-                        <p><strong>System automatically:</strong></p>
+                        <p><strong>System supports:</strong></p>
                         <ul>
-                            <li>Calculates percentage achieved</li>
-                            <li>Updates progress bar color</li>
-                            <li>Reflects in dashboard</li>
-                            <li>Updates variance (Achieved - Target)</li>
+                            <li>Project-specific indicator creation from ITT as well</li>
+                            <li>Scope-aware form validation</li>
+                            <li>Consistent reporting across dashboards and tables</li>
                         </ul>
                     </div>
                 </div>
@@ -455,29 +601,28 @@ function renderCommonTasks() {
             <div class="accordion-item">
                 <h2 class="accordion-header">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#task3">
-                        <strong>How to export data to Excel</strong>
+                        <strong>How to create an organizational indicator with multiple thematic areas</strong>
                     </button>
                 </h2>
                 <div id="task3" class="accordion-collapse collapse" data-bs-parent="#tasksAccordion">
                     <div class="accordion-body">
-                        <p><strong>From Dashboard:</strong></p>
                         <ol>
-                            <li>Navigate to Dashboard</li>
-                            <li>Click <strong>Export Report</strong> button</li>
-                            <li>Excel file downloads with all data</li>
+                            <li>Open <strong>Indicator Tracking (ITT)</strong></li>
+                            <li>Start new indicator and choose <strong>Organizational (AWYAD-level)</strong></li>
+                            <li>Select one or more thematic areas from the list</li>
+                            <li>Save indicator and verify thematic badges in reports</li>
                         </ol>
-                        
-                        <p><strong>From Other Modules:</strong></p>
+
+                        <p><strong>Verification points:</strong></p>
                         <ul>
-                            <li><strong>Projects:</strong> Click "Export Projects"</li>
-                            <li><strong>Indicators:</strong> Click "Export Indicators"</li>
-                            <li><strong>Activities:</strong> Click "Export Activities"</li>
-                            <li><strong>Monthly:</strong> Click "Export Monthly Report"</li>
+                            <li>Indicator appears in ITT with thematic context</li>
+                            <li>Strategic reporting reflects assigned thematic areas</li>
+                            <li>Edit form allows adding/removing thematic selections</li>
                         </ul>
                         
                         <div class="alert alert-info">
-                            <i class="bi bi-file-earmark-excel"></i>
-                            Files are formatted with headers, data tables, and conditional formatting.
+                            <i class="bi bi-grid-3x3-gap"></i>
+                            For many thematic areas, use search and "Select Visible" to work faster.
                         </div>
                     </div>
                 </div>
@@ -487,10 +632,42 @@ function renderCommonTasks() {
             <div class="accordion-item">
                 <h2 class="accordion-header">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#task4">
-                        <strong>How to register a GBV case</strong>
+                        <strong>How to export data to Excel</strong>
                     </button>
                 </h2>
                 <div id="task4" class="accordion-collapse collapse" data-bs-parent="#tasksAccordion">
+                    <div class="accordion-body">
+                        <p><strong>From Dashboard:</strong></p>
+                        <ol>
+                            <li>Navigate to Dashboard</li>
+                            <li>Click <strong>Export Report</strong> button</li>
+                            <li>Excel file downloads with all data</li>
+                        </ol>
+
+                        <p><strong>From Other Modules:</strong></p>
+                        <ul>
+                            <li><strong>Projects:</strong> Click "Export Projects"</li>
+                            <li><strong>Indicators:</strong> Click "Export Indicators"</li>
+                            <li><strong>Activities:</strong> Click "Export Activities"</li>
+                            <li><strong>Monthly:</strong> Click "Export Monthly Report"</li>
+                        </ul>
+
+                        <div class="alert alert-info">
+                            <i class="bi bi-file-earmark-excel"></i>
+                            Files are formatted with headers, data tables, and conditional formatting.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task 5 -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#task5">
+                        <strong>How to register a GBV case</strong>
+                    </button>
+                </h2>
+                <div id="task5" class="accordion-collapse collapse" data-bs-parent="#tasksAccordion">
                     <div class="accordion-body">
                         <ol>
                             <li>Navigate to <strong>Case Management</strong></li>
@@ -527,24 +704,24 @@ function renderTroubleshooting() {
                 <h6>Common Issues:</h6>
                 <div class="list-group">
                     <div class="list-group-item">
-                        <h6 class="mb-1">Year tabs not showing 2024</h6>
+                        <h6 class="mb-1">I created a project indicator in ITT by mistake</h6>
+                        <p class="mb-1"><strong>Solution:</strong> Use Project Dashboard for project-specific workflows going forward</p>
+                        <small class="text-muted">ITT still supports project indicators, but Project Dashboard is the recommended route</small>
+                    </div>
+                    <div class="list-group-item">
+                        <h6 class="mb-1">Indicator form won\'t submit</h6>
+                        <p class="mb-1"><strong>Solution:</strong> Confirm scope is selected first, then complete required fields</p>
+                        <small class="text-muted">Project scope requires project and result area</small>
+                    </div>
+                    <div class="list-group-item">
+                        <h6 class="mb-1">I have many thematic areas and selection feels crowded</h6>
+                        <p class="mb-1"><strong>Solution:</strong> Use thematic search plus "Select Visible" in the indicator form</p>
+                        <small class="text-muted">Selected count confirms exactly what will be saved</small>
+                    </div>
+                    <div class="list-group-item">
+                        <h6 class="mb-1">Page still shows old behavior after updates</h6>
                         <p class="mb-1"><strong>Solution:</strong> Hard refresh browser (Ctrl+Shift+R)</p>
                         <small class="text-muted">Browser cache may show old code</small>
-                    </div>
-                    <div class="list-group-item">
-                        <h6 class="mb-1">Quarterly Progress chart is flat</h6>
-                        <p class="mb-1"><strong>Explanation:</strong> Normal when Q1/Q2/Q3 not set</p>
-                        <small class="text-muted">Annual progress is still accurate</small>
-                    </div>
-                    <div class="list-group-item">
-                        <h6 class="mb-1">Gender chart not displaying</h6>
-                        <p class="mb-1"><strong>Solution:</strong> Hard refresh and check data entry</p>
-                        <small class="text-muted">Ensure activities have male/female counts</small>
-                    </div>
-                    <div class="list-group-item">
-                        <h6 class="mb-1">Project showing N/A for thematic area</h6>
-                        <p class="mb-1"><strong>Solution:</strong> Edit project and assign area</p>
-                        <small class="text-muted">Select from thematic area dropdown</small>
                     </div>
                 </div>
             </div>
@@ -669,15 +846,76 @@ function renderContactInfo() {
 
             <h6 class="mt-4">Documentation:</h6>
             <ul>
-                <li><i class="bi bi-file-text"></i> <a href="USER_MANUAL.md" target="_blank">Full User Manual</a></li>
+                <li><i class="bi bi-file-text"></i> <a href="../docs/USER_MANUAL.md" target="_blank">Full User Manual</a></li>
+                <li><i class="bi bi-people"></i> <a href="../docs/UAT_GUIDE.md" target="_blank">UAT Guide</a></li>
                 <li><i class="bi bi-question-circle"></i> This Help Page (bookmark it!)</li>
                 <li><i class="bi bi-code-square"></i> API Documentation (for developers)</li>
             </ul>
 
             <div class="alert alert-info mt-3">
                 <strong>System Version:</strong> 2.0.0 (Enterprise)<br>
-                <strong>Last Updated:</strong> January 20, 2026
+                <strong>Last Updated:</strong> July 8, 2026
             </div>
         </div>
     `;
+}
+
+/**
+ * Initialize interactive onboarding checklist widgets
+ */
+function initializeSelfHelpToolkit() {
+    const storageKey = 'awyad.help.firstDayChecklist';
+    const checks = Array.from(document.querySelectorAll('.help-check'));
+    const progressEl = document.getElementById('helpChecklistProgress');
+    const resetBtn = document.getElementById('resetHelpChecklistBtn');
+
+    if (!checks.length || !progressEl) {
+        return;
+    }
+
+    const saved = (() => {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch {
+            return {};
+        }
+    })();
+
+    const updateProgress = () => {
+        const completed = checks.filter(chk => chk.checked).length;
+        progressEl.textContent = `${completed}/${checks.length} completed`;
+    };
+
+    const persist = () => {
+        const state = {};
+        checks.forEach(chk => {
+            state[chk.dataset.helpCheck] = chk.checked;
+        });
+        localStorage.setItem(storageKey, JSON.stringify(state));
+    };
+
+    checks.forEach(chk => {
+        const key = chk.dataset.helpCheck;
+        if (Object.prototype.hasOwnProperty.call(saved, key)) {
+            chk.checked = Boolean(saved[key]);
+        }
+
+        chk.addEventListener('change', () => {
+            persist();
+            updateProgress();
+        });
+    });
+
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            checks.forEach(chk => {
+                chk.checked = false;
+            });
+            persist();
+            updateProgress();
+        });
+    }
+
+    updateProgress();
 }
