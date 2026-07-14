@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Password Management Module
  * 
  * Handles password change, password reset, and password strength validation.
@@ -472,7 +472,7 @@ async function changePassword(modal) {
         button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Changing...';
         
         const token = localStorage.getItem('awyad_access_token');
-        const response = await fetch('/api/v1/auth/change-password', {
+        const response = await fetch((window.APP_API_BASE || '/api/v1') + '/auth/change-password', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -495,7 +495,7 @@ async function changePassword(modal) {
         
         // Redirect to login after 2 seconds
         setTimeout(() => {
-            window.location.href = '/login.html';
+            (window.location.href = (window.APP_BASE_PATH || '') + '/login.html');
         }, 2000);
         
     } catch (error) {
@@ -537,7 +537,7 @@ async function adminResetPassword(userId, modal) {
         button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Resetting...';
         
         const token = localStorage.getItem('awyad_access_token');
-        const response = await fetch(`/api/v1/users/${userId}/reset-password`, {
+        const response = await fetch(`${window.APP_API_BASE || '/api/v1'}/users/${userId}/reset-password`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

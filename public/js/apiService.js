@@ -27,7 +27,7 @@ class APIService {
      * @constructor
      */
     constructor() {
-        this.baseURL = '/api/v1';
+        this.baseURL = window.APP_API_BASE || '/api/v1';
         this.authManager = window.authManager;
     }
 

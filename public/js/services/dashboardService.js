@@ -9,7 +9,7 @@
 
 import { authManager } from '../../auth.js';
 
-const API_BASE = '/api/v1';
+const API_BASE = window.APP_API_BASE || '/api/v1';
 
 class DashboardService {
     constructor() {

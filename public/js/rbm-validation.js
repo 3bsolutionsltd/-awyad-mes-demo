@@ -1,11 +1,11 @@
-/**
+﻿/**
  * RBM Validation Queue — front-end controller
  * Vanilla JS, loaded via <script src="/js/rbm-validation.js">
  */
 (function () {
   'use strict';
 
-  const API = '/api/v1/rbm';
+  const API = (window.APP_API_BASE || '/api/v1') + '/rbm';
 
   /* ── Auth helpers ─────────────────────────────────────────── */
   function getToken() {
@@ -16,7 +16,7 @@
   }
   async function apiFetch(path, opts = {}) {
     const res = await fetch(`${API}${path}`, { headers: authHeaders(), ...opts });
-    if (res.status === 401) { window.location.href = '/login.html'; return null; }
+    if (res.status === 401) { (window.location.href = (window.APP_BASE_PATH || '') + '/login.html'); return null; }
     if (!res.ok) {
       const text = await res.text().catch(() => res.statusText);
       throw new Error(text || `HTTP ${res.status}`);
@@ -310,7 +310,7 @@
 
   /* ── Init ────────────────────────────────────────────────── */
   function init() {
-    if (!getToken()) { window.location.href = '/login.html'; return; }
+    if (!getToken()) { (window.location.href = (window.APP_BASE_PATH || '') + '/login.html'); return; }
 
     // User name + logout
     const raw = localStorage.getItem('awyad_user') || sessionStorage.getItem('awyad_user');
@@ -324,7 +324,7 @@
       e.preventDefault();
       localStorage.removeItem('awyad_access_token'); localStorage.removeItem('awyad_user');
       sessionStorage.removeItem('awyad_access_token'); sessionStorage.removeItem('awyad_user');
-      window.location.href = '/login.html';
+      (window.location.href = (window.APP_BASE_PATH || '') + '/login.html');
     });
 
     // Status filter

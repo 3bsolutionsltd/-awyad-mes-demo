@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Enhanced Case Form
  * 
  * CRITICAL: NO NAME FIELD for confidentiality
@@ -512,7 +512,7 @@ class CaseFormEnhanced {
       if (response.success) {
         this.showSuccess(`Case ${this.currentCase ? 'updated' : 'created'} successfully!`);
         setTimeout(() => {
-          window.location.href = '/cases.html';
+          (window.location.href = (window.APP_BASE_PATH || '') + '/cases.html');
         }, 1500);
       }
     } catch (error) {

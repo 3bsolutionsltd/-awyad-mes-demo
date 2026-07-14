@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Enhanced Case List
  * 
  * CRITICAL: NO NAME COLUMN for confidentiality

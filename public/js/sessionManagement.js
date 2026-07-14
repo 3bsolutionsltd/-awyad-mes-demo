@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Session Management UI
  * Allows users to view and manage their active sessions
  */
@@ -332,7 +332,7 @@ export async function renderSessionManagement() {
         if (isCurrentSession) {
           // Current session revoked - redirect to login
           setTimeout(() => {
-            window.location.href = '/login.html';
+            (window.location.href = (window.APP_BASE_PATH || '') + '/login.html');
           }, 1000);
         } else {
           // Reload sessions

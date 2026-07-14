@@ -5,7 +5,7 @@
 
 import apiService from './apiService.js';
 
-const BASE_URL = '/api/v1/monthly-tracking';
+const BASE_URL = (window.APP_API_BASE || '/api/v1') + '/monthly-tracking';
 
 /**
  * Generate monthly snapshot
@@ -293,7 +293,7 @@ export async function getReachVsTargetSummary(projectId = null) {
  */
 export async function getAllProjects() {
     try {
-        const response = await apiService.get('/api/v1/projects');
+        const response = await apiService.get((window.APP_API_BASE || '/api/v1') + '/projects');
         return response.data.projects || [];
     } catch (error) {
         console.error('Error getting projects:', error);

@@ -1,12 +1,12 @@
-/**
+﻿/**
  * rbm-indicators.js
  * Manages create/read/update/deactivate of organizational indicators.
  */
 (function () {
   'use strict';
 
-  const API      = '/api/v1/rbm';
-  const CORE_API = '/api/v1';
+  const API      = (window.APP_API_BASE || '/api/v1') + '/rbm';
+  const CORE_API = window.APP_API_BASE || '/api/v1';
 
   /* ── Auth ─────────────────────────────────────────────────── */
   function getToken() {
@@ -17,7 +17,7 @@
   }
   async function apiFetch(url, opts = {}) {
     const res = await fetch(url, { headers: authHdr(), ...opts });
-    if (res.status === 401) { window.location.href = '/login.html'; return null; }
+    if (res.status === 401) { (window.location.href = (window.APP_BASE_PATH || '') + '/login.html'); return null; }
     const body = await res.json();
     if (!res.ok) throw new Error(body.error || body.message || `HTTP ${res.status}`);
     return body;
@@ -401,7 +401,7 @@
 
   /* ── Init ─────────────────────────────────────────────────── */
   async function init() {
-    if (!getToken()) { window.location.href = '/login.html'; return; }
+    if (!getToken()) { (window.location.href = (window.APP_BASE_PATH || '') + '/login.html'); return; }
 
     _modal       = new bootstrap.Modal(document.getElementById('indicatorModal'));
     _deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
@@ -427,7 +427,7 @@
       e.preventDefault();
       localStorage.removeItem('awyad_access_token'); localStorage.removeItem('awyad_user');
       sessionStorage.removeItem('awyad_access_token'); sessionStorage.removeItem('awyad_user');
-      window.location.href = '/login.html';
+      (window.location.href = (window.APP_BASE_PATH || '') + '/login.html');
     });
 
     await loadThematicAreas();

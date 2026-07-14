@@ -1,7 +1,7 @@
 import { authManager } from '../auth.js';
 import { formatDate } from './utils.js';
 
-const API_BASE = '/api/v1';
+const API_BASE = window.APP_API_BASE || '/api/v1';
 
 /**
  * Render Project Dashboard with tabbed interface

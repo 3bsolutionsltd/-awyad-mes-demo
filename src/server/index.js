@@ -5,6 +5,7 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -26,6 +27,29 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
+
+// Base path for sub-path deployments (e.g. APP_BASE_PATH=/me-platform).
+// Leave blank (or unset) for root deployment (e.g. https://awyad.3bs.ltd).
+const BASE_PATH = (process.env.APP_BASE_PATH || '').replace(/\/$/, '');
+
+// Helper: serve an HTML file with runtime config + optional <base> tag injected.
+const publicDir = path.join(process.cwd(), 'public');
+function serveInjectedHtml(filePath, res) {
+  try {
+    let html = fs.readFileSync(filePath, 'utf8');
+    // <base> tag makes relative URLs (css/*, js/*, *.html) resolve under BASE_PATH
+    if (BASE_PATH) {
+      html = html.replace(/(<head[^>]*>)/i, `$1\n  <base href="${BASE_PATH}/">`);
+    }
+    // Runtime config injected before </head> so every script can read it
+    const cfg = `<script>window.APP_BASE_PATH=${JSON.stringify(BASE_PATH)};` +
+                `window.APP_API_BASE=${JSON.stringify(BASE_PATH + '/api/v1')};</script>`;
+    html = html.replace('</head>', cfg + '\n</head>');
+    res.type('html').send(html);
+  } catch {
+    res.sendStatus(404);
+  }
+}
 
 // Trust the first proxy (Nginx reverse proxy)
 app.set('trust proxy', 1);
@@ -83,7 +107,7 @@ const limiter = rateLimit({
     });
   },
 });
-app.use('/api', limiter);
+app.use((BASE_PATH || '') + '/api', limiter);
 
 // ============ General Middleware ============
 
@@ -100,18 +124,33 @@ app.use(compression());
 // Request logging
 app.use(requestLogger);
 
+// ============ HTML Routes (must come BEFORE express.static) ============
+// Serve all .html files via serveInjectedHtml so APP_BASE_PATH is always
+// available to every page regardless of deployment style.
+
+// Root / index
+app.get(BASE_PATH + '/', (req, res) => serveInjectedHtml(path.join(publicDir, 'index.html'), res));
+if (BASE_PATH) {
+  // Redirect bare /me-platform → /me-platform/
+  app.get(BASE_PATH, (req, res) => res.redirect(301, BASE_PATH + '/'));
+}
+// Any other .html page under the base path
+app.get(BASE_PATH + '/*.html', (req, res) => {
+  const safeName = path.basename(req.path);
+  serveInjectedHtml(path.join(publicDir, safeName), res);
+});
+
 // ============ Static Files ============
 
-// Serve static files from public directory
-app.use(express.static(path.join(process.cwd(), 'public')));
+// Non-HTML static assets (CSS, JS, images, fonts, etc.)
+app.use(BASE_PATH || '/', express.static(publicDir, { index: false }));
 
-// Serve old files from root for backward compatibility (during transition)
-app.use(express.static(process.cwd(), {
+// Backward-compat: also serve root-level JS/CSS files (transition period)
+app.use(BASE_PATH || '/', express.static(process.cwd(), {
   index: false,
   setHeaders: (res, filePath) => {
-    // Only serve specific file types
     if (filePath.endsWith('.js') || filePath.endsWith('.html') || filePath.endsWith('.css')) {
-      res.setHeader('Content-Type', filePath.endsWith('.js') ? 'application/javascript' : 
+      res.setHeader('Content-Type', filePath.endsWith('.js') ? 'application/javascript' :
                                     filePath.endsWith('.html') ? 'text/html' : 'text/css');
     }
   }
@@ -119,19 +158,8 @@ app.use(express.static(process.cwd(), {
 
 // ============ API Routes ============
 
-const API_BASE = process.env.API_BASE_URL || '/api/v1';
+const API_BASE = BASE_PATH + (process.env.API_BASE_URL || '/api/v1');
 app.use(API_BASE, routes);
-
-// ============ Root Route ============
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(process.cwd(), 'public', 'index.html'), (err) => {
-    if (err) {
-      // Fallback to root index.html if public version doesn't exist
-      res.sendFile(path.join(process.cwd(), 'index.html'));
-    }
-  });
-});
 
 // ============ Error Handling ============
 
@@ -179,6 +207,7 @@ const startServer = async () => {
     app.listen(PORT, HOST, () => {
       logger.info(`🚀 Server running at http://${HOST}:${PORT}`);
       logger.info(`📊 API available at http://${HOST}:${PORT}${API_BASE}`);
+    if (BASE_PATH) logger.info(`📂 Base path: ${BASE_PATH}`);
       logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
       logger.info(`💾 Storage: ${useDatabase ? 'PostgreSQL Database' : 'JSON Files'}`);
       logger.info(`✅ Server started successfully`);

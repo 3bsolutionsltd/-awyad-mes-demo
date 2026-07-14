@@ -1,11 +1,11 @@
-/**
+﻿/**
  * rbm-non-prog.js
  * Controller for Non-Program Activities page.
  */
 (function () {
   'use strict';
 
-  const API = '/api/v1/non-program-activities';
+  const API = (window.APP_API_BASE || '/api/v1') + '/non-program-activities';
 
   /* ── Auth ─────────────────────────────────────────────────── */
   function getToken() {
@@ -16,7 +16,7 @@
   }
   async function apiFetch(url, opts = {}) {
     const res = await fetch(url, { headers: authHdr(), ...opts });
-    if (res.status === 401) { window.location.href = '/login.html'; return null; }
+    if (res.status === 401) { (window.location.href = (window.APP_BASE_PATH || '') + '/login.html'); return null; }
     const body = await res.json();
     if (!res.ok) throw new Error(body.error || body.message || `HTTP ${res.status}`);
     return body;
@@ -332,7 +332,7 @@
   /* ── Init ─────────────────────────────────────────────────── */
   document.addEventListener('DOMContentLoaded', () => {
     const token = getToken();
-    if (!token) { window.location.href = '/login.html'; return; }
+    if (!token) { (window.location.href = (window.APP_BASE_PATH || '') + '/login.html'); return; }
 
     showUserName();
 
@@ -341,7 +341,7 @@
       e.preventDefault();
       localStorage.removeItem('awyad_access_token');
       sessionStorage.removeItem('awyad_access_token');
-      window.location.href = '/login.html';
+      (window.location.href = (window.APP_BASE_PATH || '') + '/login.html');
     });
 
     // Filters

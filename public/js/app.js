@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Main Application Entry Point Module
  * 
  * Initializes the AWYAD MES application on page load.
@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Check authentication
             if (!window.authManager.isAuthenticated()) {
                 console.log('User not authenticated, redirecting to login...');
-                window.location.href = '/public/login.html';
+                (window.location.href = (window.APP_BASE_PATH || '') + '/login.html');
                 return;
             }
 

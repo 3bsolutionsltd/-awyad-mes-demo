@@ -1,10 +1,10 @@
-/**
+﻿/**
  * Authentication Module
  * Handles login, logout, token storage, and API authentication
  */
 
 const AUTH_CONFIG = {
-  API_BASE_URL: '/api/v1',
+  API_BASE_URL: window.APP_API_BASE || '/api/v1',
   TOKEN_KEY: 'awyad_access_token',
   REFRESH_TOKEN_KEY: 'awyad_refresh_token',
   USER_KEY: 'awyad_user',
@@ -210,7 +210,7 @@ class AuthManager {
         if (errorData.message && errorData.message.toLowerCase().includes('expired')) {
           console.warn('Token expired, redirecting to login...');
           this.logout();
-          window.location.href = '/login.html';
+          (window.location.href = (window.APP_BASE_PATH || '') + '/login.html');
           throw new Error('Session expired. Please login again.');
         }
       } catch (e) {
@@ -218,7 +218,7 @@ class AuthManager {
         if (response.status === 401) {
           console.warn('Authentication failed, redirecting to login...');
           this.logout();
-          window.location.href = '/login.html';
+          (window.location.href = (window.APP_BASE_PATH || '') + '/login.html');
           throw new Error('Session expired. Please login again.');
         }
       }

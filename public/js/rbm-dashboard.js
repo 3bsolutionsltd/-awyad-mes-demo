@@ -1,11 +1,11 @@
-/**
+﻿/**
  * RBM Dashboard — front-end controller
  * Vanilla JS, no framework. Loads from <script src="/js/rbm-dashboard.js">
  */
 (function () {
   'use strict';
 
-  const API = '/api/v1/rbm';
+  const API = (window.APP_API_BASE || '/api/v1') + '/rbm';
 
   /* ── Auth helpers ─────────────────────────────────────────── */
   function getToken() {
@@ -18,7 +18,7 @@
 
   async function apiFetch(path, opts = {}) {
     const res = await fetch(`${API}${path}`, { headers: authHeaders(), ...opts });
-    if (res.status === 401) { window.location.href = '/login.html'; return null; }
+    if (res.status === 401) { (window.location.href = (window.APP_BASE_PATH || '') + '/login.html'); return null; }
     if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
     return res.json();
   }
@@ -257,7 +257,7 @@
     try {
       const data = await apiFetch('/aggregation/pillar/all').catch(() => null);
       // Fallback: try the general pillars API
-      const pillarsData = data || await fetch('/api/v1/pillars', { headers: authHeaders() })
+      const pillarsData = data || await fetch((window.APP_API_BASE || '/api/v1') + '/pillars', { headers: authHeaders() })
         .then(r => r.ok ? r.json() : null).catch(() => null);
 
       const pillars = Array.isArray(pillarsData) ? pillarsData
@@ -293,8 +293,8 @@
     try {
       // Fetch thematic areas and all org indicators in parallel
       const [taRes, indRes] = await Promise.all([
-        fetch('/api/v1/thematic-areas', { headers: authHeaders() }),
-        fetch('/api/v1/rbm/organizational-indicators', { headers: authHeaders() }),
+        fetch((window.APP_API_BASE || '/api/v1') + '/thematic-areas', { headers: authHeaders() }),
+        fetch((window.APP_API_BASE || '/api/v1') + '/rbm/organizational-indicators', { headers: authHeaders() }),
       ]);
       if (!taRes.ok) throw new Error(`Thematic areas: HTTP ${taRes.status}`);
       const taRaw  = await taRes.json();
@@ -446,7 +446,7 @@
     const sel = document.getElementById('projectTabSelect');
     if (!sel) return;
     try {
-      const res = await fetch('/api/v1/projects?limit=200', { headers: authHeaders() });
+      const res = await fetch((window.APP_API_BASE || '/api/v1') + '/projects?limit=200', { headers: authHeaders() });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const raw = await res.json();
       const rows = Array.isArray(raw) ? raw : (raw?.data?.projects || raw?.projects || raw?.data || []);
@@ -666,8 +666,8 @@
     await ensureChartJs();
 
     async function dashFetch(path) {
-      const res = await fetch(`/api/v1/dashboard${path}`, { headers: authHeaders() });
-      if (res.status === 401) { window.location.href = '/login.html'; return null; }
+      const res = await fetch((window.APP_API_BASE || '/api/v1') + '/dashboard' + path, { headers: authHeaders() });
+      if (res.status === 401) { window.location.href = (window.APP_BASE_PATH || '') + '/login.html'; return null; }
       if (!res.ok) throw new Error(`API error ${res.status}`);
       return res.json();
     }
@@ -997,7 +997,7 @@
 
   /* ── Init ────────────────────────────────────────────────── */
   async function init() {
-    if (!getToken()) { window.location.href = '/login.html'; return; }
+    if (!getToken()) { (window.location.href = (window.APP_BASE_PATH || '') + '/login.html'); return; }
 
     wireFilters();
     wireTrendControls();
@@ -1044,7 +1044,7 @@
       e.preventDefault();
       localStorage.removeItem('awyad_access_token'); localStorage.removeItem('awyad_user');
       sessionStorage.removeItem('awyad_access_token'); sessionStorage.removeItem('awyad_user');
-      window.location.href = '/login.html';
+      (window.location.href = (window.APP_BASE_PATH || '') + '/login.html');
     });
 
     await Promise.allSettled([
